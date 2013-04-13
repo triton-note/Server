@@ -1,5 +1,6 @@
 package models
 
+import play.{Logger => Log}
 import com.amazonaws.auth.BasicAWSCredentials
 import com.amazonaws.services.s3.AmazonS3Client
 import java.io.InputStream
@@ -28,8 +29,12 @@ object Storage {
     }
     None
   }
-  def file(paths: String*) = new file(paths.mkString("/"))
-  class file(val path: String) {
+  def file(paths: String*) = {
+    val path = paths.mkString("/")
+    Log.trace("Creating S3File: " + path)
+    new S3File(path)
+  }
+  class S3File(val path: String) {
     /**
      * ファイルが存在しているかどうかを返す。
      */
@@ -41,6 +46,7 @@ object Storage {
      * 存在していた場合は上書きになる。
      */
     def write(source: InputStream): Boolean = {
+      Log.debug("Storing for S3:%s:%s".format(bucketName, path))
       s3.putObject(bucketName, path, source, new ObjectMetadata())
       true
     }

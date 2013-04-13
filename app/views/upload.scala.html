@@ -1,0 +1,12 @@
+@main("Upload photo") {
+    
+    <table>
+        <tr>
+            @helper.form(action = routes.Photo.add, 'enctype -> "multipart/form-data") {
+                <input type="file" name="photo" />
+                <button type='submit'>Submit</button>
+            }
+        </tr>
+    </table>
+    
+}

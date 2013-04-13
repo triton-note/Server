@@ -1,6 +1,7 @@
 package models
 
 import java.sql.Date
+import scala.slick.session.Session
 import scala.slick.driver.PostgresDriver.simple._
 
 object User extends Table[(String, Long, String, String, Date)]("USER") {
@@ -20,13 +21,22 @@ object Photo extends Table[(Long, String, Date, Option[Long], Option[Long], Stri
   def longitude = column[Long]("longitude")
   def desc = column[String]("description", O.Default(""))
   def * = id ~ path ~ timestamp ~ latitude.? ~ longitude.? ~ desc
+  def addNew(p: String, d: String, t: Option[Date] = None, geoinfo: Option[(Long, Long)] = None) {
+    DB withSession { implicit session: Session =>
+      val time = t.getOrElse(DB.now)
+      geoinfo match {
+        case Some((lati, longi)) => (path ~ timestamp ~ latitude ~ longitude ~ desc).insert((p, time, lati, longi, d))
+        case None                => (path ~ timestamp ~ desc).insert((p, time, d))
+      }
+    }
+  }
 }
 
 object Album extends Table[(Long, Option[Date], Option[String], Date, Date)]("ALBUM") {
   def id = column[Long]("id", O.PrimaryKey, O.AutoInc)
   def date = column[Date]("date")
   def point = column[String]("point")
-  def creation = column[Date]("creation", O.Default(new Date(new java.util.Date().getTime)))
+  def creation = column[Date]("creation", O.NotNull)
   def lastModified = column[Date]("lastModified")
   def * = id ~ date.? ~ point.? ~ creation ~ lastModified
 }
