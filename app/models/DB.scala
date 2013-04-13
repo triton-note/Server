@@ -11,9 +11,15 @@ object DB {
   def withSession[T](f: Session => T) = db.withSession(f)
   val prepared = {
     withSession { implicit session: Session =>
-      (User.ddl ++ Photo.ddl ++ Album.ddl).create
-      (PhotoAlbum.ddl ++ PhotoOwner.ddl ++ AlbumOwner.ddl).create
-      (Comment.ddl ++ PhotoComment.ddl ++ AlbumComment.ddl).create
+      def createTable(t: Table[_]) = {
+        import scala.slick.jdbc.meta.MTable
+        val table = MTable.getTables(t.tableName).firstOption
+        if (table.isEmpty) t.ddl.create
+      }
+      List(
+        User, Photo, Album,
+        PhotoAlbum, PhotoOwner, AlbumOwner,
+        Comment, PhotoComment, AlbumComment).foreach(createTable(_))
     }
   }
 }
