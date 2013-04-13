@@ -5,8 +5,8 @@ import scala.slick.driver.PostgresDriver.simple._
 
 object Comment extends Table[(Long, String, Option[String])]("COMMENT") {
   def id = column[Long]("id", O.PrimaryKey, O.AutoInc)
-  def text = column[String]("text", O.Default(""))
-  def user = column[String]("user")
+  def text = column[String]("text", O.NotNull, O.Default(""))
+  def user = column[String]("user", O.Nullable)
   def * = id ~ text ~ user.?
   def fkUser = foreignKey("user_fk", user, User)(_.account)
 }

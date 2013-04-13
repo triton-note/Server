@@ -17,9 +17,9 @@ object Photo extends Table[(Long, String, Date, Option[Long], Option[Long], Stri
   def id = column[Long]("id", O.PrimaryKey, O.AutoInc)
   def path = column[String]("filepath", O.NotNull)
   def timestamp = column[Date]("timestamp", O.NotNull)
-  def latitude = column[Long]("latitude")
-  def longitude = column[Long]("longitude")
-  def desc = column[String]("description", O.Default(""))
+  def latitude = column[Long]("latitude", O.Nullable)
+  def longitude = column[Long]("longitude", O.Nullable)
+  def desc = column[String]("description", O.NotNull, O.Default(""))
   def * = id ~ path ~ timestamp ~ latitude.? ~ longitude.? ~ desc
   def addNew(p: String, d: String, t: Option[Date] = None, geoinfo: Option[(Long, Long)] = None) {
     DB withSession { implicit session: Session =>
@@ -34,10 +34,10 @@ object Photo extends Table[(Long, String, Date, Option[Long], Option[Long], Stri
 
 object Album extends Table[(Long, Option[Date], Option[String], Date, Date)]("ALBUM") {
   def id = column[Long]("id", O.PrimaryKey, O.AutoInc)
-  def date = column[Date]("date")
-  def point = column[String]("point")
+  def date = column[Date]("date", O.Nullable)
+  def point = column[String]("point", O.Nullable)
   def creation = column[Date]("creation", O.NotNull)
-  def lastModified = column[Date]("lastModified")
+  def lastModified = column[Date]("lastModified", O.Nullable)
   def * = id ~ date.? ~ point.? ~ creation ~ lastModified
 }
 
