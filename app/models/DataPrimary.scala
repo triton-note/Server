@@ -21,13 +21,22 @@ object Photo extends Table[(Long, String, Date, Option[Long], Option[Long], Stri
   def longitude = column[Long]("longitude", O.Nullable)
   def desc = column[String]("description", O.NotNull, O.Default(""))
   def * = id ~ path ~ timestamp ~ latitude.? ~ longitude.? ~ desc
-  def addNew(p: String, d: String, t: Option[Date] = None, geoinfo: Option[(Long, Long)] = None) {
+  /**
+   * Add new photo.
+   * geoinfo is option.
+   */
+  def addNew(p: String, d: String, t: Option[Date] = None, geoinfo: Option[(Long, Long)] = None) = {
     DB withSession { implicit session: Session =>
       val time = t.getOrElse(DB.now)
       geoinfo match {
         case Some((lati, longi)) => (path ~ timestamp ~ latitude ~ longitude ~ desc).insert((p, time, lati, longi, d))
         case None                => (path ~ timestamp ~ desc).insert((p, time, d))
       }
+    }
+  }
+  def all[F, T, G](f: Photo.type => F)(implicit shape: slick.lifted.Shape[F, T, G]) = {
+    DB withSession { implicit session: Session =>
+      Photo.map(f(_)).list
     }
   }
 }

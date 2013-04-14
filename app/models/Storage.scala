@@ -65,5 +65,10 @@ object Storage {
       val obj = s3.getObject(bucketName, path)
       obj.getObjectContent
     }
+    def generateURL(expireSeconds: Long): java.net.URL = {
+      import java.util.Date
+      val date = new Date(new Date().getTime + expireSeconds * 1000)
+      s3.generatePresignedUrl(bucketName, path, date)
+    }
   }
 }

@@ -7,7 +7,7 @@ import _root_.models.Storage
 
 object Photo extends Controller {
   def upload = Action {
-    Ok(views.html.upload.render)
+    Ok(views.html.photo.upload.render)
   }
   def add = Action(parse.multipartFormData) { request =>
     request.body.files.foreach { tmpFile =>
@@ -28,12 +28,20 @@ object Photo extends Controller {
         }
       }
     }
-    Ok(<result status="true"/>)
+    Redirect(routes.Photo.list)
   }
-  def show(id: String) = Action {
+  def show(id: Long) = Action {
     Ok(<ok/>)
   }
   def list = Action {
-    Ok(<ok/>)
+    val photos = for {
+      (id, path, desc) <- models.Photo.all { p =>
+        (p.id, p.path, p.desc)
+      }
+    } yield {
+      val url = models.Storage.file(path).generateURL(60 * 60)
+      (id, url, desc)
+    }
+    Ok(views.html.photo.list.render(photos))
   }
 }

@@ -1,0 +1,22 @@
+@(photos: List[(Long, java.net.URL, String)])
+
+@main("Photo List") {
+    
+    <table>
+        @for(
+            (id, imageURL, desc) <- photos
+        ) {
+            <tr>
+                <tb>
+                    <a href="@routes.Photo.show(id)">
+                        <img src="@imageURL" />
+                    </a>
+                </tb>
+                <tb>
+                    @desc
+                </tb>
+            </tr>
+        }
+    </table>
+    
+}
