@@ -1,16 +1,16 @@
-package models
+package models.db
 
 import play.api.db.{ DB => PlayDB }
 import play.api.Play.current
-import scala.slick.session.Session
-import scala.slick.driver.PostgresDriver.simple._
+import scala.slick.jdbc.meta.MTable
 
 object DB {
-  def now = new java.sql.Date(new java.util.Date().getTime)
+  val simple = scala.slick.driver.PostgresDriver.simple
+  import simple._
+  import Database.threadLocalSession
   lazy val db = Database.forDataSource(PlayDB.getDataSource())
-  def withSession[T](f: Session => T) = db.withSession(f)
   val prepared = {
-    withSession { implicit session: Session =>
+    db withSession {
       def createTable(t: Table[_]) = {
         import scala.slick.jdbc.meta.MTable
         val table = MTable.getTables(t.tableName).firstOption
@@ -19,7 +19,9 @@ object DB {
       List(
         User, Photo, Album,
         PhotoAlbum, PhotoOwner, AlbumOwner,
-        Comment, PhotoComment, AlbumComment).foreach(createTable(_))
+        Comment, CommentPhoto, CommentAlbum).foreach(createTable(_))
     }
   }
+  def withSession[T](f: => T) = db.withSession(f)
+  def now = new java.sql.Timestamp(new java.util.Date().getTime)
 }

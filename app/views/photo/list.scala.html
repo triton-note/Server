@@ -3,18 +3,16 @@
 @main("Photo List") {
     
     <table>
-        @for(
-            (id, imageURL, desc) <- photos
-        ) {
+        @for((id, imageURL, desc) <- photos) {
             <tr>
-                <tb>
+                <td>
                     <a href="@routes.Photo.show(id)">
                         <img src="@imageURL" />
                     </a>
-                </tb>
-                <tb>
+                </td>
+                <td>
                     @desc
-                </tb>
+                </td>
             </tr>
         }
     </table>

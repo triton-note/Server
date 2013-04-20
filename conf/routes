@@ -1,6 +1,6 @@
-GET     /assets/*file               controllers.Assets.at(path="/public", file)
+GET    /assets/*file     controllers.Assets.at(path="/public", file)
 
-GET     /photo/upload               controllers.Photo.upload
-POST    /photo/add                  controllers.Photo.add
-GET     /photo/show/:id             controllers.Photo.show(id: Long)
-GET     /photo/list                 controllers.Photo.list
+GET    /photo/upload     controllers.Photo.upload
+POST   /photo/add        controllers.Photo.add
+GET    /photo/show/:id   controllers.Photo.show(id: Long)
+GET    /photo/list       controllers.Photo.list
