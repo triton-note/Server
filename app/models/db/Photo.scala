@@ -19,7 +19,7 @@ case class Photo(id: Long,
   /**
    * Prepared query for me
    */
-  val me = for {
+  lazy val me = for {
     a <- Photo
     if (a.id === id)
   } yield a

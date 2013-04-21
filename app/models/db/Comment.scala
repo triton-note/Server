@@ -12,7 +12,7 @@ case class Comment(id: Long,
   /**
    * Prepared query for me
    */
-  val me = for {
+  lazy val me = for {
     a <- Comment
     if (a.id === id)
   } yield a
@@ -27,8 +27,8 @@ case class Comment(id: Long,
   /**
    * Change property (like a copy) and update Database
    */
-  def update(user: User = user, text: String = text): Comment = {
-    val n = copy(lastModifiedAt = Some(DB.now), user = user, text = text)
+  def update(theUser: User = user, theText: String = text): Comment = {
+    val n = copy(lastModifiedAt = Some(DB.now), user = theUser, text = theText)
     DB.withSession {
       me.map { a =>
         (a.lastModifiedAt.? ~ a.userId ~ a.text)
@@ -47,7 +47,7 @@ object Comment extends Table[Comment]("COMMENT") {
   // All columns
   def * = id ~ createdAt ~ lastModifiedAt.? ~ userId ~ text <> (
     { t => Comment(t._1, t._2, t._3, User.get(t._4).get, t._5) },
-    { c: Comment => Some(c.id, c.createdAt, c.lastModifiedAt, c.user.id, c.text) })
+    { o => Some(o.id, o.createdAt, o.lastModifiedAt, o.user.id, o.text) })
   /**
    * Bound user
    */
@@ -82,10 +82,9 @@ object CommentAlbum extends Table[(Long, Long)]("ALBUM_COMMENT") {
    * Add new comment to album
    */
   def addNew(theComment: Comment, theAlbum: Album): (Comment, Album) = {
-    val ai = DB withSession {
-      * returning albumId insert (theComment.id, theAlbum.id)
+    DB withSession {
+      * insert (theComment.id, theAlbum.id)
     }
-    assert(ai == theAlbum.id)
     (theComment, theAlbum)
   }
 }
@@ -107,10 +106,9 @@ object CommentPhoto extends Table[(Long, Long)]("PHOTO_COMMENT") {
    * Add new comment to photo
    */
   def addNew(theComment: Comment, thePhoto: Photo): (Comment, Photo) = {
-    val pi = DB withSession {
-      * returning photoId insert (theComment.id, thePhoto.id)
+    DB withSession {
+      * insert (theComment.id, thePhoto.id)
     }
-    assert(pi == thePhoto.id)
     (theComment, thePhoto)
   }
 }

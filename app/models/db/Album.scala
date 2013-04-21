@@ -12,7 +12,7 @@ case class Album(id: Long,
   /**
    * Prepared query for me
    */
-  val me = for {
+  lazy val me = for {
     a <- Album
     if (a.id === id)
   } yield a
@@ -76,10 +76,9 @@ object PhotoAlbum extends Table[(Long, Long)]("PHOTO_ALBUM") {
    * Let album gain photo
    */
   def addNew(photo: Photo, album: Album): (Photo, Album) = {
-    val ai = DB withSession {
-      * returning albumId insert (photo.id, album.id)
+    DB withSession {
+      * insert (photo.id, album.id)
     }
-    assert(ai == album.id)
     (photo, album)
   }
 }

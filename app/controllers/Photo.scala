@@ -1,44 +1,48 @@
 package controllers
 
-import play.{ Logger => Log }
+import play.Logger
 import play.api.mvc._
 import scala.concurrent._
 import models._
+import service.UserCredential.Conversions._
 
-object Photo extends Controller {
-  def upload = Action {
+object Photo extends Controller with securesocial.core.SecureSocial {
+  def upload = SecuredAction { implicit request =>
     Ok(views.html.photo.upload.render)
   }
-  def add = Action(parse.multipartFormData) { request =>
+  def add = SecuredAction(false, None, parse.multipartFormData) { implicit request =>
     request.body.files.foreach { tmpFile =>
       try {
         import java.io._
-        Log.trace("Loading uploaded file: " + tmpFile)
+        Logger.trace("Loading uploaded file: " + tmpFile)
         val ins = new BufferedInputStream(new FileInputStream(tmpFile.ref.file))
-        Log.trace("Created InputStream")
+        Logger.trace("Created InputStream")
         val file = models.Storage.file("user", tmpFile.filename)
-        Log.trace("Start write to Storage")
+        Logger.trace("Start write to Storage")
         val stored = file.write(ins)
-        Log.debug("Stored (" + stored + ") file: " + tmpFile)
-        db.Photo.addNew(file.path, "This is sample")
+        Logger.debug("Stored (" + stored + ") file: " + tmpFile)
+        val photo = db.Photo.addNew(file.path, "This is sample")
+        db.PhotoOwner.addNew(photo, request.user.user)
       } catch {
-        case ex: Throwable => Log.error("Failed to add new photo", ex); throw ex
+        case ex: Throwable => Logger.error("Failed to add new photo", ex); throw ex
       }
     }
     Redirect(routes.Photo.list)
   }
-  def show(id: Long) = Action {
-    db.Photo.getById(id) match {
+  def show(index: Long) = SecuredAction { implicit request =>
+    db.Photo.getById(index) match {
       case Some(photo) => {
         Ok(views.html.photo.show.render(photo.url(), photo.desc, photo.timestamp, photo.geoinfo))
       }
-      case None => Ok("Not found: " + id)
+      case None => Ok("Not found: " + index)
     }
-    
+
   }
-  def list = Action {
+  def list = SecuredAction { implicit request =>
+    val id = request.user
+    Logger.debug("Listing up by identity: %s".format(id))
     val photos = for {
-      photo <- db.Photo.findByOwner(null)
+      photo <- db.Photo.findByOwner(id.user)
     } yield {
       (photo.id, photo.url, photo.desc)
     }

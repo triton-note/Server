@@ -18,10 +18,12 @@ object DB {
       }
       List(
         User, Photo, Album,
+        UserAlias, VolatileToken,
         PhotoAlbum, PhotoOwner, AlbumOwner,
         Comment, CommentPhoto, CommentAlbum).foreach(createTable(_))
     }
   }
   def withSession[T](f: => T) = db.withSession(f)
+  def withTransaction[T](f: => T) = db.withTransaction(f)
   def now = new java.sql.Timestamp(new java.util.Date().getTime)
 }
