@@ -1,17 +1,14 @@
-@(photos: List[(Long, java.net.URL, String)])
+@(photos: List[(Long, java.net.URL)])
 
 @main("Photo List") {
     
     <table>
-        @for((id, imageURL, desc) <- photos) {
+        @for((id, imageURL) <- photos) {
             <tr>
                 <td>
                     <a href="@routes.Photo.show(id)">
                         <img src="@imageURL" />
                     </a>
-                </td>
-                <td>
-                    @desc
                 </td>
             </tr>
         }

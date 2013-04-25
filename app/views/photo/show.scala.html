@@ -1,4 +1,4 @@
-@(imageURL: java.net.URL, desc: String, timestamp: Option[java.util.Date], geoinfo: Option[models.GeoInfo])
+@(imageURL: java.net.URL, timestamp: Option[java.util.Date], geoinfo: Option[models.GeoInfo])
 
 @main("Photo") {
     
@@ -19,11 +19,6 @@
             </td>
             <td>
                 <p>@geoinfo.map { g => "%,d, %,d".format(g.latitude, g.longitude) }</p>
-            </td>
-        </tr>
-        <tr>
-            <td>
-                <p>@desc</p>
             </td>
         </tr>
     </table>

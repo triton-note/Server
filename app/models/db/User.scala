@@ -8,8 +8,10 @@ import com.amazonaws.util.Md5Utils
 case class User(id: Long,
                 createdAt: Timestamp = DB.now,
                 lastModifiedAt: Option[Timestamp] = None,
-                fullname: String,
+                firstName: String,
+                lastName: String,
                 avatarUrl: Option[String] = None) {
+  lazy val fullName = "%s %s".format(firstName, lastName)
   lazy val emails = UserAlias.listOfEmail(this)
   /**
    * Prepared query for me
@@ -30,12 +32,12 @@ case class User(id: Long,
   /**
    * Change properties (like a copy) and update Database
    */
-  def update(theFullname: String = fullname, theAvatarUrl: Option[String] = avatarUrl): User = {
-    val n = copy(lastModifiedAt = Some(DB.now), fullname = theFullname, avatarUrl = theAvatarUrl)
+  def update(theFirstName: String = firstName, theLastName: String = lastName, theAvatarUrl: Option[String] = avatarUrl): User = {
+    val n = copy(lastModifiedAt = Some(DB.now), firstName = theFirstName, lastName = theLastName, avatarUrl = theAvatarUrl)
     DB.withSession {
       me.map { a =>
-        (a.lastModifiedAt.? ~ a.fullname ~ a.avatarUrl.?)
-      }.update(n.lastModifiedAt, n.fullname, n.avatarUrl)
+        (a.lastModifiedAt.? ~ a.firstName ~ a.lastName ~ a.avatarUrl.?)
+      }.update(n.lastModifiedAt, n.firstName, n.lastName, n.avatarUrl)
     }
     n
   }
@@ -44,20 +46,21 @@ object User extends Table[User]("USER") {
   def id = column[Long]("ID", O.PrimaryKey, O.AutoInc)
   def createdAt = column[Timestamp]("CREATED_AT", O.NotNull)
   def lastModifiedAt = column[Timestamp]("LAST_MODIFIED_AT", O.Nullable)
-  def fullname = column[String]("FULLNAME", O.NotNull)
+  def firstName = column[String]("FIRST_NAME", O.NotNull)
+  def lastName = column[String]("LAST_NAME", O.NotNull)
   def avatarUrl = column[String]("AVATAR_URL", O.Nullable)
   // All columns
-  def * = id ~ createdAt ~ lastModifiedAt.?  ~ fullname ~ avatarUrl.? <> (User.apply _, User.unapply _)
+  def * = id ~ createdAt ~ lastModifiedAt.? ~ firstName ~ lastName ~ avatarUrl.? <> (User.apply _, User.unapply _)
   /**
    * Add new user
    */
-  def addNew(theName: String, theAvatarUrl: Option[String]): User = {
+  def addNew(theFirstName: String, theLastName: String, theAvatarUrl: Option[String]): User = {
     val now = DB.now
     val newId = DB withSession {
-      def p = createdAt ~ fullname ~ avatarUrl.?
-      p returning id insert (now, theName, theAvatarUrl)
+      def p = createdAt ~ firstName ~ lastName ~ avatarUrl.?
+      p returning id insert (now, theFirstName, theLastName, theAvatarUrl)
     }
-    User(newId, now, None, theName, theAvatarUrl)
+    User(newId, now, None, theFirstName, theLastName, theAvatarUrl)
   }
   def get(theId: Long): Option[User] = {
     val q = DB withSession {

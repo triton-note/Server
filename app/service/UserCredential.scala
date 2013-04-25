@@ -27,7 +27,7 @@ class UserCredential(application: Application) extends UserServicePlugin(applica
   def save(user: Identity): Identity = {
     import models.db._
     DB withTransaction {
-      val u = User.addNew(user.fullName, user.avatarUrl)
+      val u = User.addNew(user.firstName, user.lastName, user.avatarUrl)
       val a1 = UserAlias.addNew(u, user.id.id, user.id.providerId, 0,
         user.passwordInfo.map(_.password), user.passwordInfo.map(_.hasher))
       val a2 = for {
@@ -67,9 +67,9 @@ object UserCredential {
   object Conversions {
     class AliasIdentity(val alias: models.db.UserAlias) extends Identity {
       lazy val id = UserId(alias.name, alias.domain)
-      lazy val firstName = "" 
-      lazy val lastName = ""
-      lazy val fullName = alias.user.fullname
+      lazy val firstName = alias.user.firstName
+      lazy val lastName = alias.user.lastName
+      lazy val fullName = alias.user.fullName
       lazy val email = alias.email
       lazy val avatarUrl = alias.user.avatarUrl
       lazy val authMethod = AuthenticationMethod.UserPassword
