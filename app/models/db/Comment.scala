@@ -20,7 +20,7 @@ case class Comment(id: Long,
    * Delete me
    */
   def delete = {
-    DB withSession {
+    withSession {
       me.delete
     }
   }
@@ -28,8 +28,8 @@ case class Comment(id: Long,
    * Change property (like a copy) and update Database
    */
   def update(theUser: User = user, theText: String = text): Comment = {
-    val n = copy(lastModifiedAt = Some(DB.now), user = theUser, text = theText)
-    DB.withSession {
+    val n = copy(lastModifiedAt = Some(currentTimestamp), user = theUser, text = theText)
+    withSession {
       me.map { a =>
         (a.lastModifiedAt.? ~ a.userId ~ a.text)
       }.update(n.lastModifiedAt, n.user.id, n.text)
@@ -56,8 +56,8 @@ object Comment extends Table[Comment]("COMMENT") {
    * Add new comment
    */
   def addNew(theUser: User, theText: String): Comment = {
-    val now = DB.now
-    val newId = DB withSession {
+    val now = currentTimestamp
+    val newId = withSession {
       def p = createdAt ~ userId ~ text
       p returning id insert (now, theUser.id, theText)
     }
@@ -82,7 +82,7 @@ object CommentAlbum extends Table[(Long, Long)]("ALBUM_COMMENT") {
    * Add new comment to album
    */
   def addNew(theComment: Comment, theAlbum: Album): (Comment, Album) = {
-    DB withSession {
+    withSession {
       * insert (theComment.id, theAlbum.id)
     }
     (theComment, theAlbum)
@@ -106,7 +106,7 @@ object CommentPhoto extends Table[(Long, Long)]("PHOTO_COMMENT") {
    * Add new comment to photo
    */
   def addNew(theComment: Comment, thePhoto: Photo): (Comment, Photo) = {
-    DB withSession {
+    withSession {
       * insert (theComment.id, thePhoto.id)
     }
     (theComment, thePhoto)

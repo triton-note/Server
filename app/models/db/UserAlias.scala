@@ -6,7 +6,7 @@ import Database.threadLocalSession
 import securesocial.core.providers.UsernamePasswordProvider
 import securesocial.core.providers.FacebookProvider
 
-case class UserAlias(createdAt: Timestamp = DB.now,
+case class UserAlias(createdAt: Timestamp = currentTimestamp,
                      lastModifiedAt: Option[Timestamp] = None,
                      user: User,
                      name: String,
@@ -27,7 +27,7 @@ case class UserAlias(createdAt: Timestamp = DB.now,
    * Delete me
    */
   def delete: Boolean = {
-    val v = DB withSession {
+    val v = withSession {
       me.delete
     }
     v > 0
@@ -36,7 +36,7 @@ case class UserAlias(createdAt: Timestamp = DB.now,
    * Change priority
    */
   def changePriority(thePriority: Int): UserAlias = {
-    DB withSession {
+    withSession {
       me.map(_.priority).update(thePriority)
     }
     copy(priority = thePriority)
@@ -45,7 +45,7 @@ case class UserAlias(createdAt: Timestamp = DB.now,
    * Change password by hashed password and hasher's id
    */
   def changePassword(thePassword: String, theHashing: Option[String] = None): UserAlias = {
-    DB withSession {
+    withSession {
       me.map { o =>
         o.password ~ o.passwordHashing.?
       }.update(thePassword, theHashing)
@@ -77,8 +77,8 @@ object UserAlias extends Table[UserAlias]("USER_ALIAS") {
    */
   def addNew(theUser: User, theName: String, theDomain: String, thePriority: Int,
       thePassword: Option[String] = None, theHashing: Option[String] = None): UserAlias = {
-    val o = UserAlias(DB.now, None, theUser, theName, theDomain, thePriority, thePassword, theHashing)
-    DB withSession {
+    val o = UserAlias(currentTimestamp, None, theUser, theName, theDomain, thePriority, thePassword, theHashing)
+    withSession {
       * insert o
     }
     o
@@ -86,7 +86,7 @@ object UserAlias extends Table[UserAlias]("USER_ALIAS") {
   /**
    * Find a alias
    */
-  def get(theName: String, theDomain: String): Option[UserAlias] = DB withSession {
+  def get(theName: String, theDomain: String): Option[UserAlias] = withSession {
     val q = for {
       o <- UserAlias
       if (o.name === theName)
@@ -101,7 +101,7 @@ object UserAlias extends Table[UserAlias]("USER_ALIAS") {
   /**
    * List by user in specified domain
    */
-  def list(theUser: User, theDomain: String): List[UserAlias] = DB withSession {
+  def list(theUser: User, theDomain: String): List[UserAlias] = withSession {
     val q = for {
       o <- UserAlias
       if (o.userId === theUser.id)

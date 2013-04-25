@@ -26,7 +26,7 @@ case class Photo(id: Long,
    * Delete me
    */
   def delete = {
-    DB withSession {
+    withSession {
       me.delete
     }
   }
@@ -34,18 +34,18 @@ case class Photo(id: Long,
    * Change property (like a copy) and update Database
    */
   def update(thePath: String = path, theTimestamp: Option[Timestamp] = timestamp, theGeoinfo: Option[GeoInfo] = geoinfo): Photo = {
-    val n = copy(lastModifiedAt = Some(DB.now), path = thePath, timestamp = theTimestamp, geoinfo = theGeoinfo)
-    DB.withSession {
+    val n = copy(lastModifiedAt = Some(currentTimestamp), path = thePath, timestamp = theTimestamp, geoinfo = theGeoinfo)
+    withSession {
       me.map { a =>
         (a.lastModifiedAt.? ~ a.path ~ a.timestamp.? ~ a.latitude.? ~ a.longitude.?)
       }.update(n.lastModifiedAt, n.path, n.timestamp, n.geoinfo.map(_.latitude), n.geoinfo.map(_.longitude))
     }
     n
   }
-  def bindTo(user: User) = DB withSession {
+  def bindTo(user: User) = withSession {
     PhotoOwner.addNew(this, user)._1
   }
-  def bindTo(album: Album) = DB withSession {
+  def bindTo(album: Album) = withSession {
     PhotoAlbum.addNew(this, album)._1
   }
 }
@@ -67,8 +67,8 @@ object Photo extends Table[Photo]("PHOTO") {
    * Brand new id will be generated and injected into new Photo instance.
    */
   def addNew(thePath: String, theGeoinfo: Option[GeoInfo] = None, theTimestamp: Option[Timestamp] = None): Photo = {
-    val now = DB.now
-    val newId = DB withSession {
+    val now = currentTimestamp
+    val newId = withSession {
       def p = createdAt ~ path ~ timestamp.? ~ latitude.? ~ longitude.?
       p returning id insert (now, thePath, theTimestamp, theGeoinfo.map(_.latitude), theGeoinfo.map(_.longitude))
     }
@@ -78,7 +78,7 @@ object Photo extends Table[Photo]("PHOTO") {
    * Find specified user's all photo
    */
   def findByOwner(owner: User): List[Photo] = {
-    DB withSession {
+    withSession {
       val q = for {
         o <- PhotoOwner
         if o.userId === owner.id
@@ -91,7 +91,7 @@ object Photo extends Table[Photo]("PHOTO") {
    * Find photo which has given id
    */
   def getById(givenId: Long): Option[Photo] = {
-    DB withSession {
+    withSession {
       val q = for {
         o <- Photo
         if o.id === givenId

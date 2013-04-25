@@ -20,7 +20,7 @@ case class Album(id: Long,
    * Delete me
    */
   def delete = {
-    DB withSession {
+    withSession {
       me.delete
     }
   }
@@ -28,8 +28,8 @@ case class Album(id: Long,
    * Change property (like a copy) and update Database
    */
   def update(date: Option[Timestamp] = date, grounds: Option[String] = grounds): Album = {
-    val n = copy(lastModifiedAt = Some(DB.now), date = date, grounds = grounds)
-    DB.withSession {
+    val n = copy(lastModifiedAt = Some(currentTimestamp), date = date, grounds = grounds)
+    withSession {
       me.map { a =>
         (a.lastModifiedAt.? ~ a.date.? ~ a.grounds.?)
       }.update(n.lastModifiedAt, n.date, n.grounds)
@@ -50,12 +50,12 @@ object Album extends Table[Album]("ALBUM") {
    * Add new album
    */
   def addNew(theDate: Option[Timestamp], theGrounds: Option[String]): Album = {
-    val now = DB.now
-    val newId = DB withSession {
+    val timestamp = currentTimestamp
+    val newId = withSession {
       def p = createdAt ~ date.? ~ grounds.?
-      p returning id insert (now, theDate, theGrounds)
+      p returning id insert (timestamp, theDate, theGrounds)
     }
-    Album(newId, now, None, theDate, theGrounds)
+    Album(newId, timestamp, None, theDate, theGrounds)
   }
 }
 
@@ -76,7 +76,7 @@ object PhotoAlbum extends Table[(Long, Long)]("PHOTO_ALBUM") {
    * Let album gain photo
    */
   def addNew(photo: Photo, album: Album): (Photo, Album) = {
-    DB withSession {
+    withSession {
       * insert (photo.id, album.id)
     }
     (photo, album)

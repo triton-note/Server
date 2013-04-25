@@ -21,7 +21,7 @@ case class VolatileToken(token: String,
    * Delete me
    */
   def delete: Boolean = {
-    val v = DB withSession {
+    val v = withSession {
       me.delete
     }
     v > 0
@@ -41,8 +41,8 @@ object VolatileToken extends Table[VolatileToken]("VOLATILE_TOKEN") {
    * Add new token
    */
   def addNew(theToken: String, theUses: String, willExpired: scala.concurrent.duration.FiniteDuration, extra: Option[String] = None): VolatileToken = {
-    val o = VolatileToken(theToken, theUses, DB.now, new Timestamp(DB.now.getTime + willExpired.toMillis), extra)
-    DB withSession {
+    val o = VolatileToken(theToken, theUses, currentTimestamp, new Timestamp(currentTimestamp.getTime + willExpired.toMillis), extra)
+    withSession {
       * insert o
     }
     o
@@ -50,7 +50,7 @@ object VolatileToken extends Table[VolatileToken]("VOLATILE_TOKEN") {
   /**
    * Obtain specified token
    */
-  def get(theToken: String, theUses: String): Option[VolatileToken] = DB withSession {
+  def get(theToken: String, theUses: String): Option[VolatileToken] = withSession {
     val q = for {
       o <- VolatileToken
       if (o.token === theToken)
@@ -62,10 +62,10 @@ object VolatileToken extends Table[VolatileToken]("VOLATILE_TOKEN") {
    * Delete expired tokens
    * @return number of deleted
    */
-  def deleteExpired(theUses: Option[String]): Int = DB withSession {
+  def deleteExpired(theUses: Option[String]): Int = withSession {
     val q = for {
       o <- VolatileToken
-      if (o.expiration > DB.now)
+      if (o.expiration > currentTimestamp)
     } yield o
     q.delete
   }

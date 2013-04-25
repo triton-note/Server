@@ -21,7 +21,8 @@ object Photo extends Controller with securesocial.core.SecureSocial {
   val formAddingPhoto = Form[AddingPhoto](Forms.mapping(
     "date" -> Forms.date,
     "grounds" -> Forms.nonEmptyText) {
-      (date, grounds) => AddingPhoto(new java.sql.Timestamp(date.getTime), grounds)
+      import db._
+      (date, grounds) => AddingPhoto(date, grounds)
     } {
       AddingPhoto.unapply _
     })
@@ -31,7 +32,7 @@ object Photo extends Controller with securesocial.core.SecureSocial {
       error => {
         BadRequest("NG")
       },
-      adding => db.DB withTransaction {
+      adding => db withTransaction {
         val album = db.Album.addNew(Some(adding.date), Some(adding.grounds))
         request.body.files.foreach { tmpFile =>
           val file = {
@@ -40,8 +41,8 @@ object Photo extends Controller with securesocial.core.SecureSocial {
               new BufferedInputStream(new FileInputStream(tmpFile.ref.file))
             }
             val file = {
-              val filename = "%d %s".format(db.DB.now.getTime, tmpFile.filename)
-              models.Storage.file("photo", user.fullName, filename)
+              val filename = "%d %s".format(System.currentTimeMillis, tmpFile.filename)
+              Storage.file("photo", user.fullName, filename)
             }
             val stored = file.write(ins)
             Logger.debug("Stored (%s) file: %s".format(stored, file))

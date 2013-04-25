@@ -26,7 +26,7 @@ class UserCredential(application: Application) extends UserServicePlugin(applica
 
   def save(user: Identity): Identity = {
     import models.db._
-    DB withTransaction {
+    withTransaction {
       val u = User.addNew(user.firstName, user.lastName, user.avatarUrl)
       val a1 = UserAlias.addNew(u, user.id.id, user.id.providerId, 0,
         user.passwordInfo.map(_.password), user.passwordInfo.map(_.hasher))
@@ -43,7 +43,7 @@ class UserCredential(application: Application) extends UserServicePlugin(applica
   def save(token: Token) {
     val xml = <securesocial-token email={ token.email } isSignUp={ token.isSignUp.toString }/>
     import scala.concurrent.duration._
-    val willExpired = (token.expirationTime.getMillis - models.db.DB.now.getTime).millisecond
+    val willExpired = (token.expirationTime.getMillis - System.currentTimeMillis).millisecond
     val saved = models.db.VolatileToken.addNew(token.uuid, tokenUses, willExpired, Some(xml.toString))
     Logger.debug("Saved token: %s".format(saved))
   }

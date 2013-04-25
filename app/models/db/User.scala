@@ -6,7 +6,7 @@ import Database.threadLocalSession
 import com.amazonaws.util.Md5Utils
 
 case class User(id: Long,
-                createdAt: Timestamp = DB.now,
+                createdAt: Timestamp = currentTimestamp,
                 lastModifiedAt: Option[Timestamp] = None,
                 firstName: String,
                 lastName: String,
@@ -24,7 +24,7 @@ case class User(id: Long,
    * Delete me
    */
   def delete: Boolean = {
-    val v = DB withSession {
+    val v = withSession {
       me.delete
     }
     v > 0
@@ -33,8 +33,8 @@ case class User(id: Long,
    * Change properties (like a copy) and update Database
    */
   def update(theFirstName: String = firstName, theLastName: String = lastName, theAvatarUrl: Option[String] = avatarUrl): User = {
-    val n = copy(lastModifiedAt = Some(DB.now), firstName = theFirstName, lastName = theLastName, avatarUrl = theAvatarUrl)
-    DB.withSession {
+    val n = copy(lastModifiedAt = Some(currentTimestamp), firstName = theFirstName, lastName = theLastName, avatarUrl = theAvatarUrl)
+    withSession {
       me.map { a =>
         (a.lastModifiedAt.? ~ a.firstName ~ a.lastName ~ a.avatarUrl.?)
       }.update(n.lastModifiedAt, n.firstName, n.lastName, n.avatarUrl)
@@ -55,15 +55,15 @@ object User extends Table[User]("USER") {
    * Add new user
    */
   def addNew(theFirstName: String, theLastName: String, theAvatarUrl: Option[String]): User = {
-    val now = DB.now
-    val newId = DB withSession {
+    val now = currentTimestamp
+    val newId = withSession {
       def p = createdAt ~ firstName ~ lastName ~ avatarUrl.?
       p returning id insert (now, theFirstName, theLastName, theAvatarUrl)
     }
     User(newId, now, None, theFirstName, theLastName, theAvatarUrl)
   }
   def get(theId: Long): Option[User] = {
-    val q = DB withSession {
+    val q = withSession {
       for {
         u <- User
         if u.id === theId
@@ -90,7 +90,7 @@ object AlbumOwner extends Table[(Long, Long)]("ALBUM_OWNER") {
    * Let user gain album
    */
   def addNew(album: Album, user: User): (Album, User) = {
-    DB withSession {
+    withSession {
       * insert (album.id, user.id)
     }
     (album, user)
@@ -114,7 +114,7 @@ object PhotoOwner extends Table[(Long, Long)]("PHOTO_OWNER") {
    * Let user gain photo
    */
   def addNew(photo: Photo, user: User): (Photo, User) = {
-    DB withSession {
+    withSession {
       * insert (photo.id, user.id)
     }
     (photo, user)
