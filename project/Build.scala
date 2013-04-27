@@ -8,6 +8,7 @@ object ApplicationBuild extends Build {
   val appVersion      = "0.1.0-SNAPSHOT"
 
   val appDependencies = Seq(
+    "net.databinder.dispatch" %% "dispatch-core" % "0.10.0",
     "securesocial" %% "securesocial" % "master-SNAPSHOT",
     "com.amazonaws" % "aws-java-sdk" % "1.4.1",
     "postgresql" % "postgresql" % "9.1-901-1.jdbc4",
