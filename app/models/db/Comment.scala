@@ -7,8 +7,15 @@ import Database.threadLocalSession
 case class Comment(id: Long,
                    createdAt: Timestamp,
                    lastModifiedAt: Option[Timestamp],
-                   user: User,
+                   userId: Long,
                    text: String) {
+  lazy val user = withSession {
+    val q = for {
+      a <- me
+      b <- a.user
+    } yield b
+    q.first
+  }
   /**
    * Prepared query for me
    */
@@ -25,14 +32,14 @@ case class Comment(id: Long,
     }
   }
   /**
-   * Change property (like a copy) and update Database
+   * Change text
    */
-  def update(theUser: User = user, theText: String = text): Comment = {
-    val n = copy(lastModifiedAt = Some(currentTimestamp), user = theUser, text = theText)
+  def update(theText: String): Comment = {
+    val n = copy(lastModifiedAt = Some(currentTimestamp), text = theText)
     withSession {
       me.map { a =>
-        (a.lastModifiedAt.? ~ a.userId ~ a.text)
-      }.update(n.lastModifiedAt, n.user.id, n.text)
+        (a.lastModifiedAt.? ~ a.text)
+      }.update(n.lastModifiedAt, n.text)
     }
     n
   }
@@ -45,9 +52,7 @@ object Comment extends Table[Comment]("COMMENT") {
   def userId = column[Long]("USER", O.NotNull)
   def text = column[String]("TEXT", O.NotNull, O.Default(""))
   // All columns
-  def * = id ~ createdAt ~ lastModifiedAt.? ~ userId ~ text <> (
-    { t => Comment(t._1, t._2, t._3, User.get(t._4).get, t._5) },
-    { o => Some(o.id, o.createdAt, o.lastModifiedAt, o.user.id, o.text) })
+  def * = id ~ createdAt ~ lastModifiedAt.? ~ userId ~ text <> (Comment.apply _, Comment.unapply _)
   /**
    * Bound user
    */
@@ -61,7 +66,7 @@ object Comment extends Table[Comment]("COMMENT") {
       def p = createdAt ~ userId ~ text
       p returning id insert (now, theUser.id, theText)
     }
-    Comment(newId, now, None, theUser, theText)
+    Comment(newId, now, None, theUser.id, theText)
   }
 }
 
@@ -82,10 +87,16 @@ object CommentAlbum extends Table[(Long, Long)]("ALBUM_COMMENT") {
    * Add new comment to album
    */
   def addNew(theComment: Comment, theAlbum: Album): (Comment, Album) = {
-    withSession {
+    withTransaction {
       * insert (theComment.id, theAlbum.id)
+      val q = for {
+        a <- Comment
+        b <- Album
+        if (a.id === theComment.id)
+        if (b.id === theAlbum.id)
+      } yield (a, b)
+      q.first
     }
-    (theComment, theAlbum)
   }
 }
 
@@ -106,9 +117,15 @@ object CommentPhoto extends Table[(Long, Long)]("PHOTO_COMMENT") {
    * Add new comment to photo
    */
   def addNew(theComment: Comment, thePhoto: Photo): (Comment, Photo) = {
-    withSession {
+    withTransaction {
       * insert (theComment.id, thePhoto.id)
+      val q = for {
+        a <- Comment
+        b <- Photo
+        if (a.id === theComment.id)
+        if (b.id === thePhoto.id)
+      } yield (a, b)
+      q.first
     }
-    (theComment, thePhoto)
   }
 }

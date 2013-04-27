@@ -17,17 +17,18 @@ object Photo extends Controller with securesocial.core.SecureSocial {
   /**
    * Add photo by multipartForm
    */
-  case class AddingPhoto(date: java.sql.Timestamp, grounds: String)
+  case class AddingPhoto(date: java.sql.Timestamp, grounds: String, comment: String)
   val formAddingPhoto = Form[AddingPhoto](Forms.mapping(
     "date" -> Forms.date,
-    "grounds" -> Forms.nonEmptyText) {
+    "grounds" -> Forms.nonEmptyText,
+    "comment" -> Forms.text) {
       import db._
-      (date, grounds) => AddingPhoto(date, grounds)
+      (date, grounds, comment) => AddingPhoto(date, grounds, comment)
     } {
       AddingPhoto.unapply _
     })
   def add = SecuredAction(false, None, parse.multipartFormData) { implicit request =>
-    val user = request.user.user
+    implicit val user = request.user.user
     formAddingPhoto.bindFromRequest.fold(
       error => {
         BadRequest("NG")
@@ -48,7 +49,7 @@ object Photo extends Controller with securesocial.core.SecureSocial {
             Logger.debug("Stored (%s) file: %s".format(stored, file))
             file
           }
-          val photo = db.Photo.addNew(file.path) bindTo user bindTo album
+          val photo = db.Photo.addNew(file.path) bindTo user bindTo album add adding.comment
           Logger.info("Saved photo: %s".format(photo))
         }
         Redirect(routes.Photo.list)

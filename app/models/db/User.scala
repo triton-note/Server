@@ -89,11 +89,17 @@ object AlbumOwner extends Table[(Long, Long)]("ALBUM_OWNER") {
   /**
    * Let user gain album
    */
-  def addNew(album: Album, user: User): (Album, User) = {
+  def addNew(theAlbum: Album, theUser: User): (Album, User) = {
     withSession {
-      * insert (album.id, user.id)
+      * insert (theAlbum.id, theUser.id)
+      val q = for {
+        a <- Album
+        b <- User
+        if (a.id === theAlbum.id)
+        if (b.id === theUser.id)
+      } yield (a, b)
+      q.first
     }
-    (album, user)
   }
 }
 
@@ -113,10 +119,16 @@ object PhotoOwner extends Table[(Long, Long)]("PHOTO_OWNER") {
   /**
    * Let user gain photo
    */
-  def addNew(photo: Photo, user: User): (Photo, User) = {
+  def addNew(thePhoto: Photo, theUser: User): (Photo, User) = {
     withSession {
-      * insert (photo.id, user.id)
+      * insert (thePhoto.id, theUser.id)
+      val q = for {
+        a <- Photo
+        b <- User
+        if (a.id === thePhoto.id)
+        if (b.id === theUser.id)
+      } yield (a, b)
+      q.first
     }
-    (photo, user)
   }
 }

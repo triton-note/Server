@@ -15,6 +15,15 @@ case class Photo(id: Long,
                  geoinfo: Option[GeoInfo]) {
   import scala.concurrent.duration._
   def url(implicit limit: FiniteDuration = 1 minute) = Storage.file(path).generateURL(limit)
+  lazy val comments = withSession {
+    val q = for {
+      a <- me
+      b <- CommentPhoto
+      if (b.photoId === a.id)
+      c <- b.comment
+    } yield c
+    q.sortBy(_.lastModifiedAt).list
+  }
   /**
    * Prepared query for me
    */
@@ -47,6 +56,13 @@ case class Photo(id: Long,
   }
   def bindTo(album: Album) = withSession {
     PhotoAlbum.addNew(this, album)._1
+  }
+  /**
+   * Add comment
+   */
+  def add(text: String)(implicit user: User) = withSession {
+    val comment = Comment.addNew(user, text)
+    CommentPhoto.addNew(comment, this)._2
   }
 }
 
