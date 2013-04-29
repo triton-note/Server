@@ -12,7 +12,7 @@ case class User(id: Long,
                 lastName: String,
                 avatarUrl: Option[String] = None) {
   lazy val fullName = "%s %s".format(firstName, lastName)
-  lazy val emails = UserAlias.listOfEmail(this)
+  lazy val emails = UserAlias.list(this, UserAliasDomain.email).map(_.name)
   /**
    * Prepared query for me
    */

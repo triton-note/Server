@@ -109,5 +109,5 @@ object UserCredential {
       expirationTime = v.expiration,
       isSignUp = xmlValue("isSignUp").map(_.toBoolean) getOrElse false)
   }
-  val tokenUses = models.db.VolatileTokenUsers.SecureSocial
+  val tokenUses = models.db.VolatileTokenUses.SecureSocial
 }

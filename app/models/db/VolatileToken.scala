@@ -48,6 +48,13 @@ object VolatileToken extends Table[VolatileToken]("VOLATILE_TOKEN") {
     o
   }
   /**
+   * Create new token and save to database
+   */
+  def createNew(willExpired: scala.concurrent.duration.FiniteDuration, extra: Option[String] = None): VolatileToken = {
+    val token = play.api.libs.Codecs.sha1(System.currentTimeMillis.toString)
+    addNew(token, VolatileTokenUses.Application, willExpired, extra)
+  }
+  /**
    * Obtain specified token
    */
   def get(theToken: String, theUses: String): Option[VolatileToken] = withSession {
@@ -70,6 +77,7 @@ object VolatileToken extends Table[VolatileToken]("VOLATILE_TOKEN") {
     q.delete
   }
 }
-object VolatileTokenUsers {
+object VolatileTokenUses {
+  val Application = "TritonNote"
   val SecureSocial = "SecureSocial"
 }

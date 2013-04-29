@@ -55,6 +55,20 @@ object Photo extends Controller with securesocial.core.SecureSocial {
         Redirect(routes.Photo.list)
       })
   }
+  def initializePhoto = SecuredAction { implicit request =>
+    //
+    // TODO Load form and some initialization of Photo
+    //
+    implicit val user = request.user.user
+    db.UserAlias.list(user, db.UserAliasDomain.facebook) map { fbUser =>
+      for {
+        ck <- request.cookies.get(Facebook.cookieName)
+        token <- db.VolatileToken.get(ck.value, db.VolatileTokenUses.Application)
+        key <- token.extra
+      } yield key
+    }
+    Ok
+  }
   /**
    * Show specified photo
    */

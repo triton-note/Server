@@ -109,7 +109,16 @@ object UserAlias extends Table[UserAlias]("USER_ALIAS") {
     } yield o
     q.sortBy(_.priority).list
   }
-  def listOfEmail(theUser: User): List[String] = list(theUser, UserAliasDomain.email).map(_.name)
+  /**
+   * List by user in any domain
+   */
+  def list(theUser: User): List[UserAlias] = withSession {
+    val q = for {
+      o <- UserAlias
+      if (o.userId === theUser.id)
+    } yield o
+    q.sortBy(_.domain).sortBy(_.priority).list
+  }
 }
 
 object UserAliasDomain {
