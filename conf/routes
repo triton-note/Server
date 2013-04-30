@@ -1,9 +1,9 @@
 GET    /assets/*file             controllers.Assets.at(path="/public", file)
 
-GET    /photo/upload             controllers.Photo.upload
-POST   /photo/add                controllers.Photo.add
-GET    /photo/show/:id           controllers.Photo.show(id: Long)
-GET    /photo/list               controllers.Photo.list
+GET    /photo/upload             controllers.InitPhoto.upload
+POST   /photo/add                controllers.InitPhoto.add
+GET    /photo/show/:id           controllers.InitPhoto.show(id: Long)
+GET    /photo/list               controllers.InitPhoto.list
 
 # Login page
 GET    /login                    securesocial.controllers.LoginPage.login
