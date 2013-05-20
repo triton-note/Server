@@ -1,26 +1,8 @@
-@(dateList: List[java.util.Date], groundsList: List[String])
+@(analyzedList: List[models.UncommittedPhoto.PreInfo])
 
 @main("Photo Initializing") {
     
     <table>
-        <tr>
-            <td>
-                <img src="@imageURL" />
-            </td>
-        </tr>
-        <tr>
-            <td>
-                <p>@timestamp</p>
-            </td>
-        </tr>
-        <tr>
-            <td>
-                <p>GEOINFO:</p>
-            </td>
-            <td>
-                <p>@geoinfo.map { g => "%,d, %,d".format(g.latitude, g.longitude) }</p>
-            </td>
-        </tr>
     </table>
     
 }

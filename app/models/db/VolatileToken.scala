@@ -26,6 +26,18 @@ case class VolatileToken(token: String,
     }
     v > 0
   }
+  def update(theExtra: Option[String] = extra, theExpiration: Timestamp = expiration) = {
+    val n = copy(extra = theExtra, expiration = theExpiration)
+    withSession {
+      me.map { a =>
+        (a.expiration ~ a.extra.?)
+      }.update(theExpiration, theExtra)
+    }
+    n
+  }
+  def setExtra(xml: scala.xml.Elem) = update(theExtra = Some(xml.toString))
+  def removeExtra = update(theExtra = None)
+  def changeExpiration(theNext: Timestamp) = update(theExpiration = theNext)
 }
 object VolatileToken extends Table[VolatileToken]("VOLATILE_TOKEN") {
   def token = column[String]("TOKEN", O.NotNull)

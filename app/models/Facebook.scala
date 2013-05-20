@@ -3,18 +3,28 @@ package models
 import play.Logger
 import dispatch._
 import Defaults._
-import play.api.libs.json.Json
+import play.api.libs.json._
 
 object Facebook {
   val host = "https://graph.facebook.com/"
   case class AccessKey(token: String)
   object User {
-    def obtain(fields: String*)(implicit accesskey: AccessKey) = {
+    /**
+     * Obtain attributes of user by accessKey.
+     * The attributes is specified by fields.
+     */
+    def obtain(fields: String*)(implicit accesskey: AccessKey): Future[JsValue] = {
       val req = url(host + "me").GET << Map(
         "fields" -> fields.mkString(","),
         "access_token" -> accesskey.token)
       Http(req OK as.String).map(Json.parse)
     }
+    /**
+     * Find UserAlias by given accessKey.
+     * If accessKey is not valid, return None.
+     * If UserAlias is not found, return email which is obtained by accessKey.
+     * If UserAlias is found by email, return UserAlias.
+     */
     def find(implicit accesskey: AccessKey): Future[Option[Either[String, db.UserAlias]]] = {
       obtain("email") map { json =>
         for {
@@ -25,6 +35,10 @@ object Facebook {
         }
       }
     }
+    /**
+     * Create UserAlias by email.
+     * The email is obtained by accessKey.
+     */
     def create(implicit accesskey: AccessKey): Future[Option[db.UserAlias]] = {
       obtain("email", "first_name", "last_name", "picture") map { json =>
         for {
@@ -41,6 +55,11 @@ object Facebook {
         }
       }
     }
+    /**
+     * Find UserAlias by email which is obtained by accessKey.
+     * If UserAlias is not created yet, create it.
+     * If accessKey is not valid, return None.
+     */
     def apply(accesskey: String): Future[Option[db.UserAlias]] = {
       implicit val ak = AccessKey(accesskey)
       find flatMap {

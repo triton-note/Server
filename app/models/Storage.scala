@@ -30,40 +30,39 @@ object Storage {
     None
   }
   def file(paths: String*) = {
-    val path = paths.mkString("/")
-    Log.trace("Creating S3File: " + path)
-    new S3File(path)
+    Log.trace("Creating S3File: " + paths)
+    new S3File(paths.toList)
   }
-  class S3File(val path: String) {
-    /**
-     * ファイルが存在しているかどうかを返す。
-     */
+  class S3File(val paths: List[String]) {
+    lazy val path = paths.mkString("/")
+    lazy val name = paths.last
+    override def toString = f"S3:$path"
     def exists: Boolean = {
       s3.getObjectMetadata(bucketName, path) != null
     }
-    /**
-     * ファイルに書き込む。
-     * 存在していた場合は上書きになる。
-     */
+    def write(src: java.io.File): Boolean = {
+      import java.io._
+      val ins = new BufferedInputStream(new FileInputStream(src))
+      write(ins)
+    }
     def write(source: InputStream): Boolean = {
       Log.debug("Storing for S3:%s:%s".format(bucketName, path))
       s3.putObject(bucketName, path, source, new ObjectMetadata())
       true
     }
-    /**
-     * ファイルを削除する。
-     * 存在していなくても true を返す。
-     */
     def delete: Boolean = {
       s3.deleteObject(bucketName, path)
       true
     }
-    /**
-     * ファイルを読み込む。
-     */
     def read: InputStream = {
       val obj = s3.getObject(bucketName, path)
       obj.getObjectContent
+    }
+    def move(dstPaths: String*): S3File = {
+      val dstFile = new S3File(dstPaths.toList)
+      dstFile write read
+      delete
+      dstFile
     }
     def generateURL(expire: scala.concurrent.duration.FiniteDuration): java.net.URL = {
       import java.util.Date

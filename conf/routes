@@ -1,9 +1,10 @@
 GET    /assets/*file             controllers.Assets.at(path="/public", file)
 
+GET    /photo/init/:accessKey    controllers.InitPhoto.createTokenByFacebook(accessKey: String)
+GET    /photo/info               controllers.InitPhoto.saveInfo
+GET    /photo/showForm           controllers.InitPhoto.showForm
+GET    /photo/submit             controllers.InitPhoto.submit
 GET    /photo/upload             controllers.InitPhoto.upload
-POST   /photo/add                controllers.InitPhoto.add
-GET    /photo/show/:id           controllers.InitPhoto.show(id: Long)
-GET    /photo/list               controllers.InitPhoto.list
 
 # Login page
 GET    /login                    securesocial.controllers.LoginPage.login

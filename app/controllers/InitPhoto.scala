@@ -1,136 +1,123 @@
 package controllers
 
-import play.Logger
-import play.api.data._
-import play.api.mvc._
-import scala.concurrent._
-import models._
-import service.UserCredential.Conversions._
 import scala.concurrent._
 import scala.concurrent.duration._
 
+import play.api.Logger
+import play.api.data._
+import play.api.mvc._
+import play.api.libs.Files._
+import models._
+import models.UncommittedPhoto._
+import service.UserCredential.Conversions._
+
 object InitPhoto extends Controller with securesocial.core.SecureSocial {
-  class CookieToken(val name: String) {
-    def apply(xml: scala.xml.Elem)(implicit dur: FiniteDuration = 1 hour): Cookie = apply(xml.toString)
-    def apply(value: String)(implicit dur: FiniteDuration = 1 hour): Cookie = apply(Some(value))
-    def apply(value: Option[String])(implicit dur: FiniteDuration = 1 hour): Cookie = {
-      val vt = db.VolatileToken.createNew(dur, value)
-      new Cookie(name, vt.token)
-    }
-  }
-  val cookieFacebook = new CookieToken("TritonNote-facebook_accesskey")
-  val cookieUploading = new CookieToken("TritonNote-uploading")
+  val sessionFacebook = new SessionValue("TritonNote-facebook_accesskey", 1 hour)
+  val sessionUploading = new SessionValue("TritonNote-uploading", 1 hour)
   /**
    * Register authorized user to session
    */
-  def completeAuth(user: db.UserAlias)(implicit request: RequestHeader) = {
-    import service.UserCredential.Conversions._
+  private def completeAuth(user: db.UserAlias)(implicit request: RequestHeader): Result = {
     securesocial.controllers.ProviderController.completeAuthentication(user, request.session)
   }
   /**
    * Login as Facebook user
    */
-  def facebook(accesskey: String) = Action { implicit request =>
+  def createTokenByFacebook(accesskey: String) = Action { implicit request =>
     Await.result(Facebook.User(accesskey), 1 minutes) map { user =>
-      completeAuth(user).withCookies(
-        cookieFacebook(accesskey),
-        cookieUploading(None))
+      completeAuth(user).withSession(
+        sessionFacebook(accesskey),
+        sessionUploading())
     } getOrElse Status(401)
   }
   /**
-   * Show page of initializing photo
+   * Save uploaded xml of file info
    */
-  def formInit = SecuredAction { implicit request =>
-    //
-    // TODO give date and grounds by user profile
-    //
-    val dateList = List(db.currentTimestamp)
-    val groundsList = Nil
-    val cs = for {
-      a <- List(cookieFacebook, cookieUploading)
-      c <- request.cookies.get(a.name)
-    } yield c
-    Ok(views.html.photo.init.render(dateList, groundsList)).withCookies(cs: _*)
+  def saveInfo = SecuredAction(false, None, parse.xml) { implicit request =>
+    val ok = for {
+      vt <- sessionUploading(request.session)
+      xml <- request.body.headOption
+      infos <- PreInfo load xml
+    } yield {
+      vt setExtra PreInfo.asXML(infos)
+      inference(vt)
+      Ok("OK")
+    }
+    ok getOrElse BadRequest(<ng>No session</ng>)
+  }
+  /**
+   * Show page of form for initializing photo
+   */
+  def showForm = SecuredAction { implicit request =>
+    val ok = for {
+      vt <- sessionUploading(request.session)
+      ex <- vt.extra
+      xml = scala.xml.XML loadString ex
+      analyzed <- PreInfo load xml
+    } yield Ok(views.html.photo.init.render(analyzed))
+    ok getOrElse BadRequest(<ng>No session</ng>)
   }
   /**
    * Form of initializing photo
    */
-  case class InitInput(date: java.sql.Timestamp, grounds: String, comment: String)
+  case class InitInput(filepath: String, date: java.sql.Timestamp, grounds: String, comment: String)
   val formInitInput = Form[InitInput](Forms.mapping(
+    "filepath" -> Forms.nonEmptyText,
     "date" -> Forms.date,
     "grounds" -> Forms.nonEmptyText,
     "comment" -> Forms.text) {
       import db._
-      (date, grounds, comment) => InitInput(date, grounds, comment)
+      (filepath, date, grounds, comment) => InitInput(filepath, date, grounds, comment)
     } {
       InitInput.unapply _
     })
   /**
-   * Initializing photo and waiting upload complete
+   * Initializing photo info
    */
-  def submitInit = SecuredAction { implicit request =>
+  def submit = SecuredAction { implicit request =>
     formInitInput.bindFromRequest.fold(
       error => {
         BadRequest("Mulformed parameters")
       },
-      adding => {
-        implicit val user = request.user.user
-        for {
-          c <- request.cookies.get(cookieUploading.name)
-          file <- awaitUploading(user, c.value)
-        } yield db withTransaction {
-          val album = db.Album.addNew(Some(adding.date), Some(adding.grounds))
-          val photo = db.Photo.addNew(file.path) bindTo user bindTo album add adding.comment
-          Logger.info("Saved photo: %s".format(photo))
-          db.UserAlias.list(user, db.UserAliasDomain.facebook) map { fbUser =>
-            for {
-              ck <- request.cookies.get(cookieFacebook.name)
-              token <- db.VolatileToken.get(ck.value, db.VolatileTokenUses.Application)
-              key <- token.extra
-            } yield {
-              // TODO Publish to Facebook
+      adding => db.withTransaction {
+        val ok = for {
+          vt <- sessionUploading(request.session)
+          infos = PreInfo.load(vt)
+          info <- infos.find(_.filepath == adding.filepath)
+        } yield {
+          info.committed match {
+            case None => {
+              val next = info.copy(grounds = Some(adding.grounds), date = Some(adding.date), comment = Some(adding.comment))
+              val list = next :: infos.filter(_.filepath != adding.filepath)
+              vt setExtra PreInfo.asXML(list)
+              Ok("Not yet committed")
+            }
+            case Some(id) => db withTransaction {
+              Ok("Updated")
             }
           }
-          Redirect(routes.InitPhoto.show(photo.id))
         }
-      } getOrElse BadRequest("ng"))
+        ok getOrElse BadRequest("NG")
+      })
   }
-  /**
-   * Wait upload complete
-   */
-  def awaitUploading(user: db.User, token: String): Option[Storage.S3File] = {
-    val ins = {
-      import java.io._
-      new BufferedInputStream(new FileInputStream(tmpFile.ref.file))
-    }
-    val file = {
-      val filename = "%d %s".format(System.currentTimeMillis, tmpFile.filename)
-      Storage.file("photo", user.fullName, filename)
-    }
-    val stored = file.write(ins)
-    Logger.debug("Stored (%s) file: %s".format(stored, file))
-    file
-  }
-  /**
-   * Show specified photo
-   */
-  def show(index: Long) = SecuredAction { implicit request =>
-    db.Photo.getById(index) match {
-      case Some(photo) => {
-        Ok(views.html.photo.show.render(photo.url, photo.timestamp, photo.geoinfo))
-      }
-      case None => Ok("Not found: " + index)
-    }
-
-  }
-  def list = SecuredAction { implicit request =>
-    val id = request.user
-    Logger.debug("Listing up by identity: %s".format(id))
-    val photos = for {
-      photo <- db.Photo.findByOwner(id.user)
+  def upload = SecuredAction(false, None, parse.multipartFormData) { implicit request =>
+    val fb = sessionFacebook(request.session)
+    val ok = for {
+      vt <- sessionUploading(request.session).toList
+      info <- PreInfo.load(vt)
+      file <- request.body.files
+      if (info.filepath == file.filename)
     } yield {
-      (photo.id, photo.url)
+      val committed = info.commit(request.user, file.ref.file)
+      for {
+        v <- fb
+        accessKey <- v.extra
+      } yield publishToFacebook(accessKey, committed)
+      Ok("OK")
     }
-    Ok(views.html.photo.list.render(photos))
+    ok.headOption getOrElse BadRequest("NG")
+  }
+  private def publishToFacebook(accessKey: String, info: PreInfo) {
+    // TODO Publish to Facebook
   }
 }
