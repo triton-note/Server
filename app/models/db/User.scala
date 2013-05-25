@@ -101,6 +101,32 @@ object AlbumOwner extends Table[(Long, Long)]("ALBUM_OWNER") {
       q.first
     }
   }
+  /**
+   * Create album if not exist.
+   */
+  def create(theUser: User, theDate: Timestamp, theGrounds: String): Album = withTransaction {
+    findAlbum(theUser, theDate, theGrounds) match {
+      case Some(a) => a
+      case None => {
+        val a = Album.addNew(theDate, theGrounds)
+        addNew(a, theUser)._1
+      }
+    }
+  }
+  /**
+   * Find user's album
+   */
+  def findAlbum(theUser: User, theDate: Timestamp, theGrounds: String): Option[Album] = withTransaction {
+    val q = for {
+      ao <- AlbumOwner
+      if (ao.userId === theUser.id)
+      a <- Album
+      if (a.id === ao.albumId)
+      if (a.date === theDate)
+      if (a.grounds === theGrounds)
+    } yield a
+    q.firstOption
+  }
 }
 
 object PhotoOwner extends Table[(Long, Long)]("PHOTO_OWNER") {

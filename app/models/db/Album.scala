@@ -7,8 +7,8 @@ import Database.threadLocalSession
 case class Album(id: Long,
                  createdAt: Timestamp,
                  lastModifiedAt: Option[Timestamp],
-                 date: Option[Timestamp],
-                 grounds: Option[String]) {
+                 date: Timestamp,
+                 grounds: String) {
   /**
    * Prepared query for me
    */
@@ -27,11 +27,11 @@ case class Album(id: Long,
   /**
    * Change property (like a copy) and update Database
    */
-  def update(date: Option[Timestamp] = date, grounds: Option[String] = grounds): Album = {
+  def update(date: Timestamp = date, grounds: String = grounds): Album = {
     val n = copy(lastModifiedAt = Some(currentTimestamp), date = date, grounds = grounds)
     withSession {
       me.map { a =>
-        (a.lastModifiedAt.? ~ a.date.? ~ a.grounds.?)
+        (a.lastModifiedAt.? ~ a.date ~ a.grounds)
       }.update(n.lastModifiedAt, n.date, n.grounds)
     }
     n
@@ -42,17 +42,17 @@ object Album extends Table[Album]("ALBUM") {
   def id = column[Long]("ID", O.PrimaryKey, O.AutoInc)
   def createdAt = column[Timestamp]("CREATED_AT", O.NotNull)
   def lastModifiedAt = column[Timestamp]("LAST_MODIFIED_AT", O.Nullable)
-  def date = column[Timestamp]("DATE", O.Nullable)
-  def grounds = column[String]("GROUNDS", O.Nullable)
+  def date = column[Timestamp]("DATE", O.NotNull)
+  def grounds = column[String]("GROUNDS", O.NotNull)
   // All columns
-  def * = id ~ createdAt ~ lastModifiedAt.? ~ date.? ~ grounds.? <> (Album.apply _, Album.unapply _)
+  def * = id ~ createdAt ~ lastModifiedAt.? ~ date ~ grounds <> (Album.apply _, Album.unapply _)
   /**
    * Add new album
    */
-  def addNew(theDate: Option[Timestamp], theGrounds: Option[String]): Album = {
+  def addNew(theDate: Timestamp, theGrounds: String): Album = {
     val timestamp = currentTimestamp
     val newId = withSession {
-      def p = createdAt ~ date.? ~ grounds.?
+      def p = createdAt ~ date ~ grounds
       p returning id insert (timestamp, theDate, theGrounds)
     }
     Album(newId, timestamp, None, theDate, theGrounds)

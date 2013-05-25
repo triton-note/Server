@@ -1,7 +1,7 @@
 package models
 
 import scala.concurrent.duration.FiniteDuration
-import play.api.mvc.Session
+import play.api.mvc.Request
 
 class SessionValue(val name: String, val dur: FiniteDuration) {
   def apply(value: String = null): (String, String) = {
@@ -9,7 +9,7 @@ class SessionValue(val name: String, val dur: FiniteDuration) {
     val vt = db.VolatileToken.createNew(dur, v)
     (name, vt.token)
   }
-  def apply(session: Session) = {
-    session.get(name).flatMap { token => db.VolatileToken.get(token, db.VolatileTokenUses.Application) }
+  def apply(req: Request[_]): Option[db.VolatileToken] = {
+    req.session.get(name).flatMap { token => db.VolatileToken.get(token, db.VolatileTokenUses.Application) }
   }
 }

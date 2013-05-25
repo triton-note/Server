@@ -2,6 +2,7 @@ package controllers
 
 import scala.concurrent._
 import scala.concurrent.duration._
+import ExecutionContext.Implicits.global
 
 import play.api.Logger
 import play.api.data._
@@ -28,14 +29,14 @@ object InitPhoto extends Controller with securesocial.core.SecureSocial {
       completeAuth(user).withSession(
         sessionFacebook(accesskey),
         sessionUploading())
-    } getOrElse Status(401)
+    } getOrElse Status(401) // Unauthorized
   }
   /**
    * Save uploaded xml of file info
    */
   def saveInfo = SecuredAction(false, None, parse.xml) { implicit request =>
     val ok = for {
-      vt <- sessionUploading(request.session)
+      vt <- sessionUploading(request)
       xml <- request.body.headOption
       infos <- PreInfo load xml
     } yield {
@@ -43,19 +44,27 @@ object InitPhoto extends Controller with securesocial.core.SecureSocial {
       inference(vt)
       Ok("OK")
     }
-    ok getOrElse BadRequest(<ng>No session</ng>)
+    ok getOrElse BadRequest("No session")
+  }
+  /**
+   * Getting info of photos in session for JavaScript
+   */
+  def getInfos = SecuredAction { implicit request =>
+    val ok = for {
+      vt <- sessionUploading(request)
+      infos = PreInfo load vt
+    } yield Ok(PreInfo asXML infos)
+    ok getOrElse BadRequest("No session")
   }
   /**
    * Show page of form for initializing photo
    */
   def showForm = SecuredAction { implicit request =>
     val ok = for {
-      vt <- sessionUploading(request.session)
-      ex <- vt.extra
-      xml = scala.xml.XML loadString ex
-      analyzed <- PreInfo load xml
-    } yield Ok(views.html.photo.init.render(analyzed))
-    ok getOrElse BadRequest(<ng>No session</ng>)
+      vt <- sessionUploading(request)
+      infos = PreInfo load vt
+    } yield Ok(views.html.photo.init render infos)
+    ok getOrElse BadRequest("No session")
   }
   /**
    * Form of initializing photo
@@ -72,52 +81,44 @@ object InitPhoto extends Controller with securesocial.core.SecureSocial {
       InitInput.unapply _
     })
   /**
-   * Initializing photo info
+   * Set initializing info by user
    */
   def submit = SecuredAction { implicit request =>
+    implicit val user = request.user.user
     formInitInput.bindFromRequest.fold(
       error => {
         BadRequest("Mulformed parameters")
       },
       adding => db.withTransaction {
         val ok = for {
-          vt <- sessionUploading(request.session)
-          infos = PreInfo.load(vt)
-          info <- infos.find(_.filepath == adding.filepath)
+          vt <- sessionUploading(request)
         } yield {
-          info.committed match {
-            case None => {
-              val next = info.copy(grounds = Some(adding.grounds), date = Some(adding.date), comment = Some(adding.comment))
-              val list = next :: infos.filter(_.filepath != adding.filepath)
-              vt setExtra PreInfo.asXML(list)
-              Ok("Not yet committed")
-            }
-            case Some(id) => db withTransaction {
-              Ok("Updated")
-            }
-          }
+          update(vt, adding.filepath, adding.date, adding.grounds, adding.comment)
+          Ok("Updated")
         }
         ok getOrElse BadRequest("NG")
       })
   }
+  /**
+   * Uploaded photo data
+   */
   def upload = SecuredAction(false, None, parse.multipartFormData) { implicit request =>
-    val fb = sessionFacebook(request.session)
+    val publish = sessionFacebook(request).flatMap(_.extra).map(publishToFacebook(_, 3 minutes)_)
     val ok = for {
-      vt <- sessionUploading(request.session).toList
+      vt <- sessionUploading(request).toList
       info <- PreInfo.load(vt)
       file <- request.body.files
-      if (info.filepath == file.filename)
+      if (info.basic.filepath == file.filename)
+      committed <- info.commit(request.user, file.ref.file)
     } yield {
-      val committed = info.commit(request.user, file.ref.file)
-      for {
-        v <- fb
-        accessKey <- v.extra
-      } yield publishToFacebook(accessKey, committed)
+      publish.map(_(committed))
       Ok("OK")
     }
     ok.headOption getOrElse BadRequest("NG")
   }
-  private def publishToFacebook(accessKey: String, info: PreInfo) {
-    // TODO Publish to Facebook
+  private def publishToFacebook(accessKey: String, dur: FiniteDuration = 0 seconds)(info: PreInfo) {
+    Future {
+      // TODO Publish to Facebook
+    }
   }
 }

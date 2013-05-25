@@ -23,7 +23,10 @@ object UncommittedPhoto {
                     <xs:element name="file" minOccurs="1" maxOccurs="unbounded">
                       <xs:complexType>
                         <xs:attribute name="filepath" type="xs:string" use="required"/>
-                        <xs:attribute name="timestamp" type="xs:dateTime" use="required"/>
+                        <xs:attribute name="format" type="xs:string" use="required"/>
+                        <xs:attribute name="width" type="xs:long" use="required"/>
+                        <xs:attribute name="height" type="xs:long" use="required"/>
+                        <xs:attribute name="timestamp" type="xs:dateTime"/>
                         <xs:element name="geoinfo" minOccurs="0" maxOccurs="1">
                           <xs:complexType>
                             <xs:attribute name="latitude" type="xs:double" use="required"/>
@@ -84,51 +87,99 @@ object UncommittedPhoto {
         for {
           info <- (xml \ "file").toList
           filepath <- info \@ "path"
+          format <- info \@ "format"
+          width <- info \# "width"
+          height <- info \# "height"
         } yield {
           val timestamp = (info \@ "timestamp").map(df.parse)
           val geoinfo = for {
-            latitude <- info \# "latitude"
-            longitude <- info \# "longitude"
+            geo <- (info \ "geoinfo").headOption
+            latitude <- geo \# "latitude"
+            longitude <- geo \# "longitude"
           } yield GeoInfo(latitude, longitude)
-          PreInfo(filepath, timestamp, geoinfo)
+          PreInfo(BasicInfo(filepath, format, width.round, height.round, timestamp, geoinfo))
         }
       }
     }
+    /**
+     * Find PreInfo in the given VolatileToken.
+     * if filepath is specified, return only PreInfo which match filepath.
+     */
     def load(vt: db.VolatileToken, filepath: String = null): List[PreInfo] = {
       for {
         ex <- vt.extra.toList
         string <- validate(ex).toList
         list <- load(scala.xml.XML loadString string).toList
         info <- list
-        if (filepath == null || info.filepath == filepath)
+        if (filepath == null || info.basic.filepath == filepath)
       } yield info
     }
     def asXML(infos: List[PreInfo]) = {
       <files>{
         infos map { info =>
-          implicit def ds(v: Option[Double]) = v map { d => f"$d%1.10f" } getOrElse ""
-          <file filepath={ info.filepath } timestamp={ df.format(info.timestamp) } latitude={ info.geoinfo.map(_.latitude) } longitude={ info.geoinfo.map(_.longitude) }/>
+          val b = info.basic
+          <file filepath={ b.filepath } timestamp={ b.timestamp.map(df.format) getOrElse "" }>
+            b.geoinfo.map{ g: GeoInfo =>
+              implicit def ds(d: Double) = f"$d%1.10f"
+              <geoinfo latitude={ g.latitude } longitude={ g.longitude }/>
+            }
+            info.submitted.map{ s: SubmittedInfo =>
+              <submitted date={ df format s.date } grounds={ s.grounds } comment={ s.comment }/>
+            }
+            info.committed.map{ c: Long =>
+              <committed id={ c.toString }/>
+            }
+          </file>
         }
       }</files>
     }
+    case class BasicInfo(filepath: String, format: String, width: Long, height: Long, timestamp: Option[Date], geoinfo: Option[GeoInfo])
+    case class SubmittedInfo(date: Date, grounds: String, comment: String)
   }
-  case class PreInfo(filepath: String, timestamp: Option[Date], geoinfo: Option[GeoInfo],
-                     grounds: Option[String] = None, date: Option[Date] = None, comment: Option[String] = None,
-                     committed: Option[Long] = None) {
-    def commit(user: db.UserAlias, file: File): PreInfo = { /*
-    val album = db.Album.addNew(Some(adding.date), Some(adding.grounds))
-    val photo = db.Photo.addNew(file.path) bindTo user bindTo album add adding.comment
-    Logger.info("Saved photo: %s".format(photo))*/
-      null
+  case class PreInfo(basic: PreInfo.BasicInfo, submitted: Option[PreInfo.SubmittedInfo] = None, committed: Option[Long] = None) {
+    def commit(alias: db.UserAlias, file: File): Option[PreInfo] = committed match {
+      case Some(id) => None
+      case None => submitted.map { s =>
+        import db._
+        withTransaction {
+          implicit val user = alias.user
+          val album = AlbumOwner.create(user, s.date, s.grounds)
+          val photo = Photo.addNew(basic.geoinfo, basic.timestamp.map(a => a)) bindTo user bindTo album add s.comment
+          val data = PhotoData.addNew(store(file).path, "original", photo, basic.format, file.length, basic.width, basic.height)
+          copy(committed = Some(photo.id))
+        }
+      }
+    }
+    def update(date: java.sql.Timestamp, grounds: String, comment: String)(implicit user: db.User): PreInfo = committed match {
+      case None => {
+        val s = PreInfo.SubmittedInfo(date, grounds, comment)
+        copy(submitted = Some(s))
+      }
+      case Some(id) => {
+        val photo = db.Photo.getById(id).get
+        val p = photo add adding.comment
+      }
+    }
+  }
+  def update(vt: db.VolatileToken, filepath: String, date: java.sql.Timestamp, grounds: String, comment: String)(implicit user: db.User) = {
+    val infos = PreInfo load vt
+    for {
+      info <- infos.find(_.basic.filepath == filepath)
+    } yield {
+      val next = info.update(date, grounds, comment)
+      val list = next :: infos.filter(_.basic.filepath != filepath)
+      vt setExtra PreInfo.asXML(list)
     }
   }
   /**
    * Just save to Storage
    */
-  def store(src: File, file: Storage.S3File): Storage.S3File = {
-    val stored = file write src
-    Logger.debug(f"Stored ($stored) file: $file")
-    file
+  def store(src: File): Storage.S3File = {
+    val unique = play.api.libs.Codecs.sha1(System.currentTimeMillis.toString)
+    val s3 = Storage.file(unique, src.getName)
+    val stored = s3 write src
+    Logger.debug(f"Stored (${stored}) $s3")
+    s3
   }
   def inference(vt: db.VolatileToken) {
   }
