@@ -137,27 +137,40 @@ object UncommittedPhoto {
     case class SubmittedInfo(date: Date, grounds: String, comment: String)
   }
   case class PreInfo(basic: PreInfo.BasicInfo, submitted: Option[PreInfo.SubmittedInfo] = None, committed: Option[Long] = None) {
-    def commit(alias: db.UserAlias, file: File): Option[PreInfo] = committed match {
+    import db._
+    def commit(file: File)(implicit user: User): Option[PreInfo] = committed match {
       case Some(id) => None
       case None => submitted.map { s =>
-        import db._
         withTransaction {
-          implicit val user = alias.user
           val album = AlbumOwner.create(user, s.date, s.grounds)
           val photo = Photo.addNew(basic.geoinfo, basic.timestamp.map(a => a)) bindTo user bindTo album add s.comment
-          val data = PhotoData.addNew(store(file).path, "original", photo, basic.format, file.length, basic.width, basic.height)
+          val data = Image.addNew("original", photo, basic.format, file.length, basic.width, basic.height)
+          data.file write file
           copy(committed = Some(photo.id))
         }
       }
     }
-    def update(date: java.sql.Timestamp, grounds: String, comment: String)(implicit user: db.User): PreInfo = committed match {
+    def update(date: java.sql.Timestamp, grounds: String, comment: String)(implicit user: User): PreInfo = committed match {
       case None => {
         val s = PreInfo.SubmittedInfo(date, grounds, comment)
         copy(submitted = Some(s))
       }
       case Some(id) => {
-        val photo = db.Photo.getById(id).get
-        val p = photo add adding.comment
+        val photo = Photo.getById(id).get add comment
+        val a = submitted.get.copy(comment = comment)
+        val b = a.copy(date = date, grounds = grounds)
+        if (a != b) {
+          def findAlbum(s: PreInfo.SubmittedInfo) = photo.findAlbum(s.grounds, s.date)
+          findAlbum(b) match {
+            case None           => db.Album.addNew(b.date, b.grounds)
+            case Some(newAlbum) => Logger.info("The new album has already been associated with this photo.")
+          }
+          findAlbum(a) match {
+            case None           => Logger.warn("The old album is not associated with this photo.")
+            case Some(oldAlbum) => if (oldAlbum.photos.isEmpty) oldAlbum.delete
+          }
+        }
+        copy(submitted = Some(b))
       }
     }
   }
@@ -170,16 +183,6 @@ object UncommittedPhoto {
       val list = next :: infos.filter(_.basic.filepath != filepath)
       vt setExtra PreInfo.asXML(list)
     }
-  }
-  /**
-   * Just save to Storage
-   */
-  def store(src: File): Storage.S3File = {
-    val unique = play.api.libs.Codecs.sha1(System.currentTimeMillis.toString)
-    val s3 = Storage.file(unique, src.getName)
-    val stored = s3 write src
-    Logger.debug(f"Stored (${stored}) $s3")
-    s3
   }
   def inference(vt: db.VolatileToken) {
   }

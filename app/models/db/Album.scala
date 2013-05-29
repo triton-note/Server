@@ -9,6 +9,15 @@ case class Album(id: Long,
                  lastModifiedAt: Option[Timestamp],
                  date: Timestamp,
                  grounds: String) {
+  lazy val photos = withSession {
+    val q = for {
+      a <- me
+      pa <- PhotoAlbum
+      if (pa.albumId === a.id)
+      p <- Photo
+    } yield p
+    q.list
+  }
   /**
    * Prepared query for me
    */
