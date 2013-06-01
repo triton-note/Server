@@ -138,32 +138,32 @@ case class Image(id: Long,
   } yield a
 }
 
-object Image extends Table[Image]("PHOTO_DATA") {
+object Image extends Table[Image]("IMAGE") {
   def id = column[Long]("ID", O.PrimaryKey, O.AutoInc)
   def kind = column[String]("KIND", O.NotNull)
-  def infoId = column[Long]("INFO", O.NotNull)
+  def info = column[Long]("INFO", O.NotNull)
   def createdAt = column[Timestamp]("CREATED_AT", O.NotNull)
   def format = column[String]("FORMAT", O.NotNull)
   def dataSize = column[Long]("DATA_SIZE", O.NotNull)
   def width = column[Long]("WIDTH", O.NotNull)
   def height = column[Long]("HEIGHT", O.NotNull)
   // All columns
-  def * = id ~ kind ~ infoId ~ createdAt ~ format ~ dataSize ~ width ~ height <> (Image.apply _, Image.unapply _)
+  def * = id ~ kind ~ info ~ createdAt ~ format ~ dataSize ~ width ~ height <> (Image.apply _, Image.unapply _)
   /**
    * Bound photo
    */
-  def info = foreignKey("PHOTO_DATA_FK_INFO", infoId, Photo)(_.id)
+  def photo = foreignKey("PHOTO_DATA_FK_INFO", info, Photo)(_.id)
   /**
    * Index for infoId
    */
-  def infoIndex = index("PHOTO_DATA_INDEX_INFO", infoId, true)
+  def infoIndex = index("PHOTO_DATA_INDEX_INFO", info, true)
   /**
    * Add new photo data
    */
   def addNew(theKind: String, theInfo: Photo, theFormat: String, theDataSize: Long, theWidth: Long, theHeight: Long): Image = {
     val now = currentTimestamp
     val newId = withSession {
-      val p = kind ~ infoId ~ createdAt ~ format ~ dataSize ~ width ~ height
+      val p = kind ~ info ~ createdAt ~ format ~ dataSize ~ width ~ height
       p returning id insert (theKind, theInfo.id, now, theFormat, theDataSize, theWidth, theHeight)
     }
     Image(newId, theKind, theInfo.id, now, theFormat, theDataSize, theWidth, theHeight)
@@ -175,6 +175,15 @@ object Image extends Table[Image]("PHOTO_DATA") {
     } yield i
     q.firstOption
   }
+  def findBy(photo: Photo): List[Image] = withSession {
+    val q = for {
+      i <- Image
+      p <- i.photo
+      if p.id is photo.id
+    } yield i
+    q.list
+  }
+  val KIND_ORIGINAL = "original"
 }
 
 case class ImageRelation(imageA: Image,

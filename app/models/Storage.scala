@@ -37,6 +37,10 @@ object Storage {
     lazy val path = paths.mkString("/")
     lazy val name = paths.last
     override def toString = f"S3:$path"
+    def length: Long = {
+      val obj = s3.getObject(bucketName, path)
+      obj.getObjectMetadata.getContentLength
+    }
     def exists: Boolean = {
       s3.getObjectMetadata(bucketName, path) != null
     }

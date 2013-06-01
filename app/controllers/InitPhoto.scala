@@ -3,7 +3,6 @@ package controllers
 import scala.concurrent._
 import scala.concurrent.duration._
 import ExecutionContext.Implicits.global
-
 import play.api.Logger
 import play.api.data._
 import play.api.mvc._
@@ -11,6 +10,7 @@ import play.api.libs.Files._
 import models._
 import models.UncommittedPhoto._
 import service.UserCredential.Conversions._
+import service.PublishPhotoCollection
 
 object InitPhoto extends Controller with securesocial.core.SecureSocial {
   val sessionFacebook = new SessionValue("TritonNote-facebook_accesskey", 1 hour)
@@ -92,33 +92,41 @@ object InitPhoto extends Controller with securesocial.core.SecureSocial {
       adding => db.withTransaction {
         val ok = for {
           vt <- sessionUploading(request)
+          info <- (PreInfo load vt).find(_.basic.filepath == adding.filepath)
         } yield {
-          update(vt, adding.filepath, adding.date, adding.grounds, adding.comment)
+          val next = info.update(adding.date, adding.grounds, adding.comment)
+          update(vt, next)
           Ok("Updated")
         }
         ok getOrElse BadRequest("NG")
-      })
+      }
+    )
   }
   /**
    * Uploaded photo data
    */
   def upload = SecuredAction(false, None, parse.multipartFormData) { implicit request =>
-    val publish = sessionFacebook(request).flatMap(_.extra).map(publishToFacebook(_, 3 minutes)_)
-    val ok = for {
-      vt <- sessionUploading(request).toList
-      info <- PreInfo.load(vt)
-      file <- request.body.files
-      if (info.basic.filepath == file.filename)
-      committed <- info.commit(request.user, file.ref.file)
-    } yield {
-      publish.map(_(committed))
-      Ok("OK")
-    }
-    ok.headOption getOrElse BadRequest("NG")
-  }
-  private def publishToFacebook(accessKey: String, dur: FiniteDuration = 0 seconds)(info: PreInfo) {
-    Future {
-      // TODO Publish to Facebook
+    implicit val user = request.user.user
+    db.withTransaction {
+      def commit(list: List[PreInfo]) = for {
+        file <- request.body.files
+        info <- list.find(_.basic.filepath == file.filename)
+        committed <- info.commit(file.ref.file)
+      } yield committed
+      val ok = for {
+        vt <- sessionUploading(request)
+      } yield {
+        val committed = commit(PreInfo load vt)
+        if (committed.nonEmpty) {
+          val allInfos = update(vt, committed: _*)
+          for {
+            v <- sessionFacebook(request)
+            accessKey <- v.extra
+          } yield PublishPhotoCollection.add(allInfos)(Facebook.AccessKey(accessKey), 10 minutes)
+          Ok("OK")
+        } else BadRequest("NG")
+      }
+      ok getOrElse BadRequest("NG")
     }
   }
 }

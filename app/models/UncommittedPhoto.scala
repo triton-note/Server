@@ -144,7 +144,7 @@ object UncommittedPhoto {
         withTransaction {
           val album = AlbumOwner.create(user, s.date, s.grounds)
           val photo = Photo.addNew(basic.geoinfo, basic.timestamp.map(a => a)) bindTo user bindTo album add s.comment
-          val data = Image.addNew("original", photo, basic.format, file.length, basic.width, basic.height)
+          val data = Image.addNew(Image.KIND_ORIGINAL, photo, basic.format, file.length, basic.width, basic.height)
           data.file write file
           copy(committed = Some(photo.id))
         }
@@ -174,16 +174,18 @@ object UncommittedPhoto {
       }
     }
   }
-  def update(vt: db.VolatileToken, filepath: String, date: java.sql.Timestamp, grounds: String, comment: String)(implicit user: db.User) = {
-    val infos = PreInfo load vt
-    for {
-      info <- infos.find(_.basic.filepath == filepath)
-    } yield {
-      val next = info.update(date, grounds, comment)
-      val list = next :: infos.filter(_.basic.filepath != filepath)
-      vt setExtra PreInfo.asXML(list)
+  /**
+   * Update info which stored in token.
+   */
+  def update(vt: db.VolatileToken, infos: PreInfo*): List[PreInfo] = {
+    val except = (PreInfo load vt) filterNot { i =>
+      infos.find(_.basic.filepath == i.basic.filepath).isDefined
     }
+    val next = infos.toList ::: except
+    vt setExtra PreInfo.asXML(next)
+    next
   }
   def inference(vt: db.VolatileToken) {
+    // TODO Inference date and grounds
   }
 }

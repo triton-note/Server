@@ -4,17 +4,27 @@ import play.Logger
 import dispatch._
 import Defaults._
 import play.api.libs.json._
+import com.ning.http.multipart._
 
 object Facebook {
-  val host = "https://graph.facebook.com/"
+  val fb = host("graph.facebook.com").secure
   case class AccessKey(token: String)
+  case class ObjectId(id: String)
+  def part(file: Storage.S3File): FilePart = {
+    val source = new PartSource {
+      def createInputStream = file.read
+      def getFileName = file.name
+      def getLength = file.length
+    }
+    new FilePart(file.name, source)
+  }
   object User {
     /**
      * Obtain attributes of user by accessKey.
      * The attributes is specified by fields.
      */
     def obtain(fields: String*)(implicit accesskey: AccessKey): Future[JsValue] = {
-      val req = url(host + "me").GET << Map(
+      val req = (fb / "me").GET << Map(
         "fields" -> fields.mkString(","),
         "access_token" -> accesskey.token)
       Http(req OK as.String).map(Json.parse)
@@ -71,6 +81,56 @@ object Facebook {
           case None => Future(None)
         }
       }
+    }
+  }
+  object Publish {
+    def findAlbum(name: String)(implicit accessKey: AccessKey): Future[List[ObjectId]] = {
+      def find(userId: String) = {
+        val req = (fb / "search").GET << Map(
+          "fields" -> "name",
+          "q" -> name,
+          "type" -> "album",
+          "user" -> userId,
+          "access_token" -> accessKey.token)
+        Http(req OK as.String).map(Json.parse)
+      }
+      for {
+        user <- User.obtain("id")
+        res <- Future.sequence {
+          for {
+            userId <- (user \ "id").asOpt[String].toList
+          } yield find(userId)
+        }
+      } yield {
+        for {
+          j <- res
+          id <- (j \ "id").asOpt[String]
+        } yield ObjectId(id)
+      }
+    }
+    def getAlbumOrCreate(name: String, message: Option[String] = None)(implicit accessKey: AccessKey): Future[ObjectId] = {
+      for {
+        found <- findAlbum(name)
+        id <- if (found.isEmpty) makeAlbum(name, message) else Future(found.head)
+      } yield id
+    }
+    def makeAlbum(name: String, message: Option[String] = None)(implicit accessKey: AccessKey): Future[ObjectId] = {
+      val mes = (message.map(m => Map("message" -> m)) getOrElse Map())
+      val req = (fb / "me" / "album").POST << mes << Map(
+        "access_token" -> accessKey.token,
+        "name" -> name
+      )
+      Http(req OK as.String).map(ObjectId(_))
+    }
+    def addPhoto(album: ObjectId)(file: Storage.S3File, message: Option[String] = None)(implicit accessKey: AccessKey): Future[ObjectId] = {
+      val req = {
+        val r = (fb / album.id / "photo").POST addBodyPart part(file)
+        message match {
+          case None    => r
+          case Some(m) => r addBodyPart new StringPart("message", m)
+        }
+      }
+      Http(req OK as.String).map(ObjectId(_))
     }
   }
 }
