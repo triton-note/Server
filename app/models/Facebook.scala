@@ -4,6 +4,7 @@ import play.Logger
 import dispatch._
 import Defaults._
 import play.api.libs.json._
+import play.api.libs.functional.syntax._
 import com.ning.http.multipart._
 
 object Facebook {
@@ -84,34 +85,30 @@ object Facebook {
     }
   }
   object Publish {
-    def findAlbum(name: String)(implicit accessKey: AccessKey): Future[List[ObjectId]] = {
-      def find(userId: String) = {
-        val req = (fb / "search").GET << Map(
-          "fields" -> "name",
-          "q" -> name,
-          "type" -> "album",
-          "user" -> userId,
+    implicit val jsonNameReader = (
+      (__ \ "id").read[String] ~
+      (__ \ "name").read[String]
+    ) tupled
+    def findAlbum(name: String)(implicit accessKey: AccessKey): Future[Option[ObjectId]] = {
+      def find = {
+        val req = (fb / "me" / "albums").GET << Map(
           "access_token" -> accessKey.token)
-        Http(req OK as.String).map(Json.parse)
+        Http(req OK as.String).map(Json.parse).map(_ \ "data").map(_.as[List[(String, String)]])
       }
       for {
-        user <- User.obtain("id")
-        res <- Future.sequence {
-          for {
-            userId <- (user \ "id").asOpt[String].toList
-          } yield find(userId)
-        }
+        albums <- find
       } yield {
-        for {
-          j <- res
-          id <- (j \ "id").asOpt[String]
-        } yield ObjectId(id)
+        val list = for {
+          (albumId, albumName) <- albums
+          if (albumName == name)
+        } yield ObjectId(albumId)
+        list.headOption
       }
     }
     def getAlbumOrCreate(name: String, message: Option[String] = None)(implicit accessKey: AccessKey): Future[ObjectId] = {
       for {
         found <- findAlbum(name)
-        id <- if (found.isEmpty) makeAlbum(name, message) else Future(found.head)
+        id <- if (found.isEmpty) makeAlbum(name, message) else Future(found.get)
       } yield id
     }
     def makeAlbum(name: String, message: Option[String] = None)(implicit accessKey: AccessKey): Future[ObjectId] = {
@@ -120,17 +117,25 @@ object Facebook {
         "access_token" -> accessKey.token,
         "name" -> name
       )
-      Http(req OK as.String).map(ObjectId(_))
+      for {
+        json <- Http(req OK as.String).map(Json.parse)
+      } yield {
+        ObjectId((json \ "id").as[String])
+      }
     }
-    def addPhoto(album: ObjectId)(file: Storage.S3File, message: Option[String] = None)(implicit accessKey: AccessKey): Future[ObjectId] = {
+    def addPhoto(albumId: ObjectId)(file: Storage.S3File, message: Option[String] = None)(implicit accessKey: AccessKey): Future[ObjectId] = {
       val req = {
-        val r = (fb / album.id / "photo").POST addBodyPart part(file)
+        val r = (fb / albumId.id / "photo").POST addBodyPart part(file)
         message match {
           case None    => r
           case Some(m) => r addBodyPart new StringPart("message", m)
         }
       }
-      Http(req OK as.String).map(ObjectId(_))
+      for {
+        json <- Http(req OK as.String).map(Json.parse)
+      } yield {
+        ObjectId((json \ "id").as[String])
+      }
     }
   }
 }
