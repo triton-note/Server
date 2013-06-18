@@ -26,6 +26,10 @@ case class VolatileToken(token: String,
     }
     v > 0
   }
+  /**
+   * Reload form DB
+   */
+  def refresh: Option[VolatileToken] = VolatileToken.get(token, uses)
   def update(theExtra: Option[String] = extra, theExpiration: Timestamp = expiration) = {
     val n = copy(extra = theExtra, expiration = theExpiration)
     withSession {

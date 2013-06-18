@@ -26,14 +26,14 @@ object PublishPhotoCollection {
   /**
    * Facade for adding photo to album
    */
-  def add(all: List[UncommittedPhoto.PreInfo])(implicit accessKey: AccessKey, timer: FiniteDuration) = {
-    val list = find(all).keys.map(_.id).toList
+  def add(all: PreInfo*)(implicit accessKey: AccessKey, timer: FiniteDuration) = {
+    val list = find(all.toList).keys.map(_.id).toList
     import AlbumManager._
     list.distinct.foreach { album =>
-      albums ! Msg.Refresh(album, timer, accessKey, all)
+      albums ! Msg.Refresh(album, timer, accessKey, all.toList)
     }
   }
-  def find(list: List[UncommittedPhoto.PreInfo]): Map[Album, List[(Photo, Option[String])]] = withTransaction {
+  def find(list: List[PreInfo]): Map[Album, List[(Photo, Option[String])]] = withTransaction {
     val map = for {
       info <- list
       id <- info.committed
@@ -65,7 +65,7 @@ object PublishPhotoCollection {
     val albums = actorSystem.actorOf(Props[AlbumManager])
     sealed trait Data
     object Data {
-      case class Store(map: Map[Long, (AccessKey, List[UncommittedPhoto.PreInfo])]) extends Data
+      case class Store(map: Map[Long, (AccessKey, List[PreInfo])]) extends Data
     }
     sealed trait State
     object State {
@@ -73,7 +73,7 @@ object PublishPhotoCollection {
     }
     sealed trait Msg
     object Msg {
-      case class Refresh(albumId: Long, timer: FiniteDuration, accessKey: AccessKey, list: List[UncommittedPhoto.PreInfo]) extends Msg
+      case class Refresh(albumId: Long, timer: FiniteDuration, accessKey: AccessKey, list: List[PreInfo]) extends Msg
       case class Publish(albumId: Long) extends Msg
     }
   }
