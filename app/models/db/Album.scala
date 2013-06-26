@@ -66,6 +66,18 @@ object Album extends Table[Album]("ALBUM") {
     }
     Album(newId, timestamp, None, theDate, theGrounds)
   }
+  /**
+   * Find album which has given id
+   */
+  def get(givenId: Long): Option[Album] = {
+    withSession {
+      val q = for {
+        o <- Album
+        if o.id is givenId
+      } yield o
+      q.firstOption
+    }
+  }
 }
 
 object PhotoAlbum extends Table[(Long, Long)]("PHOTO_ALBUM") {

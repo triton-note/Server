@@ -6,21 +6,42 @@ import java.util.Date
 import models._
 
 object InferencePreInfo {
+  implicit class InferentialPreInfo(info: PreInfo) {
+    def isNearTo(o: PreInfo) = {
+      val r = for {
+        a <- info.basic.geoinfo
+        b <- o.basic.geoinfo
+        d = a distanceTo b
+        if (d < 1000)
+      } yield true
+      r getOrElse false
+    }
+  }
   def initialize(vt: db.VolatileToken, node: scala.xml.Node): Future[List[PreInfo]] = {
     val xml = PreInfo.asXML(PreInfo load node)
-    Future {
-      inference(vt setExtra xml)
-    }
+    inference(vt setExtra xml)
   }
   def submitByUser(vt: db.VolatileToken)(filepath: String, date: Date, grounds: String, comment: String)(implicit user: db.User): Future[Option[PreInfo]] = {
     Future {
-      for {
-        xml <- vt.extra
-        p <- (PreInfo read xml).find(_.basic.filepath == filepath)
-      } yield {
-        val submitted = p.submit(date, grounds, comment)
-        // Refresh inferential info
-        submitted
+      db.withTransaction {
+        for {
+          xml <- vt.extra
+          list = PreInfo read xml
+          p <- list.find(_.basic.filepath == filepath)
+        } yield {
+          val s = p.submit(date, grounds, comment)
+          val n = PreInfo.InferentialInfo(date, grounds)
+          // Refresh inferential info
+          val r = list.map { info =>
+            if (info != s &&
+              info.submitted.isEmpty &&
+              (info isNearTo s)) {
+              info.copy(inference = Some(n))
+            } else info
+          }
+          vt.setExtra(PreInfo asXML r)
+          s
+        }
       }
     }
   }
@@ -54,17 +75,24 @@ object InferencePreInfo {
    * Inference of Date and Grounds.
    * This should finish before submission.
    */
-  def inference(vt: db.VolatileToken): List[PreInfo] = {
-    val all = vt.extra.toList.flatMap(PreInfo.read)
-    val next = all.map { info =>
-      info.submitted match {
-        case Some(_) => info
-        case None => {
-          // Inference
-          info
+  def inference(vt: db.VolatileToken): Future[List[PreInfo]] = Future {
+    db.withTransaction {
+      val all = for {
+        r <- vt.refresh.toList
+        xml <- r.extra.toList
+        info <- PreInfo read xml
+      } yield info
+      val next = all.map { info =>
+        info.inference match {
+          case Some(_) => info
+          case None => {
+            val inf = PreInfo.InferentialInfo(db.currentTimestamp, "")
+            // TODO Inference by referencing all other PreInfos
+            info.copy(inference = Some(inf))
+          }
         }
       }
+      update(vt, next: _*)
     }
-    update(vt, next: _*)
   }
 }

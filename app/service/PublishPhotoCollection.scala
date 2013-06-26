@@ -1,5 +1,6 @@
 package service
 
+import java.util.Date
 import scala.concurrent._
 import scala.concurrent.duration._
 import akka.actor._
@@ -27,35 +28,34 @@ object PublishPhotoCollection {
    * Facade for adding photo to album
    */
   def add(all: PreInfo*)(implicit accessKey: AccessKey, timer: FiniteDuration) = {
-    val list = find(all.toList).keys.map(_.id).toList
+    val list = withTransaction {
+      for {
+        (info, photo) <- findCommitted(all.toList).toList
+        sub <- info.submitted
+        album <- photo.findAlbum(sub.grounds, sub.date)
+      } yield album.id
+    }
     import AlbumManager._
-    list.distinct.foreach { album =>
-      albums ! Msg.Refresh(album, timer, accessKey, all.toList)
+    list.distinct.foreach { albumId =>
+      albums ! Msg.Refresh(albumId, timer, accessKey, all.toList)
     }
   }
-  def find(list: List[PreInfo]): Map[Album, List[(Photo, Option[String])]] = withTransaction {
+  def findCommitted(list: List[PreInfo]): Map[PreInfo, Photo] = {
     val map = for {
       info <- list
       id <- info.committed
       photo <- Photo.getById(id)
-      sub <- info.submitted
-      album <- photo.findAlbum(sub.grounds, sub.date)
-    } yield {
-      val comment = if (sub.comment == null || sub.comment.size <= 0) None else Some(sub.comment)
-      (album, (photo, comment))
-    }
-    for {
-      (album, list) <- map.groupBy(_._1)
-    } yield (album, list.map(_._2))
+    } yield (info, photo)
+    map.toMap
   }
-  def publish(album: Album, photos: List[(Photo, Option[String])])(implicit accessKey: AccessKey) = {
+  def publish(album: Album, photos: Map[Photo, Option[String]])(implicit accessKey: AccessKey): Future[List[ObjectId]] = {
     def addAll(albumId: ObjectId, photos: List[(Photo, Option[String])]) = for {
       (photo, comment) <- photos
       image <- photo.image
     } yield Publish.addPhoto(albumId)(image.file, comment)
     for {
       albumId <- Publish getAlbumOrCreate nameOf(album)
-      r <- Future sequence addAll(albumId, photos)
+      r <- Future sequence addAll(albumId, photos.toList)
     } yield r
   }
   /**
@@ -83,7 +83,7 @@ object PublishPhotoCollection {
     when(State.Running) {
       case Event(Msg.Refresh(albumId, timer, accessKey, list), Data.Store(map)) => map.get(albumId) match {
         case Some(_) => {
-          if (list.size <= find(list).size) self ! Msg.Publish(albumId)
+          if (list.size <= findCommitted(list).size) self ! Msg.Publish(albumId)
           stay using Data.Store(map.updated(albumId, (accessKey, list)))
         }
         case None => {
@@ -94,9 +94,24 @@ object PublishPhotoCollection {
       case Event(Msg.Publish(albumId), Data.Store(map)) => {
         for {
           (key, list) <- map.get(albumId)
-          committed = find(list)
-          (album, photos) <- committed.find(_._1.id == albumId)
-        } publish(album, photos)(key)
+          album <- Album get albumId
+        } {
+          val a = withTransaction {
+            for {
+              (info, photo) <- findCommitted(list)
+              (date, grounds, comment) <- info.submitted match {
+                case Some(s) => Some(s.date, s.grounds, Some(s.comment))
+                case None => info.inference match {
+                  case Some(i) => Some(i.date, i.grounds, None)
+                  case None    => None
+                }
+              }
+              a <- photo.findAlbum(grounds, date)
+              if (a.id == albumId)
+            } yield (photo, comment)
+          }
+          publish(album, a)(key)
+        }
         stay using Data.Store(map - albumId)
       }
     }

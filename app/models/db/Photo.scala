@@ -44,16 +44,16 @@ case class Photo(id: Long,
       me.delete
     }
   }
-  def bindTo(user: User) = withSession {
+  def bindTo(user: User): Photo = withSession {
     PhotoOwner.addNew(this, user)._1
   }
-  def bindTo(album: Album) = withSession {
+  def bindTo(album: Album): Photo = withSession {
     PhotoAlbum.addNew(this, album)._1
   }
   /**
    * Add comment
    */
-  def add(text: String)(implicit user: User) = withSession {
+  def add(text: String)(implicit user: User): Photo = withSession {
     val comment = Comment.addNew(user, text)
     CommentPhoto.addNew(comment, this)._2
   }

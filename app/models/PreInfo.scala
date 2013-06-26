@@ -90,7 +90,30 @@ object PreInfo {
         latitude <- geo \# "latitude"
         longitude <- geo \# "longitude"
       } yield GeoInfo(latitude, longitude)
-      PreInfo(BasicInfo(filepath, format, width.round, height.round, timestamp, geoinfo))
+      PreInfo(
+        BasicInfo(filepath, format, width.round, height.round, timestamp, geoinfo),
+        {
+          for {
+            i <- (info \ "inference").headOption
+            d <- (i \@ "date").map(df.parse)
+            g <- i \@ "grounds"
+          } yield InferentialInfo(d, g)
+        },
+        {
+          for {
+            i <- (info \ "info").headOption
+            d <- (i \@ "date").map(df.parse)
+            g <- i \@ "grounds"
+            c <- i \@ "comment"
+          } yield SubmittedInfo(d, g, c)
+        },
+        {
+          for {
+            c <- (info \ "committed").headOption
+            id <- c \# "id"
+          } yield id.toLong
+        }
+      )
     }
   }
   /**
@@ -102,7 +125,7 @@ object PreInfo {
       info <- load(scala.xml.XML loadString string).toList
     } yield info
   }
-  def asXML(infos: List[PreInfo]) = {
+  def asXML(infos: List[PreInfo]): scala.xml.Elem = {
     <files>{
       infos map { info =>
         val b = info.basic
@@ -110,6 +133,9 @@ object PreInfo {
           b.geoinfo.map{ g: GeoInfo =>
             implicit def ds(d: Double) = f"$d%1.10f"
             <geoinfo latitude={ g.latitude } longitude={ g.longitude }/>
+          }
+          info.inference.map{ i: InferentialInfo =>
+            <inference date={ df format i.date } grounds={ i.grounds }/>
           }
           info.submitted.map{ s: SubmittedInfo =>
             <submitted date={ df format s.date } grounds={ s.grounds } comment={ s.comment }/>
@@ -123,8 +149,12 @@ object PreInfo {
   }
   case class BasicInfo(filepath: String, format: String, width: Long, height: Long, timestamp: Option[Date], geoinfo: Option[GeoInfo])
   case class SubmittedInfo(date: Date, grounds: String, comment: String)
+  case class InferentialInfo(date: Date, grounds: String)
 }
-case class PreInfo(basic: PreInfo.BasicInfo, submitted: Option[PreInfo.SubmittedInfo] = None, committed: Option[Long] = None) {
+case class PreInfo(basic: PreInfo.BasicInfo,
+                   inference: Option[PreInfo.InferentialInfo],
+                   submitted: Option[PreInfo.SubmittedInfo],
+                   committed: Option[Long]) {
   import PreInfo._
   def commit(file: java.io.File)(implicit user: User): Option[PreInfo] = committed match {
     case Some(id) => None
