@@ -49,14 +49,15 @@ object PublishPhotoCollection {
     map.toMap
   }
   def publish(album: Album, photos: Map[Photo, Option[String]])(implicit accessKey: AccessKey): Future[List[ObjectId]] = {
-    def addAll(albumId: ObjectId, photos: List[(Photo, Option[String])]) = for {
+    def addAll(albumIdOpt: Option[ObjectId], photos: List[(Photo, Option[String])]) = for {
       (photo, comment) <- photos
+      albumId <- albumIdOpt
       image <- photo.image
     } yield Publish.addPhoto(albumId)(image.file, comment)
     for {
       albumId <- Publish getAlbumOrCreate nameOf(album)
-      r <- Future sequence addAll(albumId, photos.toList)
-    } yield r
+      list <- Future sequence addAll(albumId, photos.toList)
+    } yield list.flatten
   }
   /**
    * Management of timer and collection photo list of album

@@ -19,16 +19,33 @@ object Facebook {
     }
     new FilePart(file.name, source)
   }
+  object parse {
+    def JSON(res: com.ning.http.client.Response): JsValue = {
+      Json parse res.getResponseBody()
+    }
+    def ObjectID(res: com.ning.http.client.Response): ObjectId = {
+      ObjectId((JSON(res) \ "id").as[String])
+    }
+    def NameID(res: com.ning.http.client.Response): List[(String, String)] = {
+      implicit val jsonNameReader = {
+        (
+          (__ \ "id").read[String] ~
+          (__ \ "name").read[String]
+        ) tupled
+      }
+      (JSON(res) \ "data").as[List[(String, String)]]
+    }
+  }
   object User {
     /**
      * Obtain attributes of user by accessKey.
      * The attributes is specified by fields.
      */
-    def obtain(fields: String*)(implicit accesskey: AccessKey): Future[JsValue] = {
+    def obtain(fields: String*)(implicit accesskey: AccessKey): Future[Option[JsValue]] = {
       val req = (fb / "me").GET << Map(
         "fields" -> fields.mkString(","),
         "access_token" -> accesskey.token)
-      Http(req OK as.String).map(Json.parse)
+      Http(req OK parse.JSON).option
     }
     /**
      * Find UserAlias by given accessKey.
@@ -37,8 +54,9 @@ object Facebook {
      * If UserAlias is found by email, return UserAlias.
      */
     def find(implicit accesskey: AccessKey): Future[Option[Either[String, db.UserAlias]]] = {
-      obtain("email") map { json =>
+      obtain("email") map { opt =>
         for {
+          json <- opt
           email <- (json \ "email").asOpt[String]
         } yield db.UserAlias.get(email, db.UserAliasDomain.facebook) match {
           case Some(user) => Right(user)
@@ -51,8 +69,9 @@ object Facebook {
      * The email is obtained by accessKey.
      */
     def create(implicit accesskey: AccessKey): Future[Option[db.UserAlias]] = {
-      obtain("email", "first_name", "last_name", "picture") map { json =>
+      obtain("email", "first_name", "last_name", "picture") map { opt =>
         for {
+          json <- opt
           email <- (json \ "email").asOpt[String]
           firstName <- (json \ "first_name").asOpt[String]
           lastName <- (json \ "last_name").asOpt[String]
@@ -85,45 +104,41 @@ object Facebook {
     }
   }
   object Publish {
-    implicit val jsonNameReader = (
-      (__ \ "id").read[String] ~
-      (__ \ "name").read[String]
-    ) tupled
     def findAlbum(name: String)(implicit accessKey: AccessKey): Future[Option[ObjectId]] = {
       def find = {
         val req = (fb / "me" / "albums").GET << Map(
           "access_token" -> accessKey.token)
-        Http(req OK as.String).map(Json.parse).map(_ \ "data").map(_.as[List[(String, String)]])
+        Http(req OK parse.NameID).option
       }
       for {
-        albums <- find
+        opt <- find
       } yield {
         val list = for {
+          albums <- opt.toList
           (albumId, albumName) <- albums
           if (albumName == name)
         } yield ObjectId(albumId)
         list.headOption
       }
     }
-    def getAlbumOrCreate(name: String, message: Option[String] = None)(implicit accessKey: AccessKey): Future[ObjectId] = {
+    def getAlbumOrCreate(name: String, message: Option[String] = None)(implicit accessKey: AccessKey): Future[Option[ObjectId]] = {
       for {
         found <- findAlbum(name)
-        id <- if (found.isEmpty) makeAlbum(name, message) else Future(found.get)
+        id <- found match {
+          case None    => makeAlbum(name, message)
+          case Some(_) => Future(found)
+        }
       } yield id
     }
-    def makeAlbum(name: String, message: Option[String] = None)(implicit accessKey: AccessKey): Future[ObjectId] = {
+    def makeAlbum(name: String, message: Option[String] = None)(implicit accessKey: AccessKey): Future[Option[ObjectId]] = {
       val mes = (message.map(m => Map("message" -> m)) getOrElse Map())
       val req = (fb / "me" / "album").POST << mes << Map(
         "access_token" -> accessKey.token,
         "name" -> name
       )
-      for {
-        json <- Http(req OK as.String).map(Json.parse)
-      } yield {
-        ObjectId((json \ "id").as[String])
-      }
+      Http(req OK parse.ObjectID).option
     }
-    def addPhoto(albumId: ObjectId)(file: Storage.S3File, message: Option[String] = None)(implicit accessKey: AccessKey): Future[ObjectId] = {
+    def addPhoto(albumId: ObjectId)(file: Storage.S3File, message: Option[String] = None)(implicit accessKey: AccessKey): Future[Option[ObjectId]] = {
       val req = {
         val r = (fb / albumId.id / "photo").POST addBodyPart part(file)
         message match {
@@ -131,11 +146,7 @@ object Facebook {
           case Some(m) => r addBodyPart new StringPart("message", m)
         }
       }
-      for {
-        json <- Http(req OK as.String).map(Json.parse)
-      } yield {
-        ObjectId((json \ "id").as[String])
-      }
+      Http(req OK parse.ObjectID).option
     }
   }
 }
