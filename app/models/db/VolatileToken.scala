@@ -73,7 +73,7 @@ object VolatileToken extends Table[VolatileToken]("VOLATILE_TOKEN") {
   /**
    * Obtain specified token
    */
-  def get(theToken: String, theUses: String): Option[VolatileToken] = withSession {
+  def get(theToken: String, theUses: String = VolatileTokenUses.Application): Option[VolatileToken] = withSession {
     val q = for {
       o <- VolatileToken
       if (o.token === theToken)

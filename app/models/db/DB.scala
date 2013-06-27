@@ -19,11 +19,23 @@ package db {
           d
         }
         List(
-          User, Photo, Album,
-          UserAlias, VolatileToken,
-          PhotoAlbum, PhotoOwner, AlbumOwner,
-          Comment, CommentPhoto, CommentAlbum).flatMap(createTable(_))
+          UserAlias,
+          User, PhotoOwner, AlbumOwner,
+          Photo, Image, ImageRelation,
+          Album, PhotoAlbum,
+          Comment, CommentPhoto, CommentAlbum,
+          VolatileToken,
+          Geographic
+        ).flatMap(createTable(_))
       }
+    }
+    type HasColumnID = { def id: scala.slick.lifted.Column[Long] }
+    def getById[D](table: DB.simple.Table[D] with HasColumnID)(givenId: Long): Option[D] = withSession {
+      val q = for {
+        o <- table
+        if o.id is givenId
+      } yield o
+      q.firstOption
     }
   }
 }

@@ -4,21 +4,20 @@ import play.api.{ Logger, Application }
 import securesocial.core._
 import securesocial.core.providers.Token
 import securesocial.core.UserId
-import org.mindrot.jbcrypt.BCrypt
 
 class UserCredential(application: Application) extends UserServicePlugin(application) {
   import UserCredential._
   import Conversions._
 
   def find(id: UserId): Option[Identity] = {
-    Logger.debug("Finding user by alias : %s".format(id))
+    Logger.debug(f"Finding user by alias : $id")
     for {
       alias <- models.db.UserAlias.get(id.id, id.providerId)
     } yield alias
   }
 
   def findByEmailAndProvider(email: String, providerId: String): Option[Identity] = {
-    Logger.debug("Finding user by email : %s".format(email))
+    Logger.debug(f"Finding user by email : $email")
     for {
       alias <- models.db.UserAlias.getByEmail(email)
     } yield alias
@@ -34,8 +33,7 @@ class UserCredential(application: Application) extends UserServicePlugin(applica
         email <- user.email
         if (email != a1.name || a1.domain != UserAliasDomain.email)
       } yield UserAlias.addNew(u, email, UserAliasDomain.email, 0)
-      Logger.debug("Saved alias: %s".format(a1))
-      Logger.debug("Saved alias as email: %s".format(a2))
+      Logger.debug(f"Saved alias($a1) as $a2")
       a1
     }
   }
@@ -89,7 +87,7 @@ object UserCredential {
      */
     implicit def identityToAlias(id: Identity) = id match {
       case ai: AliasIdentity => ai.alias
-      case _ => throw new RuntimeException("Unsupported identity: %s".format(id))
+      case _ => throw new RuntimeException(f"Unsupported identity: $id")
     }
   }
   /**
@@ -101,7 +99,7 @@ object UserCredential {
    */
   implicit def volatileToToken(v: models.db.VolatileToken): Token = {
     val xml = v.extra.map(scala.xml.XML loadString _)
-    def xmlValue(n: String) = xml.map(_ \ "@%s".format(n)).headOption.map(_.toString)
+    def xmlValue(n: String) = xml.map(_ \ f"@$n").headOption.map(_.toString)
     Token(
       uuid = v.token,
       email = xmlValue("email") getOrElse "",

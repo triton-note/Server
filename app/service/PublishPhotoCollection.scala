@@ -44,7 +44,7 @@ object PublishPhotoCollection {
     val map = for {
       info <- list
       id <- info.committed
-      photo <- Photo.getById(id)
+      photo <- Photo get id
     } yield (info, photo)
     map.toMap
   }

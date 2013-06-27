@@ -13,25 +13,26 @@ case class Album(id: Long,
     val q = for {
       a <- me
       pa <- PhotoAlbum
-      if (pa.albumId === a.id)
+      if (pa.albumId is a.id)
       p <- Photo
+      if (pa.photoId is p.id)
     } yield p
     q.list
   }
   /**
    * Prepared query for me
    */
-  lazy val me = for {
-    a <- Album
-    if (a.id === id)
-  } yield a
+  lazy val me = withSession {
+    for {
+      a <- Album
+      if (a.id is id)
+    } yield a
+  }
   /**
    * Delete me
    */
-  def delete = {
-    withSession {
-      me.delete
-    }
+  def delete = withSession {
+    me.delete
   }
   /**
    * Change property (like a copy) and update Database
@@ -69,15 +70,7 @@ object Album extends Table[Album]("ALBUM") {
   /**
    * Find album which has given id
    */
-  def get(givenId: Long): Option[Album] = {
-    withSession {
-      val q = for {
-        o <- Album
-        if o.id is givenId
-      } yield o
-      q.firstOption
-    }
-  }
+  val get = DB.getById(Album)_
 }
 
 object PhotoAlbum extends Table[(Long, Long)]("PHOTO_ALBUM") {

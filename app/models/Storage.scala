@@ -1,11 +1,10 @@
 package models
 
+import scala.concurrent.duration._
 import play.{Logger => Log}
 import com.amazonaws.auth.BasicAWSCredentials
 import com.amazonaws.services.s3.AmazonS3Client
-import java.io.InputStream
 import com.amazonaws.services.s3.model.ObjectMetadata
-import com.amazonaws.services.s3.model.DeleteObjectRequest
 
 object Storage {
   val bucketName = System.getenv("S3_BUCKET_NAME")
@@ -30,7 +29,7 @@ object Storage {
     None
   }
   def file(paths: String*) = {
-    Log.trace("Creating S3File: " + paths)
+    Log.trace(f"Creating S3File: $paths")
     new S3File(paths.toList)
   }
   class S3File(val paths: List[String]) {
@@ -46,11 +45,10 @@ object Storage {
     }
     def write(src: java.io.File): Boolean = {
       import java.io._
-      val ins = new BufferedInputStream(new FileInputStream(src))
-      write(ins)
+      write(new BufferedInputStream(new FileInputStream(src)))
     }
-    def write(source: InputStream): Boolean = {
-      Log.debug("Storing for S3:%s:%s".format(bucketName, path))
+    def write(source: java.io.InputStream): Boolean = {
+      Log.debug(f"Storing for S3:${bucketName}:${path}")
       s3.putObject(bucketName, path, source, new ObjectMetadata())
       true
     }
@@ -58,7 +56,7 @@ object Storage {
       s3.deleteObject(bucketName, path)
       true
     }
-    def read: InputStream = {
+    def read: java.io.InputStream = {
       val obj = s3.getObject(bucketName, path)
       obj.getObjectContent
     }
@@ -68,7 +66,7 @@ object Storage {
       delete
       dstFile
     }
-    def generateURL(expire: scala.concurrent.duration.FiniteDuration): java.net.URL = {
+    def generateURL(expire: FiniteDuration): java.net.URL = {
       import java.util.Date
       val date = new Date(new Date().getTime + expire.toMillis)
       s3.generatePresignedUrl(bucketName, path, date)

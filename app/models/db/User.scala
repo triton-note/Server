@@ -18,7 +18,7 @@ case class User(id: Long,
    */
   lazy val me = for {
     a <- User
-    if (a.id === id)
+    if (a.id is id)
   } yield a
   /**
    * Delete me
@@ -62,15 +62,10 @@ object User extends Table[User]("USER") {
     }
     User(newId, now, None, theFirstName, theLastName, theAvatarUrl)
   }
-  def get(theId: Long): Option[User] = {
-    val q = withSession {
-      for {
-        u <- User
-        if u.id === theId
-      } yield u
-    }
-    q.firstOption
-  }
+  /**
+   * Find user which has given id
+   */
+  val get = DB.getById(User)_
 }
 
 object AlbumOwner extends Table[(Long, Long)]("ALBUM_OWNER") {
@@ -95,8 +90,8 @@ object AlbumOwner extends Table[(Long, Long)]("ALBUM_OWNER") {
       val q = for {
         a <- Album
         b <- User
-        if (a.id === theAlbum.id)
-        if (b.id === theUser.id)
+        if (a.id is theAlbum.id)
+        if (b.id is theUser.id)
       } yield (a, b)
       q.first
     }
@@ -119,11 +114,11 @@ object AlbumOwner extends Table[(Long, Long)]("ALBUM_OWNER") {
   def findAlbum(theUser: User, theDate: Timestamp, theGrounds: String): Option[Album] = withTransaction {
     val q = for {
       ao <- AlbumOwner
-      if (ao.userId === theUser.id)
+      if (ao.userId is theUser.id)
       a <- Album
-      if (a.id === ao.albumId)
-      if (a.date === theDate)
-      if (a.grounds === theGrounds)
+      if (a.id is ao.albumId)
+      if (a.date is theDate)
+      if (a.grounds is theGrounds)
     } yield a
     q.firstOption
   }
@@ -151,8 +146,8 @@ object PhotoOwner extends Table[(Long, Long)]("PHOTO_OWNER") {
       val q = for {
         a <- Photo
         b <- User
-        if (a.id === thePhoto.id)
-        if (b.id === theUser.id)
+        if (a.id is thePhoto.id)
+        if (b.id is theUser.id)
       } yield (a, b)
       q.first
     }

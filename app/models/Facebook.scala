@@ -20,13 +20,14 @@ object Facebook {
     new FilePart(file.name, source)
   }
   object parse {
-    def JSON(res: com.ning.http.client.Response): JsValue = {
-      Json parse res.getResponseBody()
+    import com.ning.http.client.Response
+    def JSON(res: Response): JsValue = {
+      Json parse as.String(res)
     }
-    def ObjectID(res: com.ning.http.client.Response): ObjectId = {
+    def ObjectID(res: Response): ObjectId = {
       ObjectId((JSON(res) \ "id").as[String])
     }
-    def NameID(res: com.ning.http.client.Response): List[(String, String)] = {
+    def NameID(res: Response): List[(String, String)] = {
       implicit val jsonNameReader = {
         (
           (__ \ "id").read[String] ~
@@ -79,9 +80,9 @@ object Facebook {
           val avatarUrl = (json \ "picture" \ "data" \ "url").asOpt[String]
           val user = db.User.addNew(firstName, lastName, avatarUrl)
           Logger.info(f"Creating alias '$email' of $user as facebook and email at once")
-          def as(f: db.UserAliasDomain.type => String) = db.UserAlias.addNew(user, email, f(db.UserAliasDomain), 0)
-          as(_.email)
-          as(_.facebook)
+          def add(f: db.UserAliasDomain.type => String) = db.UserAlias.addNew(user, email, f(db.UserAliasDomain), 0)
+          add(_.email)
+          add(_.facebook)
         }
       }
     }
@@ -92,15 +93,13 @@ object Facebook {
      */
     def apply(accesskey: String): Future[Option[db.UserAlias]] = {
       implicit val ak = AccessKey(accesskey)
-      find flatMap {
-        _ match {
-          case Some(e) => e match {
-            case Right(user) => Future(Some(user))
-            case Left(email) => create
-          }
-          case None => Future(None)
+      find flatMap (_ match {
+        case Some(e) => e match {
+          case Right(user) => Future(Some(user))
+          case Left(email) => create
         }
-      }
+        case None => Future(None)
+      })
     }
   }
   object Publish {
@@ -131,7 +130,7 @@ object Facebook {
       } yield id
     }
     def makeAlbum(name: String, message: Option[String] = None)(implicit accessKey: AccessKey): Future[Option[ObjectId]] = {
-      val mes = (message.map(m => Map("message" -> m)) getOrElse Map())
+      val mes = message.map("message" -> _).toMap
       val req = (fb / "me" / "album").POST << mes << Map(
         "access_token" -> accessKey.token,
         "name" -> name

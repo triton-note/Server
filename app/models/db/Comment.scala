@@ -19,17 +19,17 @@ case class Comment(id: Long,
   /**
    * Prepared query for me
    */
-  lazy val me = for {
-    a <- Comment
-    if (a.id === id)
-  } yield a
+  lazy val me = withSession {
+    for {
+      a <- Comment
+      if (a.id is id)
+    } yield a
+  }
   /**
    * Delete me
    */
-  def delete = {
-    withSession {
-      me.delete
-    }
+  def delete = withSession {
+    me.delete
   }
   /**
    * Change text
@@ -68,6 +68,10 @@ object Comment extends Table[Comment]("COMMENT") {
     }
     Comment(newId, now, None, theUser.id, theText)
   }
+  /**
+   * Find comment which has given id
+   */
+  val get = DB.getById(Comment)_
 }
 
 object CommentAlbum extends Table[(Long, Long)]("ALBUM_COMMENT") {
@@ -92,8 +96,8 @@ object CommentAlbum extends Table[(Long, Long)]("ALBUM_COMMENT") {
       val q = for {
         a <- Comment
         b <- Album
-        if (a.id === theComment.id)
-        if (b.id === theAlbum.id)
+        if (a.id is theComment.id)
+        if (b.id is theAlbum.id)
       } yield (a, b)
       q.first
     }
@@ -122,8 +126,8 @@ object CommentPhoto extends Table[(Long, Long)]("PHOTO_COMMENT") {
       val q = for {
         a <- Comment
         b <- Photo
-        if (a.id === theComment.id)
-        if (b.id === thePhoto.id)
+        if (a.id is theComment.id)
+        if (b.id is thePhoto.id)
       } yield (a, b)
       q.first
     }

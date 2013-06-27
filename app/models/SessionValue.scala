@@ -10,6 +10,6 @@ class SessionValue(val name: String, val dur: FiniteDuration) {
     (name, vt.token)
   }
   def apply(req: Request[_]): Option[db.VolatileToken] = {
-    req.session.get(name).flatMap { token => db.VolatileToken.get(token, db.VolatileTokenUses.Application) }
+    req.session.get(name).flatMap(db.VolatileToken get _)
   }
 }

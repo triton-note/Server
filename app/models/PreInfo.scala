@@ -104,8 +104,8 @@ object PreInfo {
             i <- (info \ "info").headOption
             d <- (i \@ "date").map(df.parse)
             g <- i \@ "grounds"
-            c <- i \@ "comment"
-          } yield SubmittedInfo(d, g, c)
+            c <- (i \ "comment").headOption
+          } yield SubmittedInfo(d, g, c.text)
         },
         {
           for {
@@ -122,34 +122,41 @@ object PreInfo {
   def read(xml: String): List[PreInfo] = {
     for {
       string <- validate(xml).toList
-      info <- load(scala.xml.XML loadString string).toList
+      info <- load(scala.xml.XML loadString string)
     } yield info
   }
   def asXML(infos: List[PreInfo]): scala.xml.Elem = {
+    implicit def fromDouble(v: Double) = f"$v%1.10f"
+    implicit def fromLong(v: Long) = f"$v%d"
     <files>{
       infos map { info =>
         val b = info.basic
-        <file filepath={ b.filepath } timestamp={ b.timestamp.map(df.format) getOrElse "" }>
+        <file filepath={ b.filepath } format={ b.format } width={ b.width } height={ b.height } timestamp={ b.timestamp.map(df.format) getOrElse "" }>
           b.geoinfo.map{ g: GeoInfo =>
-            implicit def ds(d: Double) = f"$d%1.10f"
             <geoinfo latitude={ g.latitude } longitude={ g.longitude }/>
           }
           info.inference.map{ i: InferentialInfo =>
             <inference date={ df format i.date } grounds={ i.grounds }/>
           }
           info.submitted.map{ s: SubmittedInfo =>
-            <submitted date={ df format s.date } grounds={ s.grounds } comment={ s.comment }/>
+            <submitted date={ df format s.date } grounds={ s.grounds }>
+              <comment>{ s.comment }</comment>
+            </submitted>
           }
           info.committed.map{ c: Long =>
-            <committed id={ c.toString }/>
+            <committed id={ c }/>
           }
         </file>
       }
     }</files>
   }
-  case class BasicInfo(filepath: String, format: String, width: Long, height: Long, timestamp: Option[Date], geoinfo: Option[GeoInfo])
-  case class SubmittedInfo(date: Date, grounds: String, comment: String)
-  case class InferentialInfo(date: Date, grounds: String)
+  case class BasicInfo private[PreInfo](filepath: String, format: String, width: Long, height: Long, timestamp: Option[Date], geoinfo: Option[GeoInfo])
+  case class SubmittedInfo private[PreInfo](date: Date, grounds: String, comment: String)
+  case class InferentialInfo private[PreInfo](date: Date, grounds: String)
+  // avoid null string
+  def an(o: String) = if (o == null) "" else o
+  def submission(date: Date, grounds: String, comment: String) = SubmittedInfo(date, an(grounds), an(comment))
+  def inference(date: Date, grounds: String) = InferentialInfo(date, an(grounds))
 }
 case class PreInfo(basic: PreInfo.BasicInfo,
                    inference: Option[PreInfo.InferentialInfo],
@@ -168,27 +175,33 @@ case class PreInfo(basic: PreInfo.BasicInfo,
       }
     }
   }
-  def submit(date: Date, grounds: String, comment: String)(implicit user: User): PreInfo = committed match {
-    case None => {
-      val s = SubmittedInfo(date, grounds, comment)
-      copy(submitted = Some(s))
-    }
-    case Some(id) => withTransaction {
-      val photo = Photo.getById(id).get add comment
-      val a = submitted.get.copy(comment = comment)
-      val b = a.copy(date = date, grounds = grounds)
-      if (a != b) {
-        def findAlbum(s: SubmittedInfo) = photo.findAlbum(s.grounds, s.date)
-        findAlbum(b) match {
-          case None           => db.Album.addNew(b.date, b.grounds)
-          case Some(newAlbum) => Logger.info(f"The new album (id=${newAlbum.id}) has already been associated with this photo.")
-        }
-        findAlbum(a) match {
-          case None           => Logger.warn("The old album is not associated with this photo.")
-          case Some(oldAlbum) => if (oldAlbum.photos.isEmpty) oldAlbum.delete
+  def submit(date: Date, grounds: String, comment: String)(implicit user: User): Option[PreInfo] = {
+    val s = submission(date, grounds, comment)
+    committed match {
+      case None => {
+        Some(copy(submitted = Some(s)))
+      }
+      case Some(id) => Photo.get(id) map { p =>
+        withTransaction {
+          val photo = p add s.comment
+          val b = submitted match {
+            case None    => s
+            case Some(n) => n.copy(comment = s.comment)
+          }
+          if (b != s) {
+            def findAlbum(s: SubmittedInfo) = photo.findAlbum(s.grounds, s.date)
+            findAlbum(s) match {
+              case None           => db.Album.addNew(s.date, s.grounds)
+              case Some(newAlbum) => Logger.info(f"The new album (id=${newAlbum.id}) has already been associated with this photo.")
+            }
+            findAlbum(b) match {
+              case None           => Logger.warn("The old album is not associated with this photo.")
+              case Some(oldAlbum) => if (oldAlbum.photos.isEmpty) oldAlbum.delete
+            }
+          }
+          copy(submitted = Some(s))
         }
       }
-      copy(submitted = Some(b))
     }
   }
 }

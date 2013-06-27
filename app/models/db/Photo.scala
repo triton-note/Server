@@ -108,15 +108,7 @@ object Photo extends Table[Photo]("PHOTO") {
   /**
    * Find photo which has given id
    */
-  def getById(givenId: Long): Option[Photo] = {
-    withSession {
-      val q = for {
-        o <- Photo
-        if o.id is givenId
-      } yield o
-      q.firstOption
-    }
-  }
+  val get = DB.getById(Photo)_
 }
 
 case class Image(id: Long,
@@ -168,13 +160,10 @@ object Image extends Table[Image]("IMAGE") {
     }
     Image(newId, theKind, theInfo.id, now, theFormat, theDataSize, theWidth, theHeight)
   }
-  def get(theId: Long) = withSession {
-    val q = for {
-      i <- Image
-      if i.id is theId
-    } yield i
-    q.firstOption
-  }
+  /**
+   * Find image which has given id
+   */
+  val get = DB.getById(Image)_
   def findBy(photo: Photo): List[Image] = withSession {
     val q = for {
       i <- Image

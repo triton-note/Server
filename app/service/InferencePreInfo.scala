@@ -28,9 +28,9 @@ object InferencePreInfo {
           xml <- vt.extra
           list = PreInfo read xml
           p <- list.find(_.basic.filepath == filepath)
+          s <- p.submit(date, grounds, comment)
         } yield {
-          val s = p.submit(date, grounds, comment)
-          val n = PreInfo.InferentialInfo(date, grounds)
+          val n = PreInfo.inference(date, grounds)
           // Refresh inferential info
           val r = list.map { info =>
             if (info != s &&
@@ -86,7 +86,7 @@ object InferencePreInfo {
         info.inference match {
           case Some(_) => info
           case None => {
-            val inf = PreInfo.InferentialInfo(db.currentTimestamp, "")
+            val inf = PreInfo.inference(db.currentTimestamp, "")
             // TODO Inference by referencing all other PreInfos
             info.copy(inference = Some(inf))
           }

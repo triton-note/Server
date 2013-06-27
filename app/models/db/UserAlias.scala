@@ -89,8 +89,8 @@ object UserAlias extends Table[UserAlias]("USER_ALIAS") {
   def get(theName: String, theDomain: String): Option[UserAlias] = withSession {
     val q = for {
       o <- UserAlias
-      if (o.name === theName)
-      if (o.domain === theDomain)
+      if (o.name is theName)
+      if (o.domain is theDomain)
     } yield o
     q.firstOption
   }
@@ -104,8 +104,8 @@ object UserAlias extends Table[UserAlias]("USER_ALIAS") {
   def list(theUser: User, theDomain: String): List[UserAlias] = withSession {
     val q = for {
       o <- UserAlias
-      if (o.userId === theUser.id)
-      if (o.domain === theDomain)
+      if (o.userId is theUser.id)
+      if (o.domain is theDomain)
     } yield o
     q.sortBy(_.priority).list
   }
@@ -115,7 +115,7 @@ object UserAlias extends Table[UserAlias]("USER_ALIAS") {
   def list(theUser: User): List[UserAlias] = withSession {
     val q = for {
       o <- UserAlias
-      if (o.userId === theUser.id)
+      if (o.userId is theUser.id)
     } yield o
     q.sortBy(_.domain).sortBy(_.priority).list
   }
