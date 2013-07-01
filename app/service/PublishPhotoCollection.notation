@@ -156,21 +156,6 @@
       <bendpoints xmi:type="notation:RelativeBendpoints" xmi:id="_GjqMAtNdEeKvPJWUGHJZsQ" points="[63, 0, 30, 9]$[125, 0, 92, 9]$[125, -116, 92, -107]$[33, -116, 0, -107]$[33, -20, 0, -11]"/>
       <targetAnchor xmi:type="notation:IdentityAnchor" xmi:id="_Gjw5sNNdEeKvPJWUGHJZsQ" id="(0.76,0.275)"/>
     </edges>
-    <edges xmi:type="notation:Connector" xmi:id="_kXtYsNNfEeKtyLAjzqN01w" type="7000" source="_7nWPcNNcEeKvPJWUGHJZsQ" target="_hlLmsNNfEeKtyLAjzqN01w" lineColor="0">
-      <children xmi:type="notation:DecorationNode" xmi:id="_kXt_wNNfEeKtyLAjzqN01w" type="7001">
-        <layoutConstraint xmi:type="notation:Location" xmi:id="_kXt_wdNfEeKtyLAjzqN01w"/>
-      </children>
-      <children xmi:type="notation:DecorationNode" xmi:id="_kXt_wtNfEeKtyLAjzqN01w" type="7002">
-        <layoutConstraint xmi:type="notation:Location" xmi:id="_kXum0NNfEeKtyLAjzqN01w"/>
-      </children>
-      <children xmi:type="notation:DecorationNode" xmi:id="_kXum0dNfEeKtyLAjzqN01w" type="7003">
-        <layoutConstraint xmi:type="notation:Location" xmi:id="_kXum0tNfEeKtyLAjzqN01w" y="60"/>
-      </children>
-      <styles xmi:type="notation:FontStyle" xmi:id="_kXtYsdNfEeKtyLAjzqN01w" fontName="Lucida Grande" fontHeight="11"/>
-      <element xmi:type="uml:Transition" href="PublishPhotoCollection.uml#_kXn5INNfEeKtyLAjzqN01w"/>
-      <bendpoints xmi:type="notation:RelativeBendpoints" xmi:id="_kXtYstNfEeKtyLAjzqN01w" points="[40, 20, -200, -99]$[218, 116, -22, -3]"/>
-      <targetAnchor xmi:type="notation:IdentityAnchor" xmi:id="_kXy4QNNfEeKtyLAjzqN01w" id="(0.23655913978494625,0.425)"/>
-    </edges>
     <edges xmi:type="notation:Connector" xmi:id="_omtIsNNfEeKtyLAjzqN01w" type="7000" source="_hlLmsNNfEeKtyLAjzqN01w" target="_vf4IoM0MEeKj5uug_t8BGw" lineColor="0">
       <children xmi:type="notation:DecorationNode" xmi:id="_omtvwNNfEeKtyLAjzqN01w" type="7001">
         <layoutConstraint xmi:type="notation:Location" xmi:id="_omtvwdNfEeKtyLAjzqN01w" x="3" y="-30"/>
@@ -203,7 +188,7 @@
       </children>
       <styles xmi:type="notation:FontStyle" xmi:id="_rW4KQdNfEeKtyLAjzqN01w" fontName="Lucida Grande" fontHeight="11"/>
       <element xmi:type="uml:Transition" href="PublishPhotoCollection.uml#_rWyDoNNfEeKtyLAjzqN01w"/>
-      <bendpoints xmi:type="notation:RelativeBendpoints" xmi:id="_rW4KQtNfEeKtyLAjzqN01w" points="[0, 20, -264, -102]$[0, 116, -264, -6]$[218, 116, -46, -6]"/>
+      <bendpoints xmi:type="notation:RelativeBendpoints" xmi:id="_rW4KQtNfEeKtyLAjzqN01w" points="[43, 20, -221, -102]$[221, 102, -43, -20]"/>
     </edges>
   </notation:Diagram>
   <notation:Diagram xmi:id="_zWW1gM0NEeKj5uug_t8BGw" type="PapyrusUMLSequenceDiagram" name="PublishPhoto" measurementUnit="Pixel">

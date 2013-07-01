@@ -10,7 +10,6 @@
       <transition xmi:id="_MkPLgM0UEeK668pka_Geqg" name="Start" source="_ZwzNEM0MEeKj5uug_t8BGw" target="_iygTkM0LEeKj5uug_t8BGw"/>
       <transition xmi:id="_DgjnYNNdEeKvPJWUGHJZsQ" name="add" source="_ZwzNEM0MEeKj5uug_t8BGw" target="_7m4VYNNcEeKvPJWUGHJZsQ"/>
       <transition xmi:id="_GjlTgNNdEeKvPJWUGHJZsQ" name="add" source="_7m4VYNNcEeKvPJWUGHJZsQ" target="_7m4VYNNcEeKvPJWUGHJZsQ"/>
-      <transition xmi:id="_kXn5INNfEeKtyLAjzqN01w" name="add" source="_7m4VYNNcEeKvPJWUGHJZsQ" target="_hlJxgNNfEeKtyLAjzqN01w"/>
       <transition xmi:id="_omnpINNfEeKtyLAjzqN01w" name="publish" source="_hlJxgNNfEeKtyLAjzqN01w" target="_vf2TcM0MEeKj5uug_t8BGw"/>
       <transition xmi:id="_rWyDoNNfEeKtyLAjzqN01w" name="Timeout" source="_7m4VYNNcEeKvPJWUGHJZsQ" target="_hlJxgNNfEeKtyLAjzqN01w"/>
       <subvertex xmi:type="uml:State" xmi:id="_iygTkM0LEeKj5uug_t8BGw" name="Empty"/>
@@ -19,7 +18,7 @@
       <subvertex xmi:type="uml:FinalState" xmi:id="_vf2TcM0MEeKj5uug_t8BGw" name="FF"/>
       <subvertex xmi:type="uml:Pseudostate" xmi:id="_gDgr0M0NEeKj5uug_t8BGw" name="Fork0" kind="fork"/>
       <subvertex xmi:type="uml:State" xmi:id="_7m4VYNNcEeKvPJWUGHJZsQ" name="List"/>
-      <subvertex xmi:type="uml:State" xmi:id="_hlJxgNNfEeKtyLAjzqN01w" name="Full"/>
+      <subvertex xmi:type="uml:State" xmi:id="_hlJxgNNfEeKtyLAjzqN01w" name="TimeOver"/>
     </region>
   </packagedElement>
 </uml:Model>

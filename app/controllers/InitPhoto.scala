@@ -115,7 +115,7 @@ object InitPhoto extends Controller with securesocial.core.SecureSocial {
             committed <- a
             v <- sessionFacebook(request)
             accessKey <- v.extra
-          } yield PublishPhotoCollection.add(committed)(Facebook.AccessKey(accessKey), 10 minutes)
+          } yield PublishPhotoCollection.add(committed)(Facebook.AccessKey(accessKey), 3 minutes)
         }
       }
       // Ignore result on Future

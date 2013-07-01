@@ -33,9 +33,8 @@ object InferencePreInfo {
           val n = PreInfo.inference(date, grounds)
           // Refresh inferential info
           val r = list.map { info =>
-            if (info != s &&
-              info.submitted.isEmpty &&
-              (info isNearTo s)) {
+            if (info.basic.filepath != s.basic.filepath &&
+              info.submitted.isEmpty && (info isNearTo s)) {
               info.copy(inference = Some(n))
             } else info
           }

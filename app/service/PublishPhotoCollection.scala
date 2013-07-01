@@ -37,7 +37,7 @@ object PublishPhotoCollection {
     }
     import AlbumManager._
     list.distinct.foreach { albumId =>
-      albums ! Msg.Refresh(albumId, timer, accessKey, all.toList)
+      albums ! Msg.Refresh(albumId, all.toList, accessKey, timer)
     }
   }
   def findCommitted(list: List[PreInfo]): Map[PreInfo, Photo] = {
@@ -48,25 +48,47 @@ object PublishPhotoCollection {
     } yield (info, photo)
     map.toMap
   }
-  def publish(album: Album, photos: Map[Photo, Option[String]])(implicit accessKey: AccessKey): Future[List[ObjectId]] = {
-    def addAll(albumIdOpt: Option[ObjectId], photos: List[(Photo, Option[String])]) = for {
-      (photo, comment) <- photos
-      albumId <- albumIdOpt
-      image <- photo.image
-    } yield Publish.addPhoto(albumId)(image.file, comment)
+  def publish(albumName: String)(photos: (Storage.S3File, Option[String])*)(implicit accessKey: AccessKey): Future[List[ObjectId]] = {
+    def addAll(albumIdOpt: Option[ObjectId]) = for {
+      albumId <- albumIdOpt.toList
+      (imageFile, comment) <- photos
+    } yield Publish.addPhoto(albumId)(imageFile, comment)
     for {
-      albumId <- Publish getAlbumOrCreate nameOf(album)
-      list <- Future sequence addAll(albumId, photos.toList)
+      albumId <- Publish getAlbumOrCreate albumName
+      list <- Future sequence addAll(albumId)
     } yield list.flatten
   }
   /**
    * Management of timer and collection photo list of album
    */
   object AlbumManager {
+    case class AlbumPhotos(albumId: Long, photos: List[PreInfo], accessKey: AccessKey) {
+      implicit val facebookKey = accessKey
+      def submittedOrInference(info: PreInfo) = info.submitted match {
+        case Some(s) => Some(s.date, s.grounds, Some(s.comment))
+        case None => info.inference match {
+          case Some(i) => Some(i.date, i.grounds, None)
+          case None    => None
+        }
+      }
+      def publishAll = withTransaction {
+        (Album get albumId).map(nameOf).map(publish(_)_) map {
+          _(
+            for {
+              (info, photo) <- findCommitted(photos).toList
+              image <- photo.image
+              (date, grounds, comment) <- submittedOrInference(info)
+              a <- photo.findAlbum(grounds, date)
+              if (a.id == albumId)
+            } yield (image.file, comment)
+          )
+        }
+      }
+    }
     val albums = actorSystem.actorOf(Props[AlbumManager])
     sealed trait Data
     object Data {
-      case class Store(map: Map[Long, (AccessKey, List[PreInfo])]) extends Data
+      case class Store(map: Map[Long, AlbumPhotos]) extends Data
     }
     sealed trait State
     object State {
@@ -74,7 +96,7 @@ object PublishPhotoCollection {
     }
     sealed trait Msg
     object Msg {
-      case class Refresh(albumId: Long, timer: FiniteDuration, accessKey: AccessKey, list: List[PreInfo]) extends Msg
+      case class Refresh(albumId: Long, list: List[PreInfo], accessKey: AccessKey, timer: FiniteDuration) extends Msg
       case class Publish(albumId: Long) extends Msg
     }
   }
@@ -82,37 +104,15 @@ object PublishPhotoCollection {
     import AlbumManager._
     startWith(State.Running, Data.Store(Map()))
     when(State.Running) {
-      case Event(Msg.Refresh(albumId, timer, accessKey, list), Data.Store(map)) => map.get(albumId) match {
-        case Some(_) => {
-          if (list.size <= findCommitted(list).size) self ! Msg.Publish(albumId)
-          stay using Data.Store(map.updated(albumId, (accessKey, list)))
-        }
-        case None => {
-          actorSystem.scheduler.scheduleOnce(timer, self, Msg.Publish(albumId))
-          stay using Data.Store(map + (albumId -> (accessKey, list)))
-        }
+      case Event(Msg.Refresh(albumId, list, accessKey, timer), Data.Store(map)) => {
+        val timerName = f"Album-${albumId}%d"
+        cancelTimer(timerName)
+        setTimer(timerName, Msg.Publish(albumId), timer, false)
+        val o = AlbumPhotos(albumId, list, accessKey)
+        stay using Data.Store(map + (albumId -> o))
       }
       case Event(Msg.Publish(albumId), Data.Store(map)) => {
-        for {
-          (key, list) <- map.get(albumId)
-          album <- Album get albumId
-        } {
-          val a = withTransaction {
-            for {
-              (info, photo) <- findCommitted(list)
-              (date, grounds, comment) <- info.submitted match {
-                case Some(s) => Some(s.date, s.grounds, Some(s.comment))
-                case None => info.inference match {
-                  case Some(i) => Some(i.date, i.grounds, None)
-                  case None    => None
-                }
-              }
-              a <- photo.findAlbum(grounds, date)
-              if (a.id == albumId)
-            } yield (photo, comment)
-          }
-          publish(album, a)(key)
-        }
+        (map get albumId) foreach (_.publishAll)
         stay using Data.Store(map - albumId)
       }
     }

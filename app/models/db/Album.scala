@@ -34,18 +34,6 @@ case class Album(id: Long,
   def delete = withSession {
     me.delete
   }
-  /**
-   * Change property (like a copy) and update Database
-   */
-  def update(date: Timestamp = date, grounds: String = grounds): Album = {
-    val n = copy(lastModifiedAt = Some(currentTimestamp), date = date, grounds = grounds)
-    withSession {
-      me.map { a =>
-        (a.lastModifiedAt.? ~ a.date ~ a.grounds)
-      }.update(n.lastModifiedAt, n.date, n.grounds)
-    }
-    n
-  }
 }
 
 object Album extends Table[Album]("ALBUM") {
