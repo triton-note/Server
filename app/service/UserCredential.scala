@@ -27,12 +27,12 @@ class UserCredential(application: Application) extends UserServicePlugin(applica
     import models.db._
     withTransaction {
       val u = User.addNew(user.firstName, user.lastName, user.avatarUrl)
-      val a1 = UserAlias.addNew(u, user.id.id, user.id.providerId, 0,
+      val a1 = UserAlias.addNew(u.id, user.id.id, user.id.providerId, 0,
         user.passwordInfo.map(_.password), user.passwordInfo.map(_.hasher))
       val a2 = for {
         email <- user.email
         if (email != a1.name || a1.domain != UserAliasDomain.email)
-      } yield UserAlias.addNew(u, email, UserAliasDomain.email, 0)
+      } yield UserAlias.addNew(u.id, email, UserAliasDomain.email, 0)
       Logger.debug(f"Saved alias($a1) as $a2")
       a1
     }
@@ -93,7 +93,7 @@ object UserCredential {
   /**
    * Convert: java.sql.Timestamp -> org.joda.time.DateTime
    */
-  implicit def tmestampToJoda(dt: _root_.java.sql.Timestamp) = new org.joda.time.DateTime(dt.getTime)
+  implicit def timestampToJoda(dt: _root_.java.sql.Timestamp) = new org.joda.time.DateTime(dt.getTime)
   /**
    * Convert: VolatileToken -> Token
    */

@@ -11,9 +11,8 @@ case class Album(id: Long,
                  grounds: String) {
   lazy val photos = withSession {
     val q = for {
-      a <- me
       pa <- PhotoAlbum
-      if (pa.albumId is a.id)
+      if (pa.albumId is id)
       p <- Photo
       if (pa.photoId is p.id)
     } yield p
@@ -22,7 +21,7 @@ case class Album(id: Long,
   /**
    * Prepared query for me
    */
-  lazy val me = withSession {
+  def me = withSession {
     for {
       a <- Album
       if (a.id is id)
@@ -31,8 +30,8 @@ case class Album(id: Long,
   /**
    * Delete me
    */
-  def delete = withSession {
-    me.delete
+  def delete: Boolean = withSession {
+    me.delete > 0
   }
 }
 

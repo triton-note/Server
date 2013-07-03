@@ -19,11 +19,11 @@ package db {
           d
         }
         List(
-          UserAlias,
-          User, PhotoOwner, AlbumOwner,
+          User,
           Photo, Image, ImageRelation,
           Album, PhotoAlbum,
           Comment, CommentPhoto, CommentAlbum,
+          UserAlias, PhotoOwner, AlbumOwner,
           VolatileToken,
           Geographic
         ).flatMap(createTable(_))

@@ -3,34 +3,38 @@ package models.db
 import java.sql.Timestamp
 import DB.simple._
 import Database.threadLocalSession
-import securesocial.core.providers.UsernamePasswordProvider
-import securesocial.core.providers.FacebookProvider
 
 case class UserAlias(createdAt: Timestamp = currentTimestamp,
                      lastModifiedAt: Option[Timestamp] = None,
-                     user: User,
+                     userId: Long,
                      name: String,
                      domain: String,
                      priority: Int,
                      password: Option[String] = None,
                      passwordHashing: Option[String] = None) {
+  lazy val user = withSession {
+    val q = for {
+      a <- me
+      b <- a.user
+    } yield b
+    q.first
+  }
   lazy val email = if (domain == UserAliasDomain.email) Some(name) else user.emails.headOption
   /**
    * Prepared query for me
    */
-  lazy val me = for {
-    o <- UserAlias
-    if (o.name === name)
-    if (o.domain === domain)
-  } yield o
+  def me = withSession {
+    for {
+      o <- UserAlias
+      if (o.name === name)
+      if (o.domain === domain)
+    } yield o
+  }
   /**
    * Delete me
    */
-  def delete: Boolean = {
-    val v = withSession {
-      me.delete
-    }
-    v > 0
+  def delete: Boolean = withSession {
+    me.delete > 0
   }
   /**
    * Change priority
@@ -65,9 +69,7 @@ object UserAlias extends Table[UserAlias]("USER_ALIAS") {
   // Define primary key here
   def pk = primaryKey("USER_ALIAS_PK", (name, domain))
   // All columns
-  def * = createdAt ~ lastModifiedAt.? ~ userId ~ name ~ domain ~ priority ~ password.? ~ passwordHashing.? <> (
-    { t => UserAlias(t._1, t._2, User.get(t._3).get, t._4, t._5, t._6, t._7, t._8) },
-    { o => Some(o.createdAt, o.lastModifiedAt, o.user.id, o.name, o.domain, o.priority, o.password, o.passwordHashing) })
+  def * = createdAt ~ lastModifiedAt.? ~ userId ~ name ~ domain ~ priority ~ password.? ~ passwordHashing.? <> (UserAlias.apply _, UserAlias.unapply _)
   /**
    * Bound user
    */
@@ -75,9 +77,9 @@ object UserAlias extends Table[UserAlias]("USER_ALIAS") {
   /**
    * Add new user alias
    */
-  def addNew(theUser: User, theName: String, theDomain: String, thePriority: Int,
-      thePassword: Option[String] = None, theHashing: Option[String] = None): UserAlias = {
-    val o = UserAlias(currentTimestamp, None, theUser, theName, theDomain, thePriority, thePassword, theHashing)
+  def addNew(theUserId: Long, theName: String, theDomain: String, thePriority: Int,
+             thePassword: Option[String] = None, theHashing: Option[String] = None): UserAlias = {
+    val o = UserAlias(currentTimestamp, None, theUserId, theName, theDomain, thePriority, thePassword, theHashing)
     withSession {
       * insert o
     }
@@ -98,31 +100,10 @@ object UserAlias extends Table[UserAlias]("USER_ALIAS") {
    * Find by email
    */
   def getByEmail(theEmail: String): Option[UserAlias] = get(theEmail, UserAliasDomain.email)
-  /**
-   * List by user in specified domain
-   */
-  def list(theUser: User, theDomain: String): List[UserAlias] = withSession {
-    val q = for {
-      o <- UserAlias
-      if (o.userId is theUser.id)
-      if (o.domain is theDomain)
-    } yield o
-    q.sortBy(_.priority).list
-  }
-  /**
-   * List by user in any domain
-   */
-  def list(theUser: User): List[UserAlias] = withSession {
-    val q = for {
-      o <- UserAlias
-      if (o.userId is theUser.id)
-    } yield o
-    q.sortBy(_.domain).sortBy(_.priority).list
-  }
 }
 
 object UserAliasDomain {
-  import securesocial.core._
+  import securesocial.core.providers._
   val email = UsernamePasswordProvider.UsernamePassword
   val facebook = FacebookProvider.Facebook
 }

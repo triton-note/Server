@@ -19,7 +19,7 @@ case class Comment(id: Long,
   /**
    * Prepared query for me
    */
-  lazy val me = withSession {
+  def me = withSession {
     for {
       a <- Comment
       if (a.id is id)
@@ -28,8 +28,8 @@ case class Comment(id: Long,
   /**
    * Delete me
    */
-  def delete = withSession {
-    me.delete
+  def delete: Boolean = withSession {
+    me.delete > 0
   }
   /**
    * Change text

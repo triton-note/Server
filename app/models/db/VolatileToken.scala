@@ -12,7 +12,7 @@ case class VolatileToken(token: String,
   /**
    * Prepared query for me
    */
-  lazy val me = for {
+  def me = for {
     o <- VolatileToken
     if (o.token === token)
     if (o.uses === uses)
@@ -20,11 +20,8 @@ case class VolatileToken(token: String,
   /**
    * Delete me
    */
-  def delete: Boolean = {
-    val v = withSession {
-      me.delete
-    }
-    v > 0
+  def delete: Boolean = withSession {
+    me.delete > 0
   }
   /**
    * Reload form DB

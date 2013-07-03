@@ -13,18 +13,16 @@ case class Photo(id: Long,
                  geoinfo: Option[GeoInfo]) {
   lazy val comments = withSession {
     val q = for {
-      a <- me
       b <- CommentPhoto
-      if b.photoId is a.id
+      if b.photoId is id
       c <- b.comment
     } yield c
     q.sortBy(_.lastModifiedAt).list
   }
   lazy val albums = withSession {
     val q = for {
-      p <- me
       pa <- PhotoAlbum
-      if pa.photoId is p.id
+      if pa.photoId is id
       a <- Album
     } yield a
     q.list
@@ -32,17 +30,17 @@ case class Photo(id: Long,
   /**
    * Prepared query for me
    */
-  lazy val me = for {
-    a <- Photo
-    if a.id is id
-  } yield a
+  def me = withSession {
+    for {
+      a <- Photo
+      if a.id is id
+    } yield a
+  }
   /**
    * Delete me
    */
-  def delete = {
-    withSession {
-      me.delete
-    }
+  def delete = withSession {
+    me.delete > 0
   }
   def bindTo(user: User): Photo = withSession {
     PhotoOwner.addNew(this, user)._1
@@ -59,9 +57,8 @@ case class Photo(id: Long,
   }
   def findAlbum(theGrounds: String, theDate: Timestamp): Option[Album] = withSession {
     val q = for {
-      p <- me
       pa <- PhotoAlbum
-      if pa.photoId is p.id
+      if pa.photoId is id
       a <- Album
       if a.grounds is theGrounds
       if a.date is theDate
@@ -93,19 +90,6 @@ object Photo extends Table[Photo]("PHOTO") {
     Photo(newId, now, theTimestamp, theGeoinfo)
   }
   /**
-   * Find specified user's all photo
-   */
-  def findByOwner(owner: User): List[Photo] = {
-    withSession {
-      val q = for {
-        o <- PhotoOwner
-        if o.userId is owner.id
-        photo <- o.photo
-      } yield photo
-      q.list
-    }
-  }
-  /**
    * Find photo which has given id
    */
   val get = DB.getById(Photo)_
@@ -124,10 +108,20 @@ case class Image(id: Long,
   /**
    * Prepared query for me
    */
-  lazy val me = for {
-    a <- Image
-    if a.id is id
-  } yield a
+  lazy val me = withSession {
+    for {
+      a <- Image
+      if a.id is id
+    } yield a
+  }
+  /**
+   * Delete me
+   */
+  def delete: Boolean = {
+    file.delete && withSession {
+      me.delete > 0
+    }
+  }
 }
 
 object Image extends Table[Image]("IMAGE") {
@@ -181,12 +175,20 @@ case class ImageRelation(imageA: Image,
   /**
    * Prepared query for me
    */
-  lazy val me = for {
-    r <- ImageRelation
-    if r.imageAid is imageA.id
-    if r.imageBid is imageB.id
-    if r.relation is relation
-  } yield r
+  lazy val me = withSession {
+    for {
+      r <- ImageRelation
+      if r.imageAid is imageA.id
+      if r.imageBid is imageB.id
+      if r.relation is relation
+    } yield r
+  }
+  /**
+   * Delete me
+   */
+  def delete: Boolean = withSession {
+    me.delete > 0
+  }
 }
 object ImageRelation extends Table[ImageRelation]("IMAGE_RELATION") {
   def imageAid = column[Long]("IMAGE_A", O.NotNull)

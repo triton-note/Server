@@ -80,7 +80,7 @@ object Facebook {
           val avatarUrl = (json \ "picture" \ "data" \ "url").asOpt[String]
           val user = db.User.addNew(firstName, lastName, avatarUrl)
           Logger.info(f"Creating alias '$email' of $user as facebook and email at once")
-          def add(f: db.UserAliasDomain.type => String) = db.UserAlias.addNew(user, email, f(db.UserAliasDomain), 0)
+          def add(f: db.UserAliasDomain.type => String) = db.UserAlias.addNew(user.id, email, f(db.UserAliasDomain), 0)
           add(_.email)
           add(_.facebook)
         }

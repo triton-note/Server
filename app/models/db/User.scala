@@ -3,7 +3,6 @@ package models.db
 import java.sql.Timestamp
 import DB.simple._
 import Database.threadLocalSession
-import com.amazonaws.util.Md5Utils
 
 case class User(id: Long,
                 createdAt: Timestamp = currentTimestamp,
@@ -12,22 +11,31 @@ case class User(id: Long,
                 lastName: String,
                 avatarUrl: Option[String] = None) {
   lazy val fullName = "%s %s".format(firstName, lastName)
-  lazy val emails = UserAlias.list(this, UserAliasDomain.email).map(_.name)
+  /**
+   * List by user in any domain
+   */
+  lazy val aliases: List[UserAlias] = withSession {
+    val q = for {
+      o <- UserAlias
+      if (o.userId is id)
+    } yield o
+    q.sortBy(_.domain).sortBy(_.priority).list
+  }
+  lazy val emails = aliases.filter(_.domain == UserAliasDomain.email).map(_.name)
   /**
    * Prepared query for me
    */
-  lazy val me = for {
-    a <- User
-    if (a.id is id)
-  } yield a
+  def me = withSession {
+    for {
+      a <- User
+      if (a.id is id)
+    } yield a
+  }
   /**
    * Delete me
    */
-  def delete: Boolean = {
-    val v = withSession {
-      me.delete
-    }
-    v > 0
+  def delete: Boolean = withSession {
+    me.delete > 0
   }
   /**
    * Change properties (like a copy) and update Database
@@ -40,6 +48,20 @@ case class User(id: Long,
       }.update(n.lastModifiedAt, n.firstName, n.lastName, n.avatarUrl)
     }
     n
+  }
+  /**
+   * Find user's album
+   */
+  def findAlbum(theDate: Timestamp, theGrounds: String): Option[Album] = withSession {
+    val q = for {
+      ao <- AlbumOwner
+      if (ao.userId is id)
+      a <- Album
+      if (a.id is ao.albumId)
+      if (a.date is theDate)
+      if (a.grounds is theGrounds)
+    } yield a
+    q.firstOption
   }
 }
 object User extends Table[User]("USER") {
@@ -84,43 +106,27 @@ object AlbumOwner extends Table[(Long, Long)]("ALBUM_OWNER") {
   /**
    * Let user gain album
    */
-  def addNew(theAlbum: Album, theUser: User): (Album, User) = {
-    withSession {
-      * insert (theAlbum.id, theUser.id)
-      val q = for {
-        a <- Album
-        b <- User
-        if (a.id is theAlbum.id)
-        if (b.id is theUser.id)
-      } yield (a, b)
-      q.first
-    }
+  def addNew(theAlbum: Album, theUser: User): (Album, User) = withSession {
+    * insert (theAlbum.id, theUser.id)
+    val q = for {
+      a <- Album
+      b <- User
+      if (a.id is theAlbum.id)
+      if (b.id is theUser.id)
+    } yield (a, b)
+    q.first
   }
   /**
    * Create album if not exist.
    */
-  def create(theUser: User, theDate: Timestamp, theGrounds: String): Album = withTransaction {
-    findAlbum(theUser, theDate, theGrounds) match {
+  def create(theUser: User, theDate: Timestamp, theGrounds: String): Album = withSession {
+    theUser.findAlbum(theDate, theGrounds) match {
       case Some(a) => a
       case None => {
         val a = Album.addNew(theDate, theGrounds)
         addNew(a, theUser)._1
       }
     }
-  }
-  /**
-   * Find user's album
-   */
-  def findAlbum(theUser: User, theDate: Timestamp, theGrounds: String): Option[Album] = withTransaction {
-    val q = for {
-      ao <- AlbumOwner
-      if (ao.userId is theUser.id)
-      a <- Album
-      if (a.id is ao.albumId)
-      if (a.date is theDate)
-      if (a.grounds is theGrounds)
-    } yield a
-    q.firstOption
   }
 }
 
@@ -140,16 +146,14 @@ object PhotoOwner extends Table[(Long, Long)]("PHOTO_OWNER") {
   /**
    * Let user gain photo
    */
-  def addNew(thePhoto: Photo, theUser: User): (Photo, User) = {
-    withSession {
-      * insert (thePhoto.id, theUser.id)
-      val q = for {
-        a <- Photo
-        b <- User
-        if (a.id is thePhoto.id)
-        if (b.id is theUser.id)
-      } yield (a, b)
-      q.first
-    }
+  def addNew(thePhoto: Photo, theUser: User): (Photo, User) = withSession {
+    * insert (thePhoto.id, theUser.id)
+    val q = for {
+      a <- Photo
+      b <- User
+      if (a.id is thePhoto.id)
+      if (b.id is theUser.id)
+    } yield (a, b)
+    q.first
   }
 }
