@@ -64,23 +64,16 @@ object PublishPhotoCollection {
   object AlbumManager {
     case class AlbumPhotos(albumId: Long, photos: List[PreInfo], accessKey: AccessKey) {
       implicit val facebookKey = accessKey
-      def submittedOrInference(info: PreInfo) = info.submitted match {
-        case Some(s) => Some(s.date, s.grounds, Some(s.comment))
-        case None => info.inference match {
-          case Some(i) => Some(i.date, i.grounds, None)
-          case None    => None
-        }
-      }
       def publishAll = withTransaction {
         (Album get albumId).map(nameOf).map(publish(_)_) map {
           _(
             for {
               (info, photo) <- findCommitted(photos).toList
               image <- photo.image
-              (date, grounds, comment) <- submittedOrInference(info)
-              a <- photo.findAlbum(grounds, date)
+              soi <- info.soi
+              a <- photo.findAlbum(soi.grounds, soi.date)
               if (a.id == albumId)
-            } yield (image.file, comment)
+            } yield (image.file, soi.comment)
           )
         }
       }

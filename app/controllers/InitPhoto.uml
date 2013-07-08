@@ -98,7 +98,7 @@ It can be more</body>
     <message xmi:id="_6ztPQNKcEeKdutvKZFXr_Q" name="FB Key" receiveEvent="_6zt2UdKcEeKdutvKZFXr_Q" sendEvent="_6zt2UNKcEeKdutvKZFXr_Q"/>
     <message xmi:id="_nD1V4NKdEeKdutvKZFXr_Q" name="Info by XML" receiveEvent="_nD2kANKdEeKdutvKZFXr_Q" sendEvent="_nD188NKdEeKdutvKZFXr_Q"/>
     <message xmi:id="_Kl1OwNKeEeKdutvKZFXr_Q" name="Start uploading" messageSort="asynchCall" receiveEvent="_Kl2c4NKeEeKdutvKZFXr_Q" sendEvent="_Kl110NKeEeKdutvKZFXr_Q"/>
-    <message xmi:id="_RLetENKeEeKdutvKZFXr_Q" name="Start From" messageSort="asynchCall" receiveEvent="_RLfUIdKeEeKdutvKZFXr_Q" sendEvent="_RLfUINKeEeKdutvKZFXr_Q"/>
+    <message xmi:id="_RLetENKeEeKdutvKZFXr_Q" name="Start Form" messageSort="asynchCall" receiveEvent="_RLfUIdKeEeKdutvKZFXr_Q" sendEvent="_RLfUINKeEeKdutvKZFXr_Q"/>
     <message xmi:id="_00jeUNKeEeKdutvKZFXr_Q" name="Share" receiveEvent="_00kscNKeEeKdutvKZFXr_Q" sendEvent="_00kFYNKeEeKdutvKZFXr_Q"/>
     <message xmi:id="_H_1ncNKfEeKdutvKZFXr_Q" name="ImageData of Photo-A" receiveEvent="_H_21kNKfEeKdutvKZFXr_Q" sendEvent="_H_2OgNKfEeKdutvKZFXr_Q"/>
     <message xmi:id="_JHZFYNKfEeKdutvKZFXr_Q" name="ImageData of Photo-B" receiveEvent="_JHZscdKfEeKdutvKZFXr_Q" sendEvent="_JHZscNKfEeKdutvKZFXr_Q"/>

@@ -47,7 +47,7 @@ object InitPhoto extends Controller with securesocial.core.SecureSocial {
   /**
    * Getting info of photos in session for JavaScript
    */
-  def getInfos = SecuredAction { implicit request =>
+  def getInfo = SecuredAction { implicit request =>
     val ok = for {
       vt <- sessionUploading(request)
       xml <- vt.extra

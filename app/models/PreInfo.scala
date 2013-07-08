@@ -150,9 +150,9 @@ object PreInfo {
       }
     }</files>
   }
-  case class BasicInfo private[PreInfo](filepath: String, format: String, width: Long, height: Long, timestamp: Option[Date], geoinfo: Option[GeoInfo])
-  case class SubmittedInfo private[PreInfo](date: Date, grounds: String, comment: String)
-  case class InferentialInfo private[PreInfo](date: Date, grounds: String)
+  case class BasicInfo private[PreInfo] (filepath: String, format: String, width: Long, height: Long, timestamp: Option[Date], geoinfo: Option[GeoInfo])
+  case class SubmittedInfo private[PreInfo] (date: Date, grounds: String, comment: String)
+  case class InferentialInfo private[PreInfo] (date: Date, grounds: String)
   // avoid null string
   def an(o: String) = if (o == null) "" else o
   def submission(date: Date, grounds: String, comment: String) = SubmittedInfo(date, an(grounds), an(comment))
@@ -163,6 +163,19 @@ case class PreInfo(basic: PreInfo.BasicInfo,
                    submitted: Option[PreInfo.SubmittedInfo],
                    committed: Option[Long]) {
   import PreInfo._
+  /**
+   * Submitted Or Inference
+   */
+  lazy val soi = {
+    case class SOI(date: Date, grounds: String, comment: Option[String])
+    submitted match {
+      case Some(s) => Some(SOI(s.date, s.grounds, Some(s.comment)))
+      case None => inference match {
+        case Some(i) => Some(SOI(i.date, i.grounds, None))
+        case None    => None
+      }
+    }
+  }
   def commit(file: java.io.File)(implicit user: User): Option[PreInfo] = committed match {
     case Some(id) => None
     case None => submitted.map { s =>
