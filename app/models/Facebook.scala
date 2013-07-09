@@ -59,9 +59,12 @@ object Facebook {
         for {
           json <- opt
           email <- (json \ "email").asOpt[String]
-        } yield db.UserAlias.get(email, db.UserAliasDomain.facebook) match {
-          case Some(user) => Right(user)
-          case None       => Left(email)
+        } yield {
+          Logger debug f"Getting UserAlias by email: $email"
+          db.UserAlias.get(email, db.UserAliasDomain.facebook) match {
+            case Some(user) => Right(user)
+            case None       => Left(email)
+          }
         }
       }
     }

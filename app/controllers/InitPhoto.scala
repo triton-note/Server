@@ -6,7 +6,6 @@ import ExecutionContext.Implicits.global
 import play.api.Logger
 import play.api.data._
 import play.api.mvc._
-import play.api.libs.Files._
 import models._
 import service._
 import service.UserCredential.Conversions._
@@ -24,11 +23,18 @@ object InitPhoto extends Controller with securesocial.core.SecureSocial {
    * Login as Facebook user
    */
   def createTokenByFacebook(accesskey: String) = Action { implicit request =>
-    Await.result(Facebook.User(accesskey), 1 minutes) map { user =>
-      completeAuth(user).withSession(
-        sessionFacebook(accesskey),
-        sessionUploading())
-    } getOrElse Status(401) // Unauthorized
+    Async {
+      for {
+        u <- Facebook.User(accesskey)
+      } yield {
+        Logger debug f"Authorized user from facebook: $u"
+        u map { user =>
+          completeAuth(user).withSession(
+            sessionFacebook(accesskey),
+            sessionUploading())
+        } getOrElse Results.Unauthorized
+      }
+    }
   }
   /**
    * Save uploaded xml of file info
@@ -42,7 +48,7 @@ object InitPhoto extends Controller with securesocial.core.SecureSocial {
       // Ignore result on Future
       Ok("OK")
     }
-    ok getOrElse BadRequest("No session")
+    ok getOrElse Results.BadRequest
   }
   /**
    * Getting info of photos in session for JavaScript
@@ -55,7 +61,7 @@ object InitPhoto extends Controller with securesocial.core.SecureSocial {
       val infos = PreInfo read xml
       Ok(PreInfo asXML infos)
     }
-    ok getOrElse BadRequest("No session")
+    ok getOrElse Results.BadRequest
   }
   /**
    * Show page of form for initializing photo
@@ -68,7 +74,7 @@ object InitPhoto extends Controller with securesocial.core.SecureSocial {
       val infos = PreInfo read xml
       Ok(views.html.photo.init render infos)
     }
-    ok getOrElse BadRequest("No session")
+    ok getOrElse Results.BadRequest
   }
   /**
    * Form of initializing photo
@@ -89,7 +95,7 @@ object InitPhoto extends Controller with securesocial.core.SecureSocial {
     implicit val user = request.user.user
     formInitInput.bindFromRequest.fold(
       error => {
-        BadRequest("Mulformed parameters")
+        Results.BadRequest
       },
       adding => {
         val ok = for {
@@ -99,7 +105,7 @@ object InitPhoto extends Controller with securesocial.core.SecureSocial {
           // Ignore result on Future
           Ok("Updated")
         }
-        ok getOrElse BadRequest("NG")
+        ok getOrElse Results.BadRequest
       }
     )
   }
@@ -121,6 +127,6 @@ object InitPhoto extends Controller with securesocial.core.SecureSocial {
       // Ignore result on Future
       Ok("OK")
     }
-    ok getOrElse BadRequest("NG")
+    ok getOrElse Results.BadRequest
   }
 }
