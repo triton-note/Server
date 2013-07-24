@@ -132,19 +132,21 @@ object PreInfo {
       infos map { info =>
         val b = info.basic
         <file filepath={ b.filepath } format={ b.format } width={ b.width } height={ b.height } timestamp={ b.timestamp.map(df.format) getOrElse "" }>
-          b.geoinfo.map{ g: GeoInfo =>
-            <geoinfo latitude={ g.latitude } longitude={ g.longitude }/>
-          }
-          info.inference.map{ i: InferentialInfo =>
-            <inference date={ df format i.date } grounds={ i.grounds }/>
-          }
-          info.submitted.map{ s: SubmittedInfo =>
-            <submitted date={ df format s.date } grounds={ s.grounds }>
-              <comment>{ s.comment }</comment>
-            </submitted>
-          }
-          info.committed.map{ c: Long =>
-            <committed id={ c }/>
+          {
+            b.geoinfo map { g =>
+              <geoinfo latitude={ g.latitude } longitude={ g.longitude }/>
+            }
+            info.inference map { i =>
+              <inference date={ df format i.date } grounds={ i.grounds }/>
+            }
+            info.submitted map { s =>
+              <submitted date={ df format s.date } grounds={ s.grounds }>
+                <comment>{ s.comment }</comment>
+              </submitted>
+            }
+            info.committed map { c =>
+              <committed id={ c }/>
+            }
           }
         </file>
       }

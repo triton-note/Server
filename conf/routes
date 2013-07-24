@@ -1,9 +1,10 @@
-GET    /assets/*file             controllers.Assets.at(path="/public", file)
+GET    /assets/*file                      controllers.Assets.at(path="/public", file)
 
 # Photo uploading
 GET    /photo/initByFacebook/:accessKey   controllers.InitPhoto.createTokenByFacebook(accessKey: String)
 GET    /photo/saveInfo                    controllers.InitPhoto.saveInfo
 GET    /photo/getInfo                     controllers.InitPhoto.getInfo
+GET    /photo/showForm/:key               controllers.InitPhoto.showForm_redirect(key: String)
 GET    /photo/showForm                    controllers.InitPhoto.showForm
 GET    /photo/submit                      controllers.InitPhoto.submit
 GET    /photo/upload                      controllers.InitPhoto.upload

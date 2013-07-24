@@ -2,6 +2,7 @@ package controllers
 
 import scala.concurrent._
 import scala.concurrent.duration._
+import scala.util.control.Exception._
 import ExecutionContext.Implicits.global
 import play.api.Logger
 import play.api.data._
@@ -11,13 +12,30 @@ import service._
 import service.UserCredential.Conversions._
 
 object InitPhoto extends Controller with securesocial.core.SecureSocial {
-  val sessionFacebook = new SessionValue("TritonNote-facebook_accesskey", 1 hour)
+  val sessionFacebook = new SessionValue("TritonNote-facebook_accesskey", 30 minutes)
   val sessionUploading = new SessionValue("TritonNote-uploading", 1 hour)
   /**
    * Register authorized user to session
    */
-  private def completeAuth(user: db.UserAlias)(implicit request: RequestHeader): Result = {
-    securesocial.controllers.ProviderController.completeAuthentication(user, request.session)
+  private def completeAuth(ses: (String, String)*)(implicit user: db.UserAlias): PlainResult = {
+    securesocial.core.Authenticator.create(user) match {
+      case Left(error) => throw error
+      case Right(authenticator) => {
+        val cookies = List(authenticator.toCookie)
+        val extra = <header>
+                      {
+                        for {
+                          c <- cookies
+                        } yield <cookie name={ c.name } value={ c.value } maxAge={ c.maxAge.map(_.toString) orNull }/>
+                        for {
+                          (name, value) <- ses
+                        } yield <session name={ name } value={ value }/>
+                      }
+                    </header>
+        val vt = db.VolatileToken.createNew(5 minutes, Some(extra.toString));
+        Ok(vt.token).withCookies(cookies: _*).withSession(ses: _*)
+      }
+    }
   }
   /**
    * Login as Facebook user
@@ -28,10 +46,11 @@ object InitPhoto extends Controller with securesocial.core.SecureSocial {
         u <- Facebook.User(accesskey)
       } yield {
         Logger debug f"Authorized user from facebook: $u"
-        u map { user =>
-          completeAuth(user).withSession(
+        u flatMap { implicit user =>
+          allCatch opt completeAuth(
             sessionFacebook(accesskey),
-            sessionUploading())
+            sessionUploading()
+          )
         } getOrElse Results.Unauthorized
       }
     }
@@ -60,6 +79,31 @@ object InitPhoto extends Controller with securesocial.core.SecureSocial {
     } yield {
       val infos = PreInfo read xml
       Ok(PreInfo asXML infos)
+    }
+    ok getOrElse Results.BadRequest
+  }
+  def showForm_redirect(key: String) = Action { implicit request =>
+    val ok = for {
+      vt <- db.VolatileToken get key
+      extra <- vt.extra
+      xml <- allCatch opt (scala.xml.XML loadString extra)
+    } yield {
+      implicit class HasAtt(xml: scala.xml.Node) {
+        def \@(name: String) = (xml \ f"@$name").headOption.map(_.toString)
+        def \#(name: String) = \@(name).map(_.toInt)
+      }
+      val cookies = for {
+        c <- xml \ "cookie"
+        name <- c \@ "name"
+        value <- c \@ "value"
+        maxAge = c \# "maxAge"
+      } yield new Cookie(name, value, maxAge, secure = true)
+      val ses = for {
+        s <- xml \ "session"
+        name <- s \@ "name"
+        value <- s \@ "value"
+      } yield (name, value)
+      Redirect(routes.InitPhoto.showForm).withCookies(cookies: _*).withSession(ses: _*)
     }
     ok getOrElse Results.BadRequest
   }
