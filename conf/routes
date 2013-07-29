@@ -1,31 +1,31 @@
-GET    /assets/*file                      controllers.Assets.at(path="/public", file)
+GET    /assets/*file             controllers.Assets.at(path="/public", file)
 
 # Photo uploading
-GET    /photo/initByFacebook/:accessKey   controllers.InitPhoto.createTokenByFacebook(accessKey: String)
-GET    /photo/saveInfo                    controllers.InitPhoto.saveInfo
-GET    /photo/getInfo                     controllers.InitPhoto.getInfo
-GET    /photo/showForm/:key               controllers.InitPhoto.showForm_redirect(key: String)
-GET    /photo/showForm                    controllers.InitPhoto.showForm
-GET    /photo/submit                      controllers.InitPhoto.submit
-GET    /photo/upload                      controllers.InitPhoto.upload
+GET    /photo/initByFacebook/    controllers.InitPhoto.createTokenByFacebook
+GET    /photo/saveInfo           controllers.InitPhoto.saveInfo
+GET    /photo/getInfo            controllers.InitPhoto.getInfo
+GET    /photo/showForm/:key      controllers.InitPhoto.showForm_redirect(key: String)
+GET    /photo/showForm           controllers.InitPhoto.showForm
+GET    /photo/submit             controllers.InitPhoto.submit
+GET    /photo/upload             controllers.InitPhoto.upload
 
 # Login page
-GET    /login                             securesocial.controllers.LoginPage.login
-GET    /logout                            securesocial.controllers.LoginPage.logout
+GET    /login                    securesocial.controllers.LoginPage.login
+GET    /logout                   securesocial.controllers.LoginPage.logout
 
 # User Registration and password handling 
-GET    /signup                            securesocial.controllers.Registration.startSignUp
-POST   /signup                            securesocial.controllers.Registration.handleStartSignUp
-GET    /signup/:token                     securesocial.controllers.Registration.signUp(token)
-POST   /signup/:token                     securesocial.controllers.Registration.handleSignUp(token)
-GET    /reset                             securesocial.controllers.Registration.startResetPassword
-POST   /reset                             securesocial.controllers.Registration.handleStartResetPassword
-GET    /reset/:token                      securesocial.controllers.Registration.resetPassword(token)
-POST   /reset/:token                      securesocial.controllers.Registration.handleResetPassword(token)
-GET    /password                          securesocial.controllers.PasswordChange.page
-POST   /password                          securesocial.controllers.PasswordChange.handlePasswordChange
+GET    /signup                   securesocial.controllers.Registration.startSignUp
+POST   /signup                   securesocial.controllers.Registration.handleStartSignUp
+GET    /signup/:token            securesocial.controllers.Registration.signUp(token)
+POST   /signup/:token            securesocial.controllers.Registration.handleSignUp(token)
+GET    /reset                    securesocial.controllers.Registration.startResetPassword
+POST   /reset                    securesocial.controllers.Registration.handleStartResetPassword
+GET    /reset/:token             securesocial.controllers.Registration.resetPassword(token)
+POST   /reset/:token             securesocial.controllers.Registration.handleResetPassword(token)
+GET    /password                 securesocial.controllers.PasswordChange.page
+POST   /password                 securesocial.controllers.PasswordChange.handlePasswordChange
 
 # Providers entry points
-GET    /authenticate/:provider            securesocial.controllers.ProviderController.authenticate(provider)
-POST   /authenticate/:provider            securesocial.controllers.ProviderController.authenticateByPost(provider)
-GET    /not-authorized                    securesocial.controllers.ProviderController.notAuthorized
+GET    /authenticate/:provider   securesocial.controllers.ProviderController.authenticate(provider)
+POST   /authenticate/:provider   securesocial.controllers.ProviderController.authenticateByPost(provider)
+GET    /not-authorized           securesocial.controllers.ProviderController.notAuthorized

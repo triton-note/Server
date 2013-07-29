@@ -73,22 +73,18 @@ object PreInfo {
    * Parse XML and into PreInfo objects
    */
   def load(xml: Node): List[PreInfo] = {
-    implicit class HasAtt(xml: scala.xml.Node) {
-      def \@(name: String) = (xml \ f"@$name").headOption.map(_.toString)
-      def \#(name: String) = \@(name).map(_.toDouble)
-    }
     for {
       info <- (xml \ "file").toList
       filepath <- info \@ "path"
       format <- info \@ "format"
-      width <- info \# "width"
-      height <- info \# "height"
+      width <- info \@# "width"
+      height <- info \@# "height"
     } yield {
       val timestamp = (info \@ "timestamp").map(df.parse)
       val geoinfo = for {
         geo <- (info \ "geoinfo").headOption
-        latitude <- geo \# "latitude"
-        longitude <- geo \# "longitude"
+        latitude <- geo \@# "latitude"
+        longitude <- geo \@# "longitude"
       } yield GeoInfo(latitude, longitude)
       PreInfo(
         BasicInfo(filepath, format, width.round, height.round, timestamp, geoinfo),
@@ -110,7 +106,7 @@ object PreInfo {
         {
           for {
             c <- (info \ "committed").headOption
-            id <- c \# "id"
+            id <- c \@# "id"
           } yield id.toLong
         }
       )

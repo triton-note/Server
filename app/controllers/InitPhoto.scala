@@ -21,7 +21,7 @@ object InitPhoto extends Controller with securesocial.core.SecureSocial {
     securesocial.core.Authenticator.create(user) match {
       case Left(error) => throw error
       case Right(authenticator) => {
-        val cookies = List(authenticator.toCookie)
+        val cookies = List(authenticator.toCookie).map(_.copy(secure = true))
         val extra = <header>
                       {
                         for {
@@ -40,8 +40,9 @@ object InitPhoto extends Controller with securesocial.core.SecureSocial {
   /**
    * Login as Facebook user
    */
-  def createTokenByFacebook(accesskey: String) = Action { implicit request =>
+  def createTokenByFacebook = Action(parse.text) { implicit request =>
     Async {
+      val accesskey = request.body
       for {
         u <- Facebook.User(accesskey)
       } yield {
@@ -88,16 +89,12 @@ object InitPhoto extends Controller with securesocial.core.SecureSocial {
       extra <- vt.extra
       xml <- allCatch opt (scala.xml.XML loadString extra)
     } yield {
-      implicit class HasAtt(xml: scala.xml.Node) {
-        def \@(name: String) = (xml \ f"@$name").headOption.map(_.toString)
-        def \#(name: String) = \@(name).map(_.toInt)
-      }
       val cookies = for {
         c <- xml \ "cookie"
         name <- c \@ "name"
         value <- c \@ "value"
-        maxAge = c \# "maxAge"
-      } yield new Cookie(name, value, maxAge, secure = true)
+        maxAge = (c \@# "maxAge").map(_.toInt)
+      } yield Cookie(name, value, maxAge, secure = true)
       val ses = for {
         s <- xml \ "session"
         name <- s \@ "name"
