@@ -1,13 +1,13 @@
 GET    /assets/*file             controllers.Assets.at(path="/public", file)
 
 # Photo uploading
-GET    /photo/initByFacebook/    controllers.InitPhoto.createTokenByFacebook
-GET    /photo/saveInfo           controllers.InitPhoto.saveInfo
+POST   /photo/initByFacebook     controllers.InitPhoto.createTokenByFacebook
+POST   /photo/saveInfo           controllers.InitPhoto.saveInfo
 GET    /photo/getInfo            controllers.InitPhoto.getInfo
 GET    /photo/showForm/:key      controllers.InitPhoto.showForm_redirect(key: String)
 GET    /photo/showForm           controllers.InitPhoto.showForm
-GET    /photo/submit             controllers.InitPhoto.submit
-GET    /photo/upload             controllers.InitPhoto.upload
+POST   /photo/submit             controllers.InitPhoto.submit
+POST   /photo/upload             controllers.InitPhoto.upload
 
 # Login page
 GET    /login                    securesocial.controllers.LoginPage.login

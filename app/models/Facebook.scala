@@ -8,7 +8,7 @@ import play.api.libs.functional.syntax._
 import com.ning.http.multipart._
 
 object Facebook {
-  val fb = host("graph.facebook.com").secure
+  def fb = host("graph.facebook.com").secure
   case class AccessKey(token: String)
   case class ObjectId(id: String)
   def part(file: Storage.S3File): FilePart = {
@@ -22,7 +22,9 @@ object Facebook {
   object parse {
     import com.ning.http.client.Response
     def JSON(res: Response): JsValue = {
-      Json parse as.String(res)
+      val text = as.String(res)
+      Logger.debug(f"Parsing json: $text")
+      Json parse text
     }
     def ObjectID(res: Response): ObjectId = {
       ObjectId((JSON(res) \ "id").as[String])
@@ -43,7 +45,7 @@ object Facebook {
      * The attributes is specified by fields.
      */
     def obtain(fields: String*)(implicit accesskey: AccessKey): Future[Option[JsValue]] = {
-      val req = (fb / "me").GET << Map(
+      val req = (fb / "me").GET <<? Map(
         "fields" -> fields.mkString(","),
         "access_token" -> accesskey.token)
       Http(req OK parse.JSON).option
@@ -96,6 +98,7 @@ object Facebook {
      */
     def apply(accesskey: String): Future[Option[db.UserAlias]] = {
       implicit val ak = AccessKey(accesskey)
+      Logger.debug(f"Login as user with $ak")
       find flatMap (_ match {
         case Some(e) => e match {
           case Right(user) => Future(Some(user))
