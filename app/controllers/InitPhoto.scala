@@ -27,12 +27,15 @@ object InitPhoto extends Controller with securesocial.core.SecureSocial {
                         for {
                           c <- cookies
                         } yield <cookie name={ c.name } value={ c.value } maxAge={ c.maxAge.map(_.toString) orNull }/>
+                      }
+                      {
                         for {
                           (name, value) <- ses
                         } yield <session name={ name } value={ value }/>
                       }
                     </header>
-        val vt = db.VolatileToken.createNew(5 minutes, Some(extra.toString));
+        Logger debug f"Saving cookies and session as XML: $extra"
+        val vt = db.VolatileToken.createNew(5 minutes, Some(extra.toString))
         Ok(vt.token).withCookies(cookies: _*).withSession(ses: _*)
       }
     }
@@ -84,6 +87,7 @@ object InitPhoto extends Controller with securesocial.core.SecureSocial {
     ok getOrElse Results.BadRequest
   }
   def showForm_redirect(key: String) = Action { implicit request =>
+    import RichXML._
     val ok = for {
       vt <- db.VolatileToken get key
       extra <- vt.extra
@@ -94,12 +98,14 @@ object InitPhoto extends Controller with securesocial.core.SecureSocial {
         name <- c \@ "name"
         value <- c \@ "value"
         maxAge = (c \@# "maxAge").map(_.toInt)
-      } yield Cookie(name, value, maxAge, secure = true)
+      } yield Cookie(name, value, maxAge, secure = true, httpOnly = false)
       val ses = for {
         s <- xml \ "session"
         name <- s \@ "name"
         value <- s \@ "value"
       } yield (name, value)
+      Logger.debug(f"Embebing user cookie: $cookies")
+      Logger.debug(f"Embeding session: $ses")
       Redirect(routes.InitPhoto.showForm).withCookies(cookies: _*).withSession(ses: _*)
     }
     ok getOrElse Results.BadRequest

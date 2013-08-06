@@ -10,43 +10,48 @@ object PreInfo {
   import scala.xml._
   val df = new java.text.SimpleDateFormat("yyyy-MM-dd'T'h:m:ss")
   implicit def stringToSource(text: String) = new StreamSource(new java.io.StringReader(text))
-  val XSD = <?xml version="1.0"?>
-            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  val XSD = <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
               <xs:element name="files">
                 <xs:complexType>
-                  <xs:element name="file" minOccurs="1" maxOccurs="unbounded">
-                    <xs:complexType>
-                      <xs:attribute name="filepath" type="xs:string" use="required"/>
-                      <xs:attribute name="format" type="xs:string" use="required"/>
-                      <xs:attribute name="width" type="xs:long" use="required"/>
-                      <xs:attribute name="height" type="xs:long" use="required"/>
-                      <xs:attribute name="timestamp" type="xs:dateTime"/>
-                      <xs:element name="geoinfo" minOccurs="0" maxOccurs="1">
-                        <xs:complexType>
-                          <xs:attribute name="latitude" type="xs:double" use="required"/>
-                          <xs:attribute name="longitude" type="xs:double" use="required"/>
-                        </xs:complexType>
-                      </xs:element>
-                      <xs:element name="inference" minOccurs="0" maxOccurs="1">
-                        <xs:complexType>
-                          <xs:attribute name="grounds" type="xs:string" use="required"/>
-                          <xs:attribute name="date" type="xs:date" use="required"/>
-                        </xs:complexType>
-                      </xs:element>
-                      <xs:element name="info" minOccurs="0" maxOccurs="1">
-                        <xs:complexType>
-                          <xs:attribute name="grounds" type="xs:string" use="required"/>
-                          <xs:attribute name="date" type="xs:date" use="required"/>
-                          <xs:element name="comment" type="xs:string" minOccurs="1" maxOccurs="1"/>
-                        </xs:complexType>
-                      </xs:element>
-                      <xs:element name="committed" minOccurs="0" maxOccurs="1">
-                        <xs:complexType>
-                          <xs:attribute name="id" type="xs:string" use="required"/>
-                        </xs:complexType>
-                      </xs:element>
-                    </xs:complexType>
-                  </xs:element>
+                  <xs:sequence>
+                    <xs:element name="file" minOccurs="1" maxOccurs="unbounded">
+                      <xs:complexType>
+                        <xs:sequence>
+                          <xs:element name="geoinfo" minOccurs="0" maxOccurs="1">
+                            <xs:complexType>
+                              <xs:attribute name="latitude" type="xs:double" use="required"/>
+                              <xs:attribute name="longitude" type="xs:double" use="required"/>
+                            </xs:complexType>
+                          </xs:element>
+                          <xs:element name="inference" minOccurs="0" maxOccurs="1">
+                            <xs:complexType>
+                              <xs:attribute name="grounds" type="xs:string" use="required"/>
+                              <xs:attribute name="date" type="xs:date" use="required"/>
+                            </xs:complexType>
+                          </xs:element>
+                          <xs:element name="info" minOccurs="0" maxOccurs="1">
+                            <xs:complexType>
+                              <xs:sequence>
+                                <xs:element name="comment" type="xs:string" minOccurs="1" maxOccurs="1"/>
+                              </xs:sequence>
+                              <xs:attribute name="grounds" type="xs:string" use="required"/>
+                              <xs:attribute name="date" type="xs:date" use="required"/>
+                            </xs:complexType>
+                          </xs:element>
+                          <xs:element name="committed" minOccurs="0" maxOccurs="1">
+                            <xs:complexType>
+                              <xs:attribute name="id" type="xs:string" use="required"/>
+                            </xs:complexType>
+                          </xs:element>
+                        </xs:sequence>
+                        <xs:attribute name="filepath" type="xs:string" use="required"/>
+                        <xs:attribute name="format" type="xs:string" use="required"/>
+                        <xs:attribute name="width" type="xs:long" use="required"/>
+                        <xs:attribute name="height" type="xs:long" use="required"/>
+                        <xs:attribute name="timestamp" type="xs:dateTime"/>
+                      </xs:complexType>
+                    </xs:element>
+                  </xs:sequence>
                 </xs:complexType>
               </xs:element>
             </xs:schema>
@@ -73,6 +78,8 @@ object PreInfo {
    * Parse XML and into PreInfo objects
    */
   def load(xml: Node): List[PreInfo] = {
+    Logger.trace(f"Loading PreInfo from XML: $xml")
+    import RichXML._
     for {
       info <- (xml \ "file").toList
       filepath <- info \@ "path"

@@ -45,7 +45,7 @@ object VolatileToken extends Table[VolatileToken]("VOLATILE_TOKEN") {
   def uses = column[String]("USES", O.NotNull)
   def createdAt = column[Timestamp]("CREATED_AT", O.NotNull)
   def expiration = column[Timestamp]("EXPIRATION", O.NotNull)
-  def extra = column[String]("EXTRA", O.Nullable)
+  def extra = column[String]("EXTRA", O.Nullable, O.DBType("TEXT"))
   // Define primary key
   def pk = primaryKey("VOLATILE_TOKEN_PK", (token, uses))
   // All columns
