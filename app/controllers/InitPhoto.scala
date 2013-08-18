@@ -97,8 +97,8 @@ object InitPhoto extends Controller with securesocial.core.SecureSocial {
         c <- xml \ "cookie"
         name <- c \@ "name"
         value <- c \@ "value"
-        maxAge = (c \@# "maxAge").map(_.toInt)
-      } yield Cookie(name, value, maxAge, secure = true, httpOnly = false)
+        maxAge = c \@# "maxAge"
+      } yield Cookie(name, value, maxAge, secure = false, httpOnly = false) // Cookie on redirect must be non-secure
       val ses = for {
         s <- xml \ "session"
         name <- s \@ "name"

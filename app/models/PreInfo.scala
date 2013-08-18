@@ -66,7 +66,7 @@ object PreInfo {
   /**
    * Validate XML
    */
-  def validate(string: String): Option[String] = {
+  private def validate(string: String): Option[String] = {
     try {
       schema.newValidator().validate(string)
       Some(string)
@@ -77,21 +77,20 @@ object PreInfo {
   /**
    * Parse XML and into PreInfo objects
    */
-  def load(xml: Node): List[PreInfo] = {
-    Logger.trace(f"Loading PreInfo from XML: $xml")
+  private def load(xml: Node): List[PreInfo] = {
     import RichXML._
     for {
       info <- (xml \ "file").toList
       filepath <- info \@ "path"
       format <- info \@ "format"
-      width <- info \@# "width"
-      height <- info \@# "height"
+      width <- info \@% "width"
+      height <- info \@% "height"
     } yield {
       val timestamp = (info \@ "timestamp").map(df.parse)
       val geoinfo = for {
         geo <- (info \ "geoinfo").headOption
-        latitude <- geo \@# "latitude"
-        longitude <- geo \@# "longitude"
+        latitude <- geo \@% "latitude"
+        longitude <- geo \@% "longitude"
       } yield GeoInfo(latitude, longitude)
       PreInfo(
         BasicInfo(filepath, format, width.round, height.round, timestamp, geoinfo),
@@ -113,7 +112,7 @@ object PreInfo {
         {
           for {
             c <- (info \ "committed").headOption
-            id <- c \@# "id"
+            id <- c \@% "id"
           } yield id.toLong
         }
       )
@@ -123,6 +122,7 @@ object PreInfo {
    * Find PreInfo in the given XML.
    */
   def read(xml: String): List[PreInfo] = {
+    Logger.trace(f"Loading PreInfo from XML: $xml")
     for {
       string <- validate(xml).toList
       info <- load(scala.xml.XML loadString string)
@@ -159,7 +159,7 @@ object PreInfo {
   case class SubmittedInfo private[PreInfo] (date: Date, grounds: String, comment: String)
   case class InferentialInfo private[PreInfo] (date: Date, grounds: String)
   // avoid null string
-  def an(o: String) = if (o == null) "" else o
+  def an(o: String) = Option(o) getOrElse ""
   def submission(date: Date, grounds: String, comment: String) = SubmittedInfo(date, an(grounds), an(comment))
   def inference(date: Date, grounds: String) = InferentialInfo(date, an(grounds))
 }
