@@ -119,6 +119,7 @@ object InitPhoto extends Controller with securesocial.core.SecureSocial {
       xml <- vt.extra
     } yield {
       val infos = PreInfo read xml
+      play.Logger debug f"Show form of $infos"
       Ok(views.html.photo.init render infos)
     }
     ok getOrElse Results.BadRequest
@@ -163,6 +164,7 @@ object InitPhoto extends Controller with securesocial.core.SecureSocial {
     implicit val user = request.user.user
     val ok = sessionUploading(request).map { vt =>
       request.body.files.map { tmp =>
+        Logger.trace(f"Uploaded $tmp")
         InferencePreInfo.commitByUpload(vt)(tmp.filename, tmp.ref.file).map { a =>
           for {
             committed <- a

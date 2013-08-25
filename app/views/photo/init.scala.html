@@ -1,8 +1,8 @@
-@(analyzedList: List[models.PreInfo])
+@(infos: List[models.PreInfo])
 
 @main("Photo Data") {
     
-    @defining(analyzedList.head) { info =>
+    @for(info <- infos) {
         
         <table>
             <tr>

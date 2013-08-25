@@ -8,7 +8,8 @@ object PreInfo {
   import javax.xml.transform.stream._
   import javax.xml.validation._
   import scala.xml._
-  val df = new java.text.SimpleDateFormat("yyyy-MM-dd'T'h:m:ss")
+  val formatTimestamp = new java.text.SimpleDateFormat("yyyy-MM-dd'T'h:m:ss'Z'")
+  val formatDate = new java.text.SimpleDateFormat("yyyy-MM-dd'Z'")
   implicit def stringToSource(text: String) = new StreamSource(new java.io.StringReader(text))
   val XSD = <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
               <xs:element name="files">
@@ -71,7 +72,7 @@ object PreInfo {
       schema.newValidator().validate(string)
       Some(string)
     } catch {
-      case ex: Exception => None
+      case ex: Exception => Logger.error(ex.getLocalizedMessage); None
     }
   }
   /**
@@ -81,12 +82,12 @@ object PreInfo {
     import RichXML._
     for {
       info <- (xml \ "file").toList
-      filepath <- info \@ "path"
+      filepath <- info \@ "filepath"
       format <- info \@ "format"
       width <- info \@% "width"
       height <- info \@% "height"
     } yield {
-      val timestamp = (info \@ "timestamp").map(df.parse)
+      val timestamp = (info \@ "timestamp").map(formatTimestamp.parse)
       val geoinfo = for {
         geo <- (info \ "geoinfo").headOption
         latitude <- geo \@% "latitude"
@@ -97,14 +98,14 @@ object PreInfo {
         {
           for {
             i <- (info \ "inference").headOption
-            d <- (i \@ "date").map(df.parse)
+            d <- (i \@ "date").map(formatDate.parse)
             g <- i \@ "grounds"
           } yield InferentialInfo(d, g)
         },
         {
           for {
             i <- (info \ "info").headOption
-            d <- (i \@ "date").map(df.parse)
+            d <- (i \@ "date").map(formatDate.parse)
             g <- i \@ "grounds"
             c <- (i \ "comment").headOption
           } yield SubmittedInfo(d, g, c.text)
@@ -134,24 +135,25 @@ object PreInfo {
     <files>{
       infos map { info =>
         val b = info.basic
-        <file filepath={ b.filepath } format={ b.format } width={ b.width } height={ b.height } timestamp={ b.timestamp.map(df.format) getOrElse "" }>
-          {
-            b.geoinfo map { g =>
-              <geoinfo latitude={ g.latitude } longitude={ g.longitude }/>
-            }
-            info.inference map { i =>
-              <inference date={ df format i.date } grounds={ i.grounds }/>
-            }
-            info.submitted map { s =>
-              <submitted date={ df format s.date } grounds={ s.grounds }>
-                <comment>{ s.comment }</comment>
-              </submitted>
-            }
-            info.committed map { c =>
-              <committed id={ c }/>
-            }
+        <file filepath={ b.filepath } format={ b.format } width={ b.width } height={ b.height } timestamp={ b.timestamp.map(formatTimestamp.format).orNull }>{
+          b.geoinfo.toSeq map { g =>
+            <geoinfo latitude={ g.latitude } longitude={ g.longitude }/>
           }
-        </file>
+        }{
+          info.inference.toSeq map { i =>
+            <inference date={ formatDate format i.date } grounds={ i.grounds }/>
+          }
+        }{
+          info.submitted.toSeq map { s =>
+            <submitted date={ formatDate format s.date } grounds={ s.grounds }>
+              <comment>{ s.comment }</comment>
+            </submitted>
+          }
+        }{
+          info.committed.toSeq map { c =>
+            <committed id={ c }/>
+          }
+        }</file>
       }
     }</files>
   }
@@ -185,6 +187,7 @@ case class PreInfo(basic: PreInfo.BasicInfo,
     case Some(id) => None
     case None => submitted.map { s =>
       withTransaction {
+        Logger.trace(f"Committing file(${file.getName}) for $user")
         val album = AlbumOwner.create(user, s.date, s.grounds)
         val photo = Photo.addNew(basic.geoinfo, basic.timestamp.map(a => a)) bindTo user bindTo album add s.comment
         val data = Image.addNew(Image.KIND_ORIGINAL, photo, basic.format, file.length, basic.width, basic.height)
@@ -195,6 +198,7 @@ case class PreInfo(basic: PreInfo.BasicInfo,
   }
   def submit(date: Date, grounds: String, comment: String)(implicit user: User): Option[PreInfo] = {
     val s = submission(date, grounds, comment)
+    Logger.trace(f"Submitting $s for $user")
     committed match {
       case None => {
         Some(copy(submitted = Some(s)))

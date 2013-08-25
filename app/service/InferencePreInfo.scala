@@ -19,6 +19,7 @@ object InferencePreInfo {
   }
   def initialize(vt: db.VolatileToken, node: scala.xml.Node): Future[List[PreInfo]] = {
     val xml = PreInfo.asXML(PreInfo read node.toString)
+    play.Logger debug f"Initializing PreInfo: $xml"
     inference(vt setExtra xml)
   }
   def submitByUser(vt: db.VolatileToken)(filepath: String, date: Date, grounds: String, comment: String)(implicit user: db.User): Future[Option[PreInfo]] = {
@@ -64,7 +65,7 @@ object InferencePreInfo {
     val except = for {
       xml <- vt.extra.toList
       i <- PreInfo read xml
-      if infos.find(_.basic.filepath == i.basic.filepath).isDefined
+      if infos.find(_.basic.filepath == i.basic.filepath).isEmpty
     } yield i
     val next = infos.toList ::: except
     vt setExtra PreInfo.asXML(next)
