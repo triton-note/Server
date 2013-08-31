@@ -131,7 +131,7 @@ object InitPhoto extends Controller with securesocial.core.SecureSocial {
   val formInitInput = Form[InitInput](
     Forms.mapping(
       "filepath" -> Forms.nonEmptyText,
-      "date" -> Forms.date,
+      "date" -> Forms.date("yyyy-MM-dd"),
       "grounds" -> Forms.nonEmptyText,
       "comment" -> Forms.text
     )(InitInput.apply)(InitInput.unapply)
