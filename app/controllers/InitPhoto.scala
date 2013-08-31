@@ -86,44 +86,6 @@ object InitPhoto extends Controller with securesocial.core.SecureSocial {
     }
     ok getOrElse Results.BadRequest
   }
-  def showForm_redirect(key: String) = Action { implicit request =>
-    import RichXML._
-    val ok = for {
-      vt <- db.VolatileToken get key
-      extra <- vt.extra
-      xml <- allCatch opt (scala.xml.XML loadString extra)
-    } yield {
-      val cookies = for {
-        c <- xml \ "cookie"
-        name <- c \@ "name"
-        value <- c \@ "value"
-        maxAge = c \@# "maxAge"
-      } yield Cookie(name, value, maxAge, secure = false, httpOnly = false) // Cookie on redirect must be non-secure
-      val ses = for {
-        s <- xml \ "session"
-        name <- s \@ "name"
-        value <- s \@ "value"
-      } yield (name, value)
-      Logger.debug(f"Embebing user cookie: $cookies")
-      Logger.debug(f"Embeding session: $ses")
-      Redirect(routes.InitPhoto.showForm).withCookies(cookies: _*).withSession(ses: _*)
-    }
-    ok getOrElse Results.BadRequest
-  }
-  /**
-   * Show page of form for initializing photo
-   */
-  def showForm = SecuredAction { implicit request =>
-    val ok = for {
-      vt <- sessionUploading(request)
-      xml <- vt.extra
-    } yield {
-      val infos = PreInfo read xml
-      play.Logger debug f"Show form of $infos"
-      Ok(views.html.photo.init render infos)
-    }
-    ok getOrElse Results.BadRequest
-  }
   /**
    * Form of initializing photo
    */

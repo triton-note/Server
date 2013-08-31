@@ -4,8 +4,6 @@ GET    /assets/*file             controllers.Assets.at(path="/public", file)
 POST   /photo/initByFacebook     controllers.InitPhoto.createTokenByFacebook
 POST   /photo/saveInfo           controllers.InitPhoto.saveInfo
 GET    /photo/getInfo            controllers.InitPhoto.getInfo
-GET    /photo/showForm/:key      controllers.InitPhoto.showForm_redirect(key: String)
-GET    /photo/showForm           controllers.InitPhoto.showForm
 POST   /photo/submit             controllers.InitPhoto.submit
 POST   /photo/upload             controllers.InitPhoto.upload
 
