@@ -8,10 +8,10 @@ class UserCredential(application: Application) extends UserServicePlugin(applica
   import UserCredential._
   import Conversions._
 
-  def find(id: IdentityId): Option[Identity] = {
+  def find(id: UserId): Option[Identity] = {
     Logger.debug(f"Finding user by alias : $id")
     for {
-      alias <- models.db.UserAlias.get(id.userId, id.providerId)
+      alias <- models.db.UserAlias.get(id.id, id.providerId)
     } yield alias
   }
 
@@ -26,7 +26,7 @@ class UserCredential(application: Application) extends UserServicePlugin(applica
     import models.db._
     withTransaction {
       val u = User.addNew(user.firstName, user.lastName, user.avatarUrl)
-      val a1 = UserAlias.addNew(u.id, user.identityId.userId, user.identityId.providerId, 0,
+      val a1 = UserAlias.addNew(u.id, user.id.id, user.id.providerId, 0,
         user.passwordInfo.map(_.password), user.passwordInfo.map(_.hasher))
       val a2 = for {
         email <- user.email
@@ -63,7 +63,7 @@ object UserCredential {
    */
   object Conversions {
     class AliasIdentity(val alias: models.db.UserAlias) extends Identity {
-      lazy val identityId = IdentityId(alias.name, alias.domain)
+      lazy val id = UserId(alias.name, alias.domain)
       lazy val firstName = alias.user.firstName
       lazy val lastName = alias.user.lastName
       lazy val fullName = alias.user.fullName
