@@ -2,6 +2,7 @@ package models
 
 import scala.concurrent.duration.FiniteDuration
 import play.api.mvc.Request
+import play.api.Logger
 
 class SessionValue(val name: String, val dur: FiniteDuration) {
   def apply(value: String = null): (String, String) = {
@@ -10,6 +11,10 @@ class SessionValue(val name: String, val dur: FiniteDuration) {
     (name, vt.token)
   }
   def apply(req: Request[_]): Option[db.VolatileToken] = {
-    req.session.get(name).flatMap(db.VolatileToken get _)
+    val v = req.session.get(name)
+    Logger debug f"Session value: $v"
+    val vt = v.flatMap(db.VolatileToken get _)
+    Logger debug f"Gotta token $vt"
+    vt
   }
 }

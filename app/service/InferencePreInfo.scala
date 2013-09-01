@@ -4,6 +4,7 @@ import scala.concurrent._
 import ExecutionContext.Implicits.global
 import java.util.Date
 import models._
+import play.api.Logger
 
 object InferencePreInfo {
   implicit class InferentialPreInfo(info: PreInfo) {
@@ -18,8 +19,9 @@ object InferencePreInfo {
     }
   }
   def initialize(vt: db.VolatileToken, node: scala.xml.Node): Future[List[PreInfo]] = {
+    Logger debug f"Start inference for $vt, $node"
     val xml = PreInfo.asXML(PreInfo read node.toString)
-    play.Logger debug f"Initializing PreInfo: $xml"
+    Logger debug f"Initializing PreInfo: $xml"
     inference(vt setExtra xml)
   }
   def submitByUser(vt: db.VolatileToken)(filepath: String, date: Date, grounds: String, comment: String)(implicit user: db.User): Future[Option[PreInfo]] = {
