@@ -50,8 +50,8 @@ object InitPhoto extends Controller with securesocial.core.SecureSocial {
         u <- Facebook.User(accesskey)
       } yield {
         Logger debug f"Authorized user from facebook: $u"
-        u flatMap { implicit user =>
-          allCatch opt completeAuth(
+        u map { implicit user =>
+          completeAuth(
             sessionFacebook(accesskey),
             sessionUploading()
           )
