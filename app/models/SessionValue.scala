@@ -12,9 +12,9 @@ class SessionValue(val name: String, val dur: FiniteDuration) {
   }
   def apply(req: Request[_]): Option[db.VolatileToken] = {
     val v = req.session.get(name)
-    Logger debug f"Session value: $v"
+    Logger debug f"Session value of $name: $v"
     val vt = v.flatMap(db.VolatileToken get _)
-    Logger debug f"Gotta token $vt"
+    Logger debug f"Gotta token $name: $vt"
     vt
   }
 }
