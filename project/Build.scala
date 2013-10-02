@@ -9,7 +9,7 @@ object ApplicationBuild extends Build {
 
   val appDependencies = Seq(
     "net.databinder.dispatch" %% "dispatch-core" % "0.10.1",
-    "securesocial" %% "securesocial" % "master-SNAPSHOT",
+    "securesocial" %% "securesocial" % "master-SNAPSHOT" exclude("org.scala-stm", "scala-stm_2.10.0"),
     "com.amazonaws" % "aws-java-sdk" % "1.4.5",
     "postgresql" % "postgresql" % "9.1-901-1.jdbc4",
     "com.typesafe.slick" %% "slick" % "1.0.1",

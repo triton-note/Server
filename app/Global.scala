@@ -8,13 +8,11 @@ import scala.concurrent.ExecutionContext.Implicits._
 object Global extends WithFilters(AccessLog)
 
 object AccessLog extends Filter {
-  override def apply(next: RequestHeader => Result)(request: RequestHeader): Result = {
+  override def apply(next: RequestHeader => Future[SimpleResult])(request: RequestHeader): Future[SimpleResult] = {
     val result = next(request)
-    def headers(res: Result): Unit = res match {
-      case r: PlainResult => play.Logger debug f"${request} cookies: ${request.cookies} \n\t =>  ${result} headers: ${r.header.headers}"
-      case a: AsyncResult => a.result map headers
+    result map { r =>
+      play.Logger debug f"${request} cookies: ${request.cookies} \n\t =>  ${result} headers: ${r.header.headers}"
     }
-    headers(result)
     result
   }
 }

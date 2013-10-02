@@ -17,7 +17,7 @@ object InitPhoto extends Controller with securesocial.core.SecureSocial {
   /**
    * Register authorized user to session
    */
-  private def completeAuth(ses: (String, String)*)(implicit user: db.UserAlias): PlainResult = {
+  private def completeAuth(ses: (String, String)*)(implicit user: db.UserAlias) = {
     securesocial.core.Authenticator.create(user) match {
       case Left(error) => throw error
       case Right(authenticator) => {
@@ -43,20 +43,18 @@ object InitPhoto extends Controller with securesocial.core.SecureSocial {
   /**
    * Login as Facebook user
    */
-  def createTokenByFacebook = Action(parse.text) { implicit request =>
-    Async {
-      val accesskey = request.body
-      for {
-        u <- Facebook.User(accesskey)
-      } yield {
-        Logger debug f"Authorized user from facebook: $u"
-        u map { implicit user =>
-          completeAuth(
-            sessionFacebook(accesskey),
-            sessionUploading()
-          )
-        } getOrElse Results.Unauthorized
-      }
+  def createTokenByFacebook = Action.async(parse.text) { implicit request =>
+    val accesskey = request.body
+    for {
+      u <- Facebook.User(accesskey)
+    } yield {
+      Logger debug f"Authorized user from facebook: $u"
+      u map { implicit user =>
+        completeAuth(
+          sessionFacebook(accesskey),
+          sessionUploading()
+        )
+      } getOrElse Results.Unauthorized
     }
   }
   /**
