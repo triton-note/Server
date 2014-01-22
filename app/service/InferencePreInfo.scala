@@ -33,15 +33,13 @@ object InferencePreInfo {
           p <- list.find(_.basic.filepath == filepath)
           s <- p.submit(date, grounds, comment)
         } yield {
-          val n = PreInfo.inference(date, grounds)
           // Refresh inferential info
-          val r = list.map { info =>
-            if (info.basic.filepath != s.basic.filepath &&
-              info.submitted.isEmpty && (info isNearTo s)) {
+          vt.setExtra(PreInfo asXML list.par.map { info =>
+            if (info.basic.filepath != s.basic.filepath && info.submitted.isEmpty && (info isNearTo s)) {
+              val n = PreInfo.inference(date, grounds)
               info.copy(inference = Some(n))
             } else info
-          }
-          vt.setExtra(PreInfo asXML r)
+          }.toList)
           s
         }
       }
@@ -67,7 +65,7 @@ object InferencePreInfo {
     val except = for {
       xml <- vt.extra.toList
       i <- PreInfo read xml
-      if infos.find(_.basic.filepath == i.basic.filepath).isEmpty
+      if infos.forall(_.basic.filepath != i.basic.filepath)
     } yield i
     val next = infos.toList ::: except
     vt setExtra PreInfo.asXML(next)

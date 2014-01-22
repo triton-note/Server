@@ -60,7 +60,7 @@ object InitPhoto extends Controller with securesocial.core.SecureSocial {
   /**
    * Save uploaded xml of file info
    */
-  def saveInfo = SecuredAction(false, None, parse.xml) { implicit request =>
+  def saveInfo = SecuredAction(parse.xml) { implicit request =>
     val ok = for {
       vt <- sessionUploading(request)
       xml <- request.body.headOption
@@ -117,24 +117,41 @@ object InitPhoto extends Controller with securesocial.core.SecureSocial {
       }
     )
   }
+  def cancel = SecuredAction(parse.xml) { implicit request =>
+    implicit val user = request.user.user
+    val uploading = sessionUploading(request)
+    import models.RichXML._
+    val filepath = request.body.head \@ "filepath"
+    Logger.debug(f"Canceling $filepath in $uploading")
+    val ok = uploading.flatMap { vt =>
+      vt.extra.toList.flatMap(PreInfo.read).find(_.basic.filepath == filepath).map { info =>
+        Ok("Canceled")
+      }
+    }
+    ok getOrElse Results.BadRequest
+  }
   /**
    * Uploaded photo data
    */
-  def upload = SecuredAction(false, None, parse.multipartFormData) { implicit request =>
+  def upload = SecuredAction(parse.raw) { implicit request =>
     implicit val user = request.user.user
-    val ok = sessionUploading(request).map { vt =>
-      request.body.files.map { tmp =>
+    val uploading = sessionUploading(request)
+    Logger.debug(f"Uploading photo with $uploading")
+    val ok = uploading.flatMap { vt =>
+      val tmp = request.body.asFile
         Logger.trace(f"Uploaded $tmp")
-        InferencePreInfo.commitByUpload(vt)(tmp.filename, tmp.ref.file).map { a =>
+      // 現在のところファイルは１つずつしかアップロード出来ない
+      vt.extra.flatMap(xml => (PreInfo read xml).headOption).map(_.basic.filepath).map { filename =>
+        InferencePreInfo.commitByUpload(vt)(filename, tmp).map { a =>
           for {
             committed <- a
             v <- sessionFacebook(request)
             accessKey <- v.extra
           } yield PublishPhotoCollection.add(committed)(Facebook.AccessKey(accessKey), 3 minutes)
         }
-      }
       // Ignore result on Future
       Ok("OK")
+    }
     }
     ok getOrElse Results.BadRequest
   }

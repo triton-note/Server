@@ -118,7 +118,7 @@
             <layoutConstraint xmi:type="notation:Bounds" xmi:id="_FvAIKc0LEeKj5uug_t8BGw"/>
           </children>
           <element xmi:type="uml:Region" href="PublishPhotoCollection.uml#_Fua5UM0LEeKj5uug_t8BGw"/>
-          <layoutConstraint xmi:type="notation:Bounds" xmi:id="_FvAIKs0LEeKj5uug_t8BGw" x="-14" y="24" width="677" height="594"/>
+          <layoutConstraint xmi:type="notation:Bounds" xmi:id="_FvAIKs0LEeKj5uug_t8BGw" width="677" height="594"/>
         </children>
         <layoutConstraint xmi:type="notation:Bounds" xmi:id="_FvAIK80LEeKj5uug_t8BGw" y="13" width="677" height="594"/>
       </children>

@@ -27,20 +27,25 @@ object PublishPhotoCollection {
   /**
    * Facade for adding photo to album
    */
-  def add(all: PreInfo*)(implicit accessKey: AccessKey, timer: FiniteDuration) = {
+  def add(all: PreInfo*)(implicit accessKey: AccessKey, timer: FiniteDuration) = sendBy(all) { (albumId, infos) =>
+    AlbumManager.Msg.Add(albumId, infos, accessKey, timer)
+  }
+  def cancel(all: PreInfo*) = sendBy(all) { (albumId, infos) =>
+    AlbumManager.Msg.Update(albumId, infos.filterNot(all.contains))
+  }
+  private def sendBy(all: Seq[PreInfo])(m: (Long, List[PreInfo]) => AlbumManager.Msg) = {
     val list = withTransaction {
       for {
-        (info, photo) <- findCommitted(all.toList).toList
+        (info, photo) <- findCommitted(all).toList
         sub <- info.submitted
         album <- photo.findAlbum(sub.grounds, sub.date)
-      } yield album.id
+      } yield album.id -> info
     }
-    import AlbumManager._
-    list.distinct.foreach { albumId =>
-      albums ! Msg.Refresh(albumId, all.toList, accessKey, timer)
-    }
+    list.groupBy(_._1).map {
+      case (k, v) => m(k, v.map(_._2))
+    }.foreach(AlbumManager.albums ! _)
   }
-  def findCommitted(list: List[PreInfo]): Map[PreInfo, Photo] = {
+  def findCommitted(list: Seq[PreInfo]): Map[PreInfo, Photo] = {
     val map = for {
       info <- list
       id <- info.committed
@@ -89,7 +94,8 @@ object PublishPhotoCollection {
     }
     sealed trait Msg
     object Msg {
-      case class Refresh(albumId: Long, list: List[PreInfo], accessKey: AccessKey, timer: FiniteDuration) extends Msg
+      case class Add(albumId: Long, list: List[PreInfo], accessKey: AccessKey, timer: FiniteDuration) extends Msg
+      case class Update(albumId: Long, list: List[PreInfo]) extends Msg
       case class Publish(albumId: Long) extends Msg
     }
   }
@@ -97,17 +103,30 @@ object PublishPhotoCollection {
     import AlbumManager._
     startWith(State.Running, Data.Store(Map()))
     when(State.Running) {
-      case Event(Msg.Refresh(albumId, list, accessKey, timer), Data.Store(map)) => {
-        val timerName = f"Album-${albumId}%d"
-        cancelTimer(timerName)
-        setTimer(timerName, Msg.Publish(albumId), timer, false)
-        val o = AlbumPhotos(albumId, list, accessKey)
-        stay using Data.Store(map + (albumId -> o))
+      case Event(Msg.Add(albumId, list, accessKey, timer), Data.Store(map)) => {
+        timerCancel(albumId)
+        val next = if (list.isEmpty) map - albumId else {
+          timerStart(albumId, timer)
+          map + (albumId -> AlbumPhotos(albumId, list, accessKey))
+        }
+        stay using Data.Store(next)
+      }
+      case Event(Msg.Update(albumId, list), Data.Store(map)) => {
+        if (!(map contains albumId)) stay else {
+          val next = if (list.isEmpty) {
+            timerCancel(albumId)
+            map - albumId
+          } else map + (albumId -> map(albumId).copy(photos = list))
+          stay using Data.Store(next)
+        }
       }
       case Event(Msg.Publish(albumId), Data.Store(map)) => {
         (map get albumId) foreach (_.publishAll)
         stay using Data.Store(map - albumId)
       }
     }
+    def timerOf(albumId: Long) = f"Album-${albumId}%d"
+    def timerCancel(albumId: Long) = cancelTimer(timerOf(albumId))
+    def timerStart(albumId: Long, timer: FiniteDuration) = setTimer(timerOf(albumId), Msg.Publish(albumId), timer, false)
   }
 }

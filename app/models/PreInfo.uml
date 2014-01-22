@@ -1,20 +1,23 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <uml:Model xmi:version="20110701" xmlns:xmi="http://www.omg.org/spec/XMI/20110701" xmlns:uml="http://www.eclipse.org/uml2/4.0.0/UML" xmi:id="_cWlIYN8nEeKXwqE9pKwiYQ" name="model">
   <packagedElement xmi:type="uml:StateMachine" xmi:id="_caleoN8nEeKXwqE9pKwiYQ" name="A PreInfo">
-    <region xmi:id="_cbCKkN8nEeKXwqE9pKwiYQ" name="Region0">
-      <transition xmi:id="_BTUg8N8oEeKXwqE9pKwiYQ" name="commit" source="_aMSJIN8pEeKXwqE9pKwiYQ" target="_2TLNQN8nEeKXwqE9pKwiYQ"/>
-      <transition xmi:id="_DqLqoN8oEeKXwqE9pKwiYQ" name="submit" source="_aMSJIN8pEeKXwqE9pKwiYQ" target="_41KB0N8nEeKXwqE9pKwiYQ"/>
-      <transition xmi:id="_F54cYN8oEeKXwqE9pKwiYQ" name="commit" source="_41KB0N8nEeKXwqE9pKwiYQ" target="_P9TpIN8oEeKXwqE9pKwiYQ"/>
-      <transition xmi:id="_HTcQUN8oEeKXwqE9pKwiYQ" name="submit" source="_2TLNQN8nEeKXwqE9pKwiYQ" target="_P9TpIN8oEeKXwqE9pKwiYQ"/>
-      <transition xmi:id="_pzN3MN8oEeKXwqE9pKwiYQ" name="publish" source="_P9TpIN8oEeKXwqE9pKwiYQ" target="_nmEDIN8oEeKXwqE9pKwiYQ"/>
-      <transition xmi:id="_xGTqUN8oEeKXwqE9pKwiYQ" name="publish" source="_2TLNQN8nEeKXwqE9pKwiYQ" target="_nmEDIN8oEeKXwqE9pKwiYQ"/>
-      <transition xmi:id="_fknfwN8pEeKXwqE9pKwiYQ" name="inference" source="_n0VlIN8nEeKXwqE9pKwiYQ" target="_aMSJIN8pEeKXwqE9pKwiYQ"/>
+    <region xmi:type="uml:Region" xmi:id="_cbCKkN8nEeKXwqE9pKwiYQ" name="Region0">
+      <transition xmi:type="uml:Transition" xmi:id="_BTUg8N8oEeKXwqE9pKwiYQ" name="commit" source="_aMSJIN8pEeKXwqE9pKwiYQ" target="_2TLNQN8nEeKXwqE9pKwiYQ"/>
+      <transition xmi:type="uml:Transition" xmi:id="_DqLqoN8oEeKXwqE9pKwiYQ" name="submit" source="_aMSJIN8pEeKXwqE9pKwiYQ" target="_41KB0N8nEeKXwqE9pKwiYQ"/>
+      <transition xmi:type="uml:Transition" xmi:id="_F54cYN8oEeKXwqE9pKwiYQ" name="commit" source="_41KB0N8nEeKXwqE9pKwiYQ" target="_P9TpIN8oEeKXwqE9pKwiYQ"/>
+      <transition xmi:type="uml:Transition" xmi:id="_HTcQUN8oEeKXwqE9pKwiYQ" name="submit" source="_2TLNQN8nEeKXwqE9pKwiYQ" target="_P9TpIN8oEeKXwqE9pKwiYQ"/>
+      <transition xmi:type="uml:Transition" xmi:id="_pzN3MN8oEeKXwqE9pKwiYQ" name="publish" source="_P9TpIN8oEeKXwqE9pKwiYQ" target="_nmEDIN8oEeKXwqE9pKwiYQ"/>
+      <transition xmi:type="uml:Transition" xmi:id="_xGTqUN8oEeKXwqE9pKwiYQ" name="publish" source="_2TLNQN8nEeKXwqE9pKwiYQ" target="_nmEDIN8oEeKXwqE9pKwiYQ"/>
+      <transition xmi:type="uml:Transition" xmi:id="_fknfwN8pEeKXwqE9pKwiYQ" name="inference" source="_n0VlIN8nEeKXwqE9pKwiYQ" target="_aMSJIN8pEeKXwqE9pKwiYQ"/>
+      <transition xmi:type="uml:Transition" xmi:id="_WbVcYIHSEeOP3uVT7HchbA" name="cancel" source="_2TLNQN8nEeKXwqE9pKwiYQ" target="_UKR_wIHSEeOP3uVT7HchbA"/>
+      <transition xmi:type="uml:Transition" xmi:id="_-MSpAIHSEeORTs3aRbre7A" name="cancel" source="_aMSJIN8pEeKXwqE9pKwiYQ" target="_UKR_wIHSEeOP3uVT7HchbA"/>
       <subvertex xmi:type="uml:Pseudostate" xmi:id="_n0VlIN8nEeKXwqE9pKwiYQ" name="created"/>
       <subvertex xmi:type="uml:State" xmi:id="_2TLNQN8nEeKXwqE9pKwiYQ" name="Committed"/>
       <subvertex xmi:type="uml:State" xmi:id="_41KB0N8nEeKXwqE9pKwiYQ" name="Submitted"/>
       <subvertex xmi:type="uml:State" xmi:id="_P9TpIN8oEeKXwqE9pKwiYQ" name="Committed and Submitted"/>
-      <subvertex xmi:type="uml:FinalState" xmi:id="_nmEDIN8oEeKXwqE9pKwiYQ" name="deleted"/>
+      <subvertex xmi:type="uml:FinalState" xmi:id="_nmEDIN8oEeKXwqE9pKwiYQ" name="published"/>
       <subvertex xmi:type="uml:State" xmi:id="_aMSJIN8pEeKXwqE9pKwiYQ" name="Inferenced"/>
+      <subvertex xmi:type="uml:FinalState" xmi:id="_UKR_wIHSEeOP3uVT7HchbA" name="deleted"/>
     </region>
   </packagedElement>
 </uml:Model>

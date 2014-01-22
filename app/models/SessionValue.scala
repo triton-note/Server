@@ -5,9 +5,9 @@ import play.api.mvc.Request
 import play.api.Logger
 
 class SessionValue(val name: String, val dur: FiniteDuration) {
-  def apply(value: String = null): (String, String) = {
-    val v = if (value == null || value.length < 1) None else Some(value)
-    val vt = db.VolatileToken.createNew(dur, v)
+  def apply(value: String): (String, String) = apply(Some(value))
+  def apply(value: Option[String] = None): (String, String) = {
+    val vt = db.VolatileToken.createNew(dur, value)
     (name, vt.token)
   }
   def apply(req: Request[_]): Option[db.VolatileToken] = {

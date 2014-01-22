@@ -6,6 +6,7 @@ POST   /photo/saveInfo           controllers.InitPhoto.saveInfo
 GET    /photo/getInfo            controllers.InitPhoto.getInfo
 POST   /photo/submit             controllers.InitPhoto.submit
 POST   /photo/upload             controllers.InitPhoto.upload
+POST   /photo/cancel             controllers.InitPhoto.cancel
 
 # Login page
 GET    /login                    securesocial.controllers.LoginPage.login
