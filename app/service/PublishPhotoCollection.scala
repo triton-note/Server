@@ -27,13 +27,13 @@ object PublishPhotoCollection {
   /**
    * Facade for adding photo to album
    */
-  def add(all: PreInfo*)(implicit accessKey: AccessKey, timer: FiniteDuration) = sendBy(all) { (albumId, infos) =>
-    AlbumManager.Msg.Add(albumId, infos, accessKey, timer)
+  def add(accessKey: AccessKey, all: PreInfo*): Unit = sendBy(all) { (albumId, infos) =>
+    AlbumManager.Msg.Add(albumId, infos, accessKey)
   }
-  def cancel(all: PreInfo*) = sendBy(all) { (albumId, infos) =>
+  def cancel(all: PreInfo*): Unit = sendBy(all) { (albumId, infos) =>
     AlbumManager.Msg.Update(albumId, infos.filterNot(all.contains))
   }
-  private def sendBy(all: Seq[PreInfo])(m: (Long, List[PreInfo]) => AlbumManager.Msg) = {
+  private def sendBy(all: Seq[PreInfo])(m: (Long, List[PreInfo]) => AlbumManager.Msg): Unit = {
     val list = withTransaction {
       for {
         (info, photo) <- findCommitted(all).toList
@@ -94,7 +94,7 @@ object PublishPhotoCollection {
     }
     sealed trait Msg
     object Msg {
-      case class Add(albumId: Long, list: List[PreInfo], accessKey: AccessKey, timer: FiniteDuration) extends Msg
+      case class Add(albumId: Long, list: List[PreInfo], accessKey: AccessKey) extends Msg
       case class Update(albumId: Long, list: List[PreInfo]) extends Msg
       case class Publish(albumId: Long) extends Msg
     }
@@ -103,10 +103,10 @@ object PublishPhotoCollection {
     import AlbumManager._
     startWith(State.Running, Data.Store(Map()))
     when(State.Running) {
-      case Event(Msg.Add(albumId, list, accessKey, timer), Data.Store(map)) => {
+      case Event(Msg.Add(albumId, list, accessKey), Data.Store(map)) => {
         timerCancel(albumId)
         val next = if (list.isEmpty) map - albumId else {
-          timerStart(albumId, timer)
+          timerStart(albumId)
           map + (albumId -> AlbumPhotos(albumId, list, accessKey))
         }
         stay using Data.Store(next)
@@ -127,6 +127,6 @@ object PublishPhotoCollection {
     }
     def timerOf(albumId: Long) = f"Album-${albumId}%d"
     def timerCancel(albumId: Long) = cancelTimer(timerOf(albumId))
-    def timerStart(albumId: Long, timer: FiniteDuration) = setTimer(timerOf(albumId), Msg.Publish(albumId), timer, false)
+    def timerStart(albumId: Long) = setTimer(timerOf(albumId), Msg.Publish(albumId), Settings.Pulish.timer, false)
   }
 }

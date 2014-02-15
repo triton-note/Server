@@ -24,13 +24,13 @@ object InferencePreInfo {
     Logger debug f"Initializing PreInfo: $xml"
     inference(vt setExtra xml)
   }
-  def submitByUser(vt: db.VolatileToken)(filepath: String, date: Date, grounds: String, comment: String)(implicit user: db.User): Future[Option[PreInfo]] = {
+  def submitByUser(vt: db.VolatileToken)(date: Date, grounds: String, comment: String)(implicit user: db.User): Future[Option[PreInfo]] = {
     Future {
       db.withTransaction {
         for {
           xml <- vt.extra
           list = PreInfo read xml
-          p <- list.find(_.basic.filepath == filepath)
+          p <- list.find(_.basic.filepath == ???)
           s <- p.submit(date, grounds, comment)
         } yield {
           // Refresh inferential info

@@ -12,8 +12,8 @@ import service._
 import service.UserCredential.Conversions._
 
 object InitPhoto extends Controller with securesocial.core.SecureSocial {
-  val sessionFacebook = new SessionValue("TritonNote-facebook_accesskey", 30 minutes)
-  val sessionUploading = new SessionValue("TritonNote-uploading", 1 hour)
+  val sessionFacebook = new SessionValue("TritonNote-facebook_accesskey", Settings.Session.timeoutFacebook)
+  val sessionUploading = new SessionValue("TritonNote-uploading", Settings.Session.timeoutUpload)
   /**
    * Register authorized user to session
    */
@@ -21,7 +21,7 @@ object InitPhoto extends Controller with securesocial.core.SecureSocial {
     securesocial.core.Authenticator.create(user) match {
       case Left(error) => throw error
       case Right(authenticator) => {
-        val cookies = List(authenticator.toCookie).map(_.copy(secure = true))
+        val cookies = List(authenticator.toCookie)
         val extra = <header>
                       {
                         for {
@@ -87,10 +87,9 @@ object InitPhoto extends Controller with securesocial.core.SecureSocial {
   /**
    * Form of initializing photo
    */
-  case class InitInput(filepath: String, date: java.util.Date, grounds: String, comment: String)
+  case class InitInput(date: java.util.Date, grounds: String, comment: String)
   val formInitInput = Form[InitInput](
     Forms.mapping(
-      "filepath" -> Forms.nonEmptyText,
       "date" -> Forms.date("yyyy-MM-dd"),
       "grounds" -> Forms.nonEmptyText,
       "comment" -> Forms.text
@@ -101,15 +100,17 @@ object InitPhoto extends Controller with securesocial.core.SecureSocial {
    */
   def submit = SecuredAction { implicit request =>
     implicit val user = request.user.user
+    Logger.info(f"Uploaded form body: ${request.body}")
     formInitInput.bindFromRequest.fold(
       error => {
+        Logger.error(f"$request is not comfirm for $formInitInput")
         Results.BadRequest
       },
       adding => {
         val ok = for {
           vt <- sessionUploading(request)
         } yield {
-          val info = InferencePreInfo.submitByUser(vt)(adding.filepath, adding.date, adding.grounds, adding.comment)
+          val info = InferencePreInfo.submitByUser(vt)(adding.date, adding.grounds, adding.comment)
           // Ignore result on Future
           Ok("Updated")
         }
@@ -139,7 +140,7 @@ object InitPhoto extends Controller with securesocial.core.SecureSocial {
     Logger.debug(f"Uploading photo with $uploading")
     val ok = uploading.flatMap { vt =>
       val tmp = request.body.asFile
-        Logger.trace(f"Uploaded $tmp")
+      Logger.trace(f"Uploaded $tmp")
       // 現在のところファイルは１つずつしかアップロード出来ない
       vt.extra.flatMap(xml => (PreInfo read xml).headOption).map(_.basic.filepath).map { filename =>
         InferencePreInfo.commitByUpload(vt)(filename, tmp).map { a =>
@@ -147,11 +148,11 @@ object InitPhoto extends Controller with securesocial.core.SecureSocial {
             committed <- a
             v <- sessionFacebook(request)
             accessKey <- v.extra
-          } yield PublishPhotoCollection.add(committed)(Facebook.AccessKey(accessKey), 3 minutes)
+          } yield PublishPhotoCollection.add(Facebook.AccessKey(accessKey), committed)
         }
-      // Ignore result on Future
-      Ok("OK")
-    }
+        // Ignore result on Future
+        Ok("OK")
+      }
     }
     ok getOrElse Results.BadRequest
   }
