@@ -1,46 +1,40 @@
 package models.db
 
 import java.sql.Timestamp
-import DB.simple._
-import Database.threadLocalSession
+import simple._
+import scalaz._
+import Scalaz._
 
 case class Geographic(id: Long, equatorialRadius: Double, polarRadius: Double) {
   /**
    * Change property (like a copy) and update Database
    */
-  def update(equatorialRadius: Double = equatorialRadius, polarRadius: Double = polarRadius): Geographic = {
-    val n = copy(equatorialRadius = equatorialRadius, polarRadius = polarRadius)
-    withSession {
-      val q = for {
-        a <- Geographic
-        if (a.id === id)
-      } yield (a.equatorialRadius ~ a.polarRadius)
-      q.update(n.equatorialRadius, n.polarRadius)
-    }
-    n
+  def update(equatorialRadius: Double = equatorialRadius, polarRadius: Double = polarRadius): Option[Geographic] = {
+    DB withSession { implicit session =>
+      Geographics.filter(_.id is id).map { o =>
+        (o.equatorialRadius, o.polarRadius)
+      }.update((equatorialRadius, polarRadius)) == 1
+    } option copy(equatorialRadius = equatorialRadius, polarRadius = polarRadius)
   }
 }
 
-object Geographic extends Table[Geographic]("GEOGRAPHIC") {
+class Geographics(tag: Tag) extends Table[Geographic](tag, "GEOGRAPHIC") {
   def id = column[Long]("ID", O.PrimaryKey, O.AutoInc)
   def equatorialRadius = column[Double]("EQUATORIAL_RADIUS", O.NotNull) // in meter
   def polarRadius = column[Double]("POLAR_RADIUS", O.NotNull) // in meter
   // All columns
-  def * = id ~ equatorialRadius ~ polarRadius <> (Geographic.apply _, Geographic.unapply _)
-  def get = withSession {
-    val q = for {
-      a <- Geographic
-    } yield a
-    q.first
-  }
+  def * = (id, equatorialRadius, polarRadius) <> (Geographic.tupled, Geographic.unapply)
+}
+object Geographics extends TableQuery(new Geographics(_)) {
+  def get = DB withSession { implicit session => this.first }
   /**
-   * Add new album
+   * Add new
    */
-  def addNew(theEquatorialRadius: Double, thePolarRadius: Double): Geographic = {
-    val newId = withSession {
-      def p = equatorialRadius ~ polarRadius
-      p returning id insert (theEquatorialRadius, thePolarRadius)
+  def addNew(equatorialRadius: Double, polarRadius: Double): Option[Geographic] = {
+    val o = Geographic(-1, equatorialRadius, polarRadius)
+    val newId = DB withSession { implicit session =>
+      (this returning map(_.id)) += o
     }
-    Geographic(newId, theEquatorialRadius, thePolarRadius)
+    Option(newId) map { id => o.copy(id = id) }
   }
 }

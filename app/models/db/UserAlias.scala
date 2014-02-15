@@ -1,8 +1,9 @@
 package models.db
 
 import java.sql.Timestamp
-import DB.simple._
-import Database.threadLocalSession
+import simple._
+import scalaz._
+import Scalaz._
 
 case class UserAlias(createdAt: Timestamp = currentTimestamp,
                      lastModifiedAt: Option[Timestamp] = None,
@@ -12,52 +13,48 @@ case class UserAlias(createdAt: Timestamp = currentTimestamp,
                      priority: Int,
                      password: Option[String] = None,
                      passwordHashing: Option[String] = None) {
-  lazy val user = withSession {
-    val q = for {
-      a <- me
-      b <- a.user
-    } yield b
-    q.first
-  }
-  lazy val email = if (domain == UserAliasDomain.email) Some(name) else user.emails.headOption
   /**
-   * Prepared query for me
+   * Query for me
    */
-  def me = withSession {
-    for {
-      o <- UserAlias
-      if (o.name === name)
-      if (o.domain === domain)
-    } yield o
-  }
+  private def me = UserAliases.filter(o => (o.name is name) && (o.domain is domain))
+  /**
+   * Reload from DB.
+   * If there is no longer me, returns None.
+   */
+  def refresh: Option[UserAlias] = DB withSession { implicit session => me.firstOption }
   /**
    * Delete me
    */
-  def delete: Boolean = withSession {
+  def delete: Boolean = DB withSession { implicit session =>
     me.delete > 0
   }
   /**
+   * User of me
+   */
+  lazy val user: Option[User] = DB withSession { implicit session =>
+    me.flatMap(_.user).firstOption
+  }
+  lazy val email: Option[String] = if (domain == UserAliasDomain.email) Some(name) else user.flatMap(_.emails.headOption)
+  /**
    * Change priority
    */
-  def changePriority(thePriority: Int): UserAlias = {
-    withSession {
-      me.map(_.priority).update(thePriority)
-    }
-    copy(priority = thePriority)
+  def changePriority(priority: Int): Option[UserAlias] = {
+    DB withSession { implicit session =>
+      me.map(_.priority).update(priority) == 1
+    } option copy(priority = priority)
   }
   /**
    * Change password by hashed password and hasher's id
    */
-  def changePassword(thePassword: String, theHashing: Option[String] = None): UserAlias = {
-    withSession {
+  def changePassword(password: String, hashing: Option[String] = None): Option[UserAlias] = {
+    DB withSession { implicit session =>
       me.map { o =>
-        o.password ~ o.passwordHashing.?
-      }.update(thePassword, theHashing)
-    }
-    copy(password = Some(thePassword), passwordHashing = theHashing)
+        (o.password, o.passwordHashing.?)
+      }.update((password, hashing)) == 1
+    } option copy(password = Some(password), passwordHashing = hashing)
   }
 }
-object UserAlias extends Table[UserAlias]("USER_ALIAS") {
+class UserAliases(tag: Tag) extends Table[UserAlias](tag, "USER_ALIAS") {
   def createdAt = column[Timestamp]("CREATED_AT", O.NotNull)
   def lastModifiedAt = column[Timestamp]("LAST_MODIFIED_AT", O.Nullable)
   def userId = column[Long]("USER", O.NotNull)
@@ -69,32 +66,34 @@ object UserAlias extends Table[UserAlias]("USER_ALIAS") {
   // Define primary key here
   def pk = primaryKey("USER_ALIAS_PK", (name, domain))
   // All columns
-  def * = createdAt ~ lastModifiedAt.? ~ userId ~ name ~ domain ~ priority ~ password.? ~ passwordHashing.? <> (UserAlias.apply _, UserAlias.unapply _)
+  def * = (createdAt, lastModifiedAt.?, userId, name, domain, priority, password.?, passwordHashing.?) <> (UserAlias.tupled, UserAlias.unapply)
   /**
    * Bound user
    */
-  def user = foreignKey("USER_ALIAS_FK_USER", userId, User)(_.id)
+  def user = foreignKey("USER_ALIAS_FK_USER", userId, Users)(_.id)
+}
+object UserAliases extends TableQuery(new UserAliases(_)) {
   /**
    * Add new user alias
    */
-  def addNew(theUserId: Long, theName: String, theDomain: String, thePriority: Int,
-             thePassword: Option[String] = None, theHashing: Option[String] = None): UserAlias = {
-    val o = UserAlias(currentTimestamp, None, theUserId, theName, theDomain, thePriority, thePassword, theHashing)
-    withSession {
-      * insert o
-    }
-    o
+  def addNew(userId: Long,
+             name: String,
+             domain: String,
+             priority: Int,
+             password: Option[String] = None,
+             passwordHashing: Option[String] = None): Option[UserAlias] = {
+    val obj = UserAlias(currentTimestamp, None, userId, name, domain, priority, password, passwordHashing)
+    DB withSession { implicit session =>
+      (this += obj) == 1
+    } option obj
   }
   /**
    * Find a alias
    */
-  def get(theName: String, theDomain: String): Option[UserAlias] = withSession {
-    val q = for {
-      o <- UserAlias
-      if (o.name is theName)
-      if (o.domain is theDomain)
-    } yield o
-    q.firstOption
+  def get(name: String, domain: String): Option[UserAlias] = DB withSession { implicit session =>
+    filter { o =>
+      (o.name is name) && (o.domain is domain)
+    }.firstOption
   }
   /**
    * Find by email

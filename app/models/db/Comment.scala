@@ -1,135 +1,83 @@
 package models.db
 
 import java.sql.Timestamp
-import DB.simple._
-import Database.threadLocalSession
+import simple._
+import scalaz._
+import Scalaz._
 
 case class Comment(id: Long,
-                   createdAt: Timestamp,
-                   lastModifiedAt: Option[Timestamp],
+                   createdAt: Timestamp = currentTimestamp,
+                   lastModifiedAt: Option[Timestamp] = None,
                    userId: Long,
+                   catchId: Long,
                    text: String) {
-  lazy val user = withSession {
-    val q = for {
-      a <- me
-      b <- a.user
-    } yield b
-    q.first
-  }
   /**
-   * Prepared query for me
+   * Query for me
    */
-  def me = withSession {
-    for {
-      a <- Comment
-      if (a.id is id)
-    } yield a
-  }
+  private def me = Comments.filter(_.id is id)
+  /**
+   * Reload from DB.
+   * If there is no longer me, returns None.
+   */
+  def refresh: Option[Comment] = DB withSession { implicit session => me.firstOption }
   /**
    * Delete me
    */
-  def delete: Boolean = withSession {
+  def delete: Boolean = DB withSession { implicit session =>
     me.delete > 0
+  }
+  /**
+   * Owner of me
+   */
+  lazy val user: Option[User] = DB withSession { implicit session =>
+    me.flatMap(_.user).firstOption
+  }
+  /**
+   * CatchReport
+   */
+  lazy val catchReport: Option[CatchReport] = DB withSession { implicit session =>
+    me.flatMap(_.catchReport).firstOption
   }
   /**
    * Change text
    */
-  def update(theText: String): Comment = {
-    val n = copy(lastModifiedAt = Some(currentTimestamp), text = theText)
-    withSession {
+  def update(text: String): Option[Comment] = {
+    val n = copy(lastModifiedAt = Some(currentTimestamp), text = text)
+    DB withSession { implicit session =>
       me.map { a =>
-        (a.lastModifiedAt.? ~ a.text)
-      }.update(n.lastModifiedAt, n.text)
-    }
-    n
+        (a.lastModifiedAt.?, a.text)
+      }.update((n.lastModifiedAt, n.text)) == 1
+    } option n
   }
 }
 
-object Comment extends Table[Comment]("COMMENT") {
+class Comments(tag: Tag) extends Table[Comment](tag, "COMMENT") {
   def id = column[Long]("ID", O.PrimaryKey, O.AutoInc)
   def createdAt = column[Timestamp]("CREATED_AT", O.NotNull)
   def lastModifiedAt = column[Timestamp]("LAST_MODIFIED_AT", O.Nullable)
   def userId = column[Long]("USER", O.NotNull)
+  def catchReportId = column[Long]("CATCH_REPORT", O.NotNull)
   def text = column[String]("TEXT", O.NotNull, O.Default(""))
   // All columns
-  def * = id ~ createdAt ~ lastModifiedAt.? ~ userId ~ text <> (Comment.apply _, Comment.unapply _)
+  def * = (id, createdAt, lastModifiedAt.?, userId, catchReportId, text) <> (Comment.tupled, Comment.unapply)
   /**
    * Bound user
    */
-  def user = foreignKey("COMMENT_FK_USER", userId, User)(_.id)
+  def user = foreignKey("COMMENT_FK_USER", userId, Users)(_.id)
+  /**
+   * Bound catch
+   */
+  def catchReport = foreignKey("COMMENT_FK_CATCH_REPORT", catchReportId, CatchReports)(_.id)
+}
+object Comments extends TableQuery(new Comments(_)) {
   /**
    * Add new comment
    */
-  def addNew(theUser: User, theText: String): Comment = {
-    val now = currentTimestamp
-    val newId = withSession {
-      def p = createdAt ~ userId ~ text
-      p returning id insert (now, theUser.id, theText)
+  def addNew(user: User, catchReport: CatchReport, text: String): Option[Comment] = {
+    val obj = Comment(id = -1, userId = user.id, catchId = catchReport.id, text = text)
+    val newId = DB withSession { implicit session =>
+      (this returning map(_.id)) += obj
     }
-    Comment(newId, now, None, theUser.id, theText)
-  }
-  /**
-   * Find comment which has given id
-   */
-  val get = DB.getById(Comment)_
-}
-
-object CommentAlbum extends Table[(Long, Long)]("ALBUM_COMMENT") {
-  def commentId = column[Long]("COMMENT", O.NotNull)
-  def albumId = column[Long]("ALBUM", O.NotNull)
-  // All columns
-  def * = commentId ~ albumId
-  /**
-   * Bound album
-   */
-  def album = foreignKey("ALBUM_COMMENT_FK_ALBUM", albumId, Album)(_.id)
-  /**
-   * Bound comment
-   */
-  def comment = foreignKey("ALBUM_COMMENT_FK_COMMENT", commentId, Comment)(_.id)
-  /**
-   * Add new comment to album
-   */
-  def addNew(theComment: Comment, theAlbum: Album): (Comment, Album) = {
-    withTransaction {
-      * insert (theComment.id, theAlbum.id)
-      val q = for {
-        a <- Comment
-        b <- Album
-        if (a.id is theComment.id)
-        if (b.id is theAlbum.id)
-      } yield (a, b)
-      q.first
-    }
-  }
-}
-
-object CommentPhoto extends Table[(Long, Long)]("PHOTO_COMMENT") {
-  def commentId = column[Long]("COMMENT", O.NotNull)
-  def photoId = column[Long]("PHOTO", O.NotNull)
-  // All columns
-  def * = commentId ~ photoId
-  /**
-   * Bound photo
-   */
-  def photo = foreignKey("PHOTO_COMMENT_FK_PHOTO", photoId, Photo)(_.id)
-  /**
-   * Bound comment
-   */
-  def comment = foreignKey("PHOTO_COMMENT_FK_COMMENT", commentId, Comment)(_.id)
-  /**
-   * Add new comment to photo
-   */
-  def addNew(theComment: Comment, thePhoto: Photo): (Comment, Photo) = {
-    withTransaction {
-      * insert (theComment.id, thePhoto.id)
-      val q = for {
-        a <- Comment
-        b <- Photo
-        if (a.id is theComment.id)
-        if (b.id is thePhoto.id)
-      } yield (a, b)
-      q.first
-    }
+    Option(newId) map { id => obj.copy(id = id) }
   }
 }

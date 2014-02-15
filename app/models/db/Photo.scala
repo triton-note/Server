@@ -1,217 +1,184 @@
 package models.db
 
 import java.sql.Timestamp
-import DB.simple._
-import Database.threadLocalSession
+import simple._
+import scalaz._
+import Scalaz._
 import models.GeoInfo
 import models.Storage
 import scala.concurrent.duration._
 
-case class Photo(id: Long,
-                 createdAt: Timestamp,
-                 timestamp: Option[Timestamp],
-                 geoinfo: Option[GeoInfo]) {
-  lazy val comments = withSession {
-    val q = for {
-      b <- CommentPhoto
-      if b.photoId is id
-      c <- b.comment
-    } yield c
-    q.sortBy(_.lastModifiedAt).list
-  }
-  lazy val albums = withSession {
-    val q = for {
-      pa <- PhotoAlbum
-      if pa.photoId is id
-      a <- Album
-    } yield a
-    q.list
-  }
+case class Photo(catchReportId: Long, imageId: Long) {
   /**
-   * Prepared query for me
+   * Query for me
    */
-  def me = withSession {
-    for {
-      a <- Photo
-      if a.id is id
-    } yield a
-  }
+  private def me = Photos.filter(o => (o.catchReportId is catchReportId) && (o.imageId is imageId))
+  /**
+   * Reload from DB.
+   * If there is no longer me, returns None.
+   */
+  def refresh: Option[Photo] = DB withSession { implicit session => me.firstOption }
   /**
    * Delete me
    */
-  def delete = withSession {
+  def delete: Boolean = DB withSession { implicit session =>
     me.delete > 0
   }
-  def bindTo(user: User): Photo = withSession {
-    PhotoOwner.addNew(this, user)._1
-  }
-  def bindTo(album: Album): Photo = withSession {
-    PhotoAlbum.addNew(this, album)._1
+  /**
+   * CatchReport
+   */
+  lazy val catchReport: Option[CatchReport] = DB withSession { implicit session =>
+    me.flatMap(_.catchReport).firstOption
   }
   /**
-   * Add comment
+   * Image
    */
-  def add(text: String)(implicit user: User): Photo = withSession {
-    val comment = Comment.addNew(user, text)
-    CommentPhoto.addNew(comment, this)._2
-  }
-  def findAlbum(theGrounds: String, theDate: Timestamp): Option[Album] = withSession {
-    val q = for {
-      pa <- PhotoAlbum
-      if pa.photoId is id
-      a <- Album
-      if a.grounds is theGrounds
-      if a.date is theDate
-    } yield a
-    q.firstOption
+  lazy val image: Option[Image] = DB withSession { implicit session =>
+    me.flatMap(_.image).firstOption
   }
 }
-
-object Photo extends Table[Photo]("PHOTO") {
-  def id = column[Long]("ID", O.PrimaryKey, O.AutoInc)
-  def createdAt = column[Timestamp]("CREATED_AT", O.NotNull)
-  def timestamp = column[Timestamp]("TIMESTAMP", O.Nullable)
-  def latitude = column[Double]("LATITUDE", O.Nullable)
-  def longitude = column[Double]("LONGITUDE", O.Nullable)
+class Photos(tag: Tag) extends Table[Photo](tag, "PHOTO") {
+  def catchReportId = column[Long]("CATCH_REPORT", O.NotNull)
+  def imageId = column[Long]("IMAGE", O.NotNull)
+  def pk = primaryKey("PHOTO_PK", (catchReportId, imageId))
   // All columns
-  def * = id ~ createdAt ~ timestamp.? ~ latitude.? ~ longitude.? <> (
-    { t => Photo(t._1, t._2, t._3, GeoInfo(t._4, t._5)) },
-    { o: Photo => Some(o.id, o.createdAt, o.timestamp, o.geoinfo.map(_.latitude), o.geoinfo.map(_.longitude)) })
+  def * = (catchReportId, imageId) <> (Photo.tupled, Photo.unapply)
+  /**
+   * Bound catchReport
+   */
+  def catchReport = foreignKey("PHOTO_FK_CATCH_REPORT", catchReportId, CatchReports)(_.id)
+  /**
+   * Bound image
+   */
+  def image = foreignKey("PHOTO_FK_IMAGE", imageId, Images)(_.id)
+}
+object Photos extends TableQuery(new Photos(_)) {
   /**
    * Add new photo.
    * Brand new id will be generated and injected into new Photo instance.
    */
-  def addNew(theGeoinfo: Option[GeoInfo] = None, theTimestamp: Option[Timestamp] = None): Photo = {
-    val now = currentTimestamp
-    val newId = withSession {
-      def p = createdAt ~ timestamp.? ~ latitude.? ~ longitude.?
-      p returning id insert (now, theTimestamp, theGeoinfo.map(_.latitude), theGeoinfo.map(_.longitude))
-    }
-    Photo(newId, now, theTimestamp, theGeoinfo)
+  def addNew(catchReport: CatchReport, image: Image): Option[Photo] = {
+    val obj = Photo(catchReport.id, image.id)
+    DB withSession { implicit session =>
+      (this += obj) == 1
+    } option obj
   }
-  /**
-   * Find photo which has given id
-   */
-  val get = DB.getById(Photo)_
 }
 
 case class Image(id: Long,
                  kind: String,
-                 infoId: Long,
                  createdAt: Timestamp,
                  format: String,
                  dataSize: Long,
                  width: Long,
                  height: Long) {
-  lazy val file = Storage.file("photo", kind, id.toString)
-  def url(implicit limit: FiniteDuration = 1 minute) = file.generateURL(limit)
   /**
-   * Prepared query for me
+   * Query for me
    */
-  lazy val me = withSession {
-    for {
-      a <- Image
-      if a.id is id
-    } yield a
-  }
+  private def me = Images.filter(_.id is id)
+  /**
+   * Reload from DB.
+   * If there is no longer me, returns None.
+   */
+  def refresh: Option[Image] = DB withSession { implicit session => me.firstOption }
   /**
    * Delete me
    */
   def delete: Boolean = {
-    file.delete && withSession {
+    file.delete && DB.withSession { implicit session =>
       me.delete > 0
     }
   }
+  lazy val file = Storage.file("photo", kind, id.toString)
+  def url(implicit limit: FiniteDuration = 1 minute) = file.generateURL(limit)
 }
-
-object Image extends Table[Image]("IMAGE") {
+class Images(tag: Tag) extends Table[Image](tag, "IMAGE") {
   def id = column[Long]("ID", O.PrimaryKey, O.AutoInc)
   def kind = column[String]("KIND", O.NotNull)
-  def info = column[Long]("INFO", O.NotNull)
   def createdAt = column[Timestamp]("CREATED_AT", O.NotNull)
   def format = column[String]("FORMAT", O.NotNull)
   def dataSize = column[Long]("DATA_SIZE", O.NotNull)
   def width = column[Long]("WIDTH", O.NotNull)
   def height = column[Long]("HEIGHT", O.NotNull)
   // All columns
-  def * = id ~ kind ~ info ~ createdAt ~ format ~ dataSize ~ width ~ height <> (Image.apply _, Image.unapply _)
+  def * = (id, kind, createdAt, format, dataSize, width, height) <> (Image.tupled, Image.unapply)
+}
+object Images extends TableQuery(new Images(_)) {
   /**
-   * Bound photo
+   * Add new image data
    */
-  def photo = foreignKey("PHOTO_DATA_FK_INFO", info, Photo)(_.id)
-  /**
-   * Index for infoId
-   */
-  def infoIndex = index("PHOTO_DATA_INDEX_INFO", info, true)
-  /**
-   * Add new photo data
-   */
-  def addNew(theKind: String, theInfo: Photo, theFormat: String, theDataSize: Long, theWidth: Long, theHeight: Long): Image = {
-    val now = currentTimestamp
-    val newId = withSession {
-      val p = kind ~ info ~ createdAt ~ format ~ dataSize ~ width ~ height
-      p returning id insert (theKind, theInfo.id, now, theFormat, theDataSize, theWidth, theHeight)
+  def addNew(kind: String, format: String, dataSize: Long, width: Long, height: Long): Option[Image] = {
+    val obj = Image(-1, kind, currentTimestamp, format, dataSize, width, height)
+    val newId = DB withSession { implicit session =>
+      (this returning map(_.id)) += obj
     }
-    Image(newId, theKind, theInfo.id, now, theFormat, theDataSize, theWidth, theHeight)
+    Option(newId) map { id => obj.copy(id = id) }
   }
   /**
    * Find image which has given id
    */
-  val get = DB.getById(Image)_
-  def findBy(photo: Photo): List[Image] = withSession {
-    val q = for {
-      i <- Image
-      p <- i.photo
-      if p.id is photo.id
-    } yield i
-    q.list
+  def get(id: Long): Option[Image] = DB withSession { implicit session =>
+    filter(_.id is id).firstOption
   }
   val KIND_ORIGINAL = "original"
 }
 
-case class ImageRelation(imageA: Image,
-                         imageB: Image,
+case class ImageRelation(imageSrcId: Long,
+                         imageDstId: Long,
                          relation: String) {
   /**
-   * Prepared query for me
+   * Query for me
    */
-  lazy val me = withSession {
-    for {
-      r <- ImageRelation
-      if r.imageAid is imageA.id
-      if r.imageBid is imageB.id
-      if r.relation is relation
-    } yield r
-  }
+  private def me = for {
+    r <- ImageRelations
+    if r.imageSrcId is imageSrcId
+    if r.imageDstId is imageDstId
+    if r.relation is relation
+  } yield r
+  /**
+   * Reload from DB.
+   * If there is no longer me, returns None.
+   */
+  def refresh: Option[ImageRelation] = DB withSession { implicit session => me.firstOption }
   /**
    * Delete me
    */
-  def delete: Boolean = withSession {
+  def delete: Boolean = DB withSession { implicit session =>
     me.delete > 0
   }
+  /**
+   * Image Src
+   */
+  lazy val imageSrc: Option[Image] = DB withSession { implicit session =>
+    me.flatMap(_.imageSrc).firstOption
+  }
+  /**
+   * Image Dst
+   */
+  lazy val imageDst: Option[Image] = DB withSession { implicit session =>
+    me.flatMap(_.imageDst).firstOption
+  }
 }
-object ImageRelation extends Table[ImageRelation]("IMAGE_RELATION") {
-  def imageAid = column[Long]("IMAGE_A", O.NotNull)
-  def imageBid = column[Long]("IMAGE_B", O.NotNull)
+class ImageRelations(tag: Tag) extends Table[ImageRelation](tag, "IMAGE_RELATION") {
+  def imageSrcId = column[Long]("IMAGE_SRC", O.NotNull)
+  def imageDstId = column[Long]("IMAGE_DST", O.NotNull)
   def relation = column[String]("RELATION", O.NotNull)
   // All columns
-  def * = imageAid ~ imageBid ~ relation <> (
-    { t => ImageRelation(Image.get(t._1).get, Image.get(t._2).get, t._3) },
-    { o => Some(o.imageA.id, o.imageB.id, o.relation) }
-  )
+  def * = (imageSrcId, imageDstId, relation) <> (ImageRelation.tupled, ImageRelation.unapply)
   /**
    * Bound image
    */
-  def imageA = foreignKey("IMAGE_RELATION_FK_A", imageAid, Image)(_.id)
-  def imageB = foreignKey("IMAGE_RELATION_FK_B", imageBid, Image)(_.id)
+  def imageSrc = foreignKey("IMAGE_RELATION_FK_SRC", imageSrcId, Images)(_.id)
+  def imageDst = foreignKey("IMAGE_RELATION_FK_DST", imageDstId, Images)(_.id)
+}
+object ImageRelations extends TableQuery(new ImageRelations(_)) {
   /**
    * Add new relation
    */
-  def addNew(theImageA: Image, theImageB: Image, theRelation: String): ImageRelation = {
-    val o = ImageRelation(theImageA, theImageB, theRelation)
-    withSession {
-      * insert o
-    }
-    o
+  def addNew(imageSrc: Image, imageDst: Image, relation: String): Option[ImageRelation] = {
+    val obj = ImageRelation(imageSrc.id, imageDst.id, relation)
+    DB withSession { implicit session =>
+      (this += obj) == 1
+    } option obj
   }
 }

@@ -26,7 +26,7 @@ object GeoInfo {
      */
     def dictance(g1: GeoInfo, g2: GeoInfo): Double = {
       val (a, b) = {
-        val g = db.Geographic.get
+        val g = db.Geographics.get
         (g.equatorialRadius, g.polarRadius)
       }
       val (x1, y1) = (g1.radian.lng, g1.radian.lat)
