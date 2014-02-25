@@ -63,7 +63,7 @@ object Facebook {
           email <- (json \ "email").asOpt[String]
         } yield {
           Logger debug f"Getting UserAlias by email: $email"
-          db.UserAlias.get(email, db.UserAliasDomain.facebook) match {
+          db.UserAliases.get(email, db.UserAliasDomain.facebook) match {
             case Some(user) => Right(user)
             case None       => Left(email)
           }
@@ -81,13 +81,13 @@ object Facebook {
           email <- (json \ "email").asOpt[String]
           firstName <- (json \ "first_name").asOpt[String]
           lastName <- (json \ "last_name").asOpt[String]
+          avatarUrl = (json \ "picture" \ "data" \ "url").asOpt[String]
+          user <- db.Users.addNew(firstName, lastName, avatarUrl)
+          u1 <- db.UserAliases.addNew(user, email, db.UserAliasDomain.email, 0)
+          u2 <- db.UserAliases.addNew(user, email, db.UserAliasDomain.facebook, 0)
         } yield {
-          val avatarUrl = (json \ "picture" \ "data" \ "url").asOpt[String]
-          val user = db.User.addNew(firstName, lastName, avatarUrl)
           Logger.info(f"Creating alias '$email' of $user as facebook and email at once")
-          def add(f: db.UserAliasDomain.type => String) = db.UserAlias.addNew(user.id, email, f(db.UserAliasDomain), 0)
-          add(_.email)
-          add(_.facebook)
+          u2
         }
       }
     }

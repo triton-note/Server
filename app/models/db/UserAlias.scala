@@ -76,13 +76,13 @@ object UserAliases extends TableQuery(new UserAliases(_)) {
   /**
    * Add new user alias
    */
-  def addNew(userId: Long,
+  def addNew(user: User,
              name: String,
              domain: String,
              priority: Int,
              password: Option[String] = None,
              passwordHashing: Option[String] = None): Option[UserAlias] = {
-    val obj = UserAlias(currentTimestamp, None, userId, name, domain, priority, password, passwordHashing)
+    val obj = UserAlias(currentTimestamp, None, user.id, name, domain, priority, password, passwordHashing)
     DB withSession { implicit session =>
       (this += obj) == 1
     } option obj
@@ -98,7 +98,7 @@ object UserAliases extends TableQuery(new UserAliases(_)) {
   /**
    * Find by email
    */
-  def getByEmail(theEmail: String): Option[UserAlias] = get(theEmail, UserAliasDomain.email)
+  def getByEmail(email: String): Option[UserAlias] = get(email, UserAliasDomain.email)
 }
 
 object UserAliasDomain {

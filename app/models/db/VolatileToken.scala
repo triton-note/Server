@@ -4,6 +4,7 @@ import java.sql.Timestamp
 import simple._
 import scalaz._
 import Scalaz._
+import scala.annotation.tailrec
 
 case class VolatileToken(token: String,
                          uses: String,
@@ -62,9 +63,13 @@ object VolatileTokens extends TableQuery(new VolatileTokens(_)) {
   /**
    * Create new token and save to database
    */
-  def createNew(willExpired: scala.concurrent.duration.FiniteDuration, extra: Option[String] = None): Option[VolatileToken] = {
+  @tailrec
+  def createNew(willExpired: scala.concurrent.duration.FiniteDuration, extra: Option[String] = None): VolatileToken = {
     val token = play.api.libs.Codecs.sha1(System.currentTimeMillis.toString)
-    addNew(token, VolatileTokenUses.Application, willExpired, extra)
+    addNew(token, VolatileTokenUses.Application, willExpired, extra) match {
+      case None    => createNew(willExpired, extra)
+      case Some(a) => a
+    }
   }
   /**
    * Obtain specified token

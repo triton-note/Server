@@ -203,7 +203,7 @@ case class PreInfo(basic: PreInfo.BasicInfo,
       case None => {
         Some(copy(submitted = Some(s)))
       }
-      case Some(id) => Photo.get(id) map { p =>
+      case Some(id) => Photos.get(id) map { p =>
         withTransaction {
           val photo = p add s.comment
           val b = submitted match {

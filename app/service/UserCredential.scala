@@ -1,5 +1,6 @@
 package service
 
+import models.db._
 import play.api.{ Logger, Application }
 import securesocial.core._
 import securesocial.core.providers.Token
@@ -11,29 +12,32 @@ class UserCredential(application: Application) extends UserServicePlugin(applica
   def find(id: IdentityId): Option[Identity] = {
     Logger.debug(f"Finding user by alias : $id")
     for {
-      alias <- models.db.UserAlias.get(id.userId, id.providerId)
+      alias <- UserAliases.get(id.userId, id.providerId)
     } yield alias
   }
 
   def findByEmailAndProvider(email: String, providerId: String): Option[Identity] = {
     Logger.debug(f"Finding user by email : $email")
     for {
-      alias <- models.db.UserAlias.getByEmail(email)
+      alias <- UserAliases.getByEmail(email)
     } yield alias
   }
 
-  def save(user: Identity): Identity = {
-    import models.db._
-    withTransaction {
-      val u = User.addNew(user.firstName, user.lastName, user.avatarUrl)
-      val a1 = UserAlias.addNew(u.id, user.identityId.userId, user.identityId.providerId, 0,
-        user.passwordInfo.map(_.password), user.passwordInfo.map(_.hasher))
-      val a2 = for {
-        email <- user.email
-        if (email != a1.name || a1.domain != UserAliasDomain.email)
-      } yield UserAlias.addNew(u.id, email, UserAliasDomain.email, 0)
-      Logger.debug(f"Saved alias($a1) as $a2")
-      a1
+  def save(user: Identity): Option[Identity] = {
+    DB withTransaction { implicit session =>
+      for {
+        u <- Users.addNew(user.firstName, user.lastName, user.avatarUrl)
+        a1 <- UserAliases.addNew(u, user.identityId.userId, user.identityId.providerId, 0,
+          user.passwordInfo.map(_.password), user.passwordInfo.map(_.hasher))
+        a2 <- for {
+          email <- user.email
+          if (email != a1.name || a1.domain != UserAliasDomain.email)
+          ua <- UserAliases.addNew(u, email, UserAliasDomain.email, 0)
+        } yield ua
+      } yield {
+        Logger.debug(f"Saved alias($a1) as $a2")
+        a1
+      }
     }
   }
 
@@ -41,20 +45,20 @@ class UserCredential(application: Application) extends UserServicePlugin(applica
     val xml = <securesocial-token email={ token.email } isSignUp={ token.isSignUp.toString }/>
     import scala.concurrent.duration._
     val willExpired = (token.expirationTime.getMillis - System.currentTimeMillis).millisecond
-    val saved = models.db.VolatileToken.addNew(token.uuid, tokenUses, willExpired, Some(xml.toString))
-    Logger.debug("Saved token: %s".format(saved))
+    val saved = VolatileTokens.addNew(token.uuid, tokenUses, willExpired, Some(xml.toString))
+    Logger.debug(f"Saved token: $saved")
   }
 
   def findToken(token: String): Option[Token] = {
-    for (o <- models.db.VolatileToken.get(token, tokenUses)) yield o
+    for (o <- VolatileTokens.get(token, tokenUses)) yield o
   }
 
   def deleteToken(uuid: String) {
-    models.db.VolatileToken.get(uuid, tokenUses).foreach(_.delete)
+    VolatileTokens.get(uuid, tokenUses).foreach(_.delete)
   }
 
   def deleteExpiredTokens() {
-    models.db.VolatileToken.deleteExpired(Some(tokenUses))
+    VolatileTokens.deleteExpired(Some(tokenUses))
   }
 }
 object UserCredential {
@@ -62,13 +66,13 @@ object UserCredential {
    * Mutual conversions: UserAlias <-> Identity
    */
   object Conversions {
-    class AliasIdentity(val alias: models.db.UserAlias) extends Identity {
+    class AliasIdentity(val alias: UserAlias) extends Identity {
       lazy val identityId = IdentityId(alias.name, alias.domain)
-      lazy val firstName = alias.user.firstName
-      lazy val lastName = alias.user.lastName
-      lazy val fullName = alias.user.fullName
+      lazy val firstName = alias.user.get.firstName
+      lazy val lastName = alias.user.get.lastName
+      lazy val fullName = alias.user.get.fullName
       lazy val email = alias.email
-      lazy val avatarUrl = alias.user.avatarUrl
+      lazy val avatarUrl = alias.user.get.avatarUrl
       lazy val authMethod = AuthenticationMethod.UserPassword
       lazy val oAuth1Info: Option[OAuth1Info] = None
       lazy val oAuth2Info: Option[OAuth2Info] = None
@@ -80,13 +84,13 @@ object UserCredential {
     /**
      * Convert: UserAlias -> Identity
      */
-    implicit def aliasToIdentity(alias: models.db.UserAlias): Identity = new AliasIdentity(alias)
+    implicit def aliasToIdentity(alias: UserAlias): Identity = new AliasIdentity(alias)
     /**
      * Convert: Identity -> UserAlias
      */
     implicit def identityToAlias(id: Identity) = id match {
       case ai: AliasIdentity => ai.alias
-      case _ => throw new RuntimeException(f"Unsupported identity: $id")
+      case _                 => throw new RuntimeException(f"Unsupported identity: $id")
     }
   }
   /**
