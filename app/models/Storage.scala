@@ -3,17 +3,11 @@ package models
 import scala.concurrent.duration._
 import play.{Logger => Log}
 import com.amazonaws.auth.BasicAWSCredentials
-import com.amazonaws.services.s3.AmazonS3Client
 import com.amazonaws.services.s3.model.ObjectMetadata
 
 object Storage {
-  val bucketName = System.getenv("S3_BUCKET_NAME")
-  val s3 = {
-    val id = System.getenv("AWS_ACCESS_KEY_ID")
-    val key = System.getenv("AWS_SECRET_ACCESS_KEY")
-    val credential = new BasicAWSCredentials(id, key)
-    new AmazonS3Client(credential)
-  }
+  lazy val s3 = service.AWS.S3.client
+  lazy val bucketName = service.AWS.S3.bucketName
   def retry[T](count: Int)(proc: => T): Option[T] = {
     var down = count
     while (down > 0) {
