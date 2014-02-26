@@ -1,65 +1,65 @@
 package models.db
 
-import models.GeoInfo
-import java.sql.Timestamp
-import simple._
+import java.util.Date
+import scala.util.control.Exception._
 import scalaz._
 import Scalaz._
+import com.amazonaws.services.dynamodbv2.model._
+import models.GeoInfo
 
 case class CatchReport(id: Long,
-                 createdAt: Timestamp,
-                 timestamp: Option[Timestamp],
-                 geoinfo: Option[GeoInfo]) {
-  /**
-   * Prepared query for me
-   */
-  private def me = CatchReports.filter(_.id is id)
+                       createdAt: Date,
+                       lastModifiedAt: Option[Date],
+                       timestamp: Date,
+                       latitude: Double,
+                       longitude: Double) {
   /**
    * Reload from DB.
    * If there is no longer me, returns None.
    */
-  def refresh: Option[CatchReport] = DB withSession { implicit session => me.firstOption }
+  def refresh: Option[CatchReport] = CatchReports.get(id)
   /**
    * Delete me
    */
-  def delete = DB withSession { implicit session =>
-    me.delete > 0
-  }
-  lazy val comments: List[Comment] = DB withSession { implicit session =>
-    Comments.filter(_.catchReportId is id).sortBy(_.lastModifiedAt).list
+  def delete: Boolean = CatchReports.delete(id)
+  /**
+   * Point on map by latitude and longitude
+   */
+  lazy val geoinfo = GeoInfo(latitude, longitude)
+  /**
+   * All comments
+   */
+  lazy val comments: List[Comment] = Comments.find(Comments.catchReport(Option(this))).toList.sortBy {
+    a => a.lastModifiedAt getOrElse a.createdAt
   }
   /**
    * Add comment
    */
-  def add(text: String)(implicit user: User): Option[Comment] = {
+  def addComment(text: String)(implicit user: User): Option[Comment] = {
     Comments.addNew(user, this, text)
   }
 }
 
-class CatchReports(tag: Tag) extends Table[CatchReport](tag, "CATCH_REPORT") {
-  def id = column[Long]("ID", O.PrimaryKey, O.AutoInc)
-  def createdAt = column[Timestamp]("CREATED_AT", O.NotNull)
-  def timestamp = column[Timestamp]("TIMESTAMP", O.Nullable)
-  def latitude = column[Double]("LATITUDE", O.Nullable)
-  def longitude = column[Double]("LONGITUDE", O.Nullable)
+object CatchReports extends AutoIDTable[CatchReport]("CATCH_REPORT") {
+  val timestamp = Column[Date]("TIMESTAMP", (_.timestamp), (_.getDate), attrDate)
+  val latitude = Column[Double]("LATITUDE", (_.latitude), (_.getDouble), attrDouble)
+  val longitude = Column[Double]("LONGITUDE", (_.longitude), (_.getDouble), attrDouble)
   // All columns
-  def * = (id, createdAt, timestamp.?, latitude.?, longitude.?) <> (
-    { t: (Long, Timestamp, Option[Timestamp], Option[Double], Option[Double]) => CatchReport(t._1, t._2, t._3, GeoInfo(t._4, t._5)) },
-    { o: CatchReport => Some(o.id, o.createdAt, o.timestamp, o.geoinfo.map(_.latitude), o.geoinfo.map(_.longitude)) })
-}
-object CatchReports extends TableQuery(new CatchReports(_)) {
+  val columns = Set(timestamp, latitude, longitude)
+  def fromMap(implicit map: Map[String, AttributeValue]): Option[CatchReport] = allCatch opt CatchReport(
+    id.build,
+    createdAt.build,
+    lastModifiedAt.build,
+    timestamp.build,
+    latitude.build,
+    longitude.build
+  )
   /**
    * Add new
    */
-  def addNew(geoinfo: Option[GeoInfo] = None, timestamp: Option[Timestamp] = None): Option[CatchReport] = {
-    val obj = CatchReport(-1, currentTimestamp, timestamp, geoinfo)
-    val newId = DB withSession { implicit session =>
-      (this returning map(_.id)) += obj
-    }
-    Option(newId) map { id => obj.copy(id = id) }
-  }
-  /**
-   * Find catch which has given id
-   */
-  def get(id: Long): Option[CatchReport] = DB withSession { implicit session => filter(_.id is id).firstOption }
+  def addNew(theGeoinfo: GeoInfo, theTimestamp: Date): Option[CatchReport] = addNew(
+    timestamp(theTimestamp),
+    latitude(theGeoinfo.latitude),
+    longitude(theGeoinfo.longitude)
+  )
 }

@@ -1,91 +1,43 @@
 package models.db
 
-import java.sql.Timestamp
-import simple._
+import java.util.Date
+import scala.util.control.Exception._
 import scalaz._
 import Scalaz._
-
-case class Fish(name: String, createdAt: Timestamp) {
-  /**
-   * Query for me
-   */
-  private def me = Fishes.filter(_.name is name)
-  /**
-   * Reload from DB.
-   * If there is no longer me, returns None.
-   */
-  def refresh: Option[Fish] = DB withSession { implicit session => me.firstOption }
-  /**
-   * Delete me
-   */
-  def delete: Boolean = DB.withSession { implicit session =>
-    me.delete > 0
-  }
-}
-class Fishes(tag: Tag) extends Table[Fish](tag, "FISH") {
-  def name = column[String]("NAME", O.NotNull, O.PrimaryKey)
-  def createdAt = column[Timestamp]("CREATED_AT", O.NotNull)
-  def * = (name, createdAt) <> (Fish.tupled, Fish.unapply)
-}
-object Fishes extends TableQuery(new Fishes(_)) {
-  /**
-   * Add new fish
-   */
-  def addNew(name: String): Option[Fish] = {
-    val obj = Fish(name, currentTimestamp)
-    DB withSession { implicit session =>
-      (this += obj) == 1
-    } option obj
-  }
-}
+import com.amazonaws.services.dynamodbv2.model._
 
 case class FishSize(id: Long,
-                    fishName: String,
+                    createdAt: Date,
+                    lastModifiedAt: Option[Date],
+                    photo: Option[Photo],
+                    name: String,
                     weight: Option[Double],
                     length: Option[Double]) {
   /**
-   * Query for me
-   */
-  private def me = FishSizes.filter(_.id is id)
-  /**
    * Reload from DB.
    * If there is no longer me, returns None.
    */
-  def refresh: Option[FishSize] = DB withSession { implicit session => me.firstOption }
+  def refresh: Option[FishSize] = FishSizes.get(id)
   /**
    * Delete me
    */
-  def delete: Boolean = DB.withSession { implicit session =>
-    me.delete > 0
-  }
-  /**
-   * Fish
-   */
-  lazy val fish: Option[Fish] = DB withSession { implicit session =>
-    me.flatMap(_.fish).firstOption
-  }
+  def delete: Boolean = FishSizes.delete(id)
 }
-class FishSizes(tag: Tag) extends Table[FishSize](tag, "FISH") {
-  def id = column[Long]("ID", O.PrimaryKey, O.AutoInc)
-  def fishName = column[String]("FISH_NAME", O.NotNull)
-  def weight = column[Double]("WEIGHT", O.Nullable)
-  def length = column[Double]("LENGTH", O.Nullable)
-  def * = (id, fishName, weight.?, length.?) <> (FishSize.tupled, FishSize.unapply)
-  /**
-   * Bound fish
-   */
-  def fish = foreignKey("FISH_SIZE_FK_FISH", fishName, Fishes)(_.name)
-}
-object FishSizes extends TableQuery(new FishSizes(_)) {
+object FishSizes extends AutoIDTable[FishSize]("FISH_SIZE") {
+  val photo = Column[Option[Photo]]("PHOTO", (_.photo), (_.get(Photos)), attrObjLongID)
+  val name = Column[String]("NAME", (_.name), (_.getS), attrString)
+  val weight = Column[Option[Double]]("WEIGHT", (_.weight), (_.getDouble.option), attrDouble)
+  val length = Column[Option[Double]]("LENGTH", (_.length), (_.getDouble.option), attrDouble)
+  // All columns
+  val columns = Set(photo, name, weight, length)
   /**
    * Add new fish size
    */
-  def addNew(fishName: String, weight: Option[Double] = None, length: Option[Double] = None): Option[FishSize] = {
-    val obj = FishSize(-1, fishName, weight, length)
-    val newId = DB withSession { implicit session =>
-      (this returning map(_.id)) += obj
-    }
-    Option(newId) map { id => obj.copy(id = id) }
-  }
+  def addNew(thePhoto: Photo, theName: String, theWeight: Option[Double] = None, theLength: Option[Double] = None): Option[FishSize] = addNew(
+    photo(Option(thePhoto)),
+    name(theName),
+    weight(theWeight),
+    length(theLength)
+  )
 }
 

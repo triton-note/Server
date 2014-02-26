@@ -6,9 +6,10 @@ import scalaz._
 import Scalaz._
 import com.amazonaws.services.dynamodbv2.model._
 
-case class User(id: Long,
-                createdAt: Date = currentTimestamp,
-                lastModifiedAt: Option[Date] = None,
+case class User(id: String,
+                createdAt: Date,
+                lastModifiedAt: Option[Date],
+                password: Option[String],
                 firstName: String,
                 lastName: String,
                 avatarUrl: Option[String] = None) {
@@ -26,30 +27,27 @@ case class User(id: Long,
    */
   lazy val fullName: String = f"$firstName $lastName"
   /**
-   * List of user aliases in any domain, sorted by priority
-   */
-  lazy val aliases: List[UserAlias] = ???
-  /**
-   * List of email addresses, sorted by priority
-   */
-  lazy val emails: List[String] = aliases.filter(_.domain == UserAliasDomain.email).map(_.name)
-  /**
    * Change properties (like a copy) and update Database
    */
-  def update(firstName: String = this.firstName, lastName: String = this.lastName, avatarUrl: Option[String] = this.avatarUrl): Option[User] = {
-    val n = copy(lastModifiedAt = Some(currentTimestamp), firstName = firstName, lastName = lastName, avatarUrl = avatarUrl)
-    Users.update(n)
+  def update(password: Option[String] = this.password,
+             firstName: String = this.firstName,
+             lastName: String = this.lastName,
+             avatarUrl: Option[String] = this.avatarUrl): Option[User] = {
+    Users update copy(password = password, firstName = firstName, lastName = lastName, avatarUrl = avatarUrl)
   }
 }
-object Users extends Table[User]("USER") {
+object Users extends AnyIDTable[User]("USER") {
+  val password = Column[Option[String]]("PASSWORD", (_.avatarUrl), (_.getS.option), attrString)
   val firstName = Column[String]("FIRST_NAME", (_.firstName), (_.getS), attrString)
   val lastName = Column[String]("LAST_NAME", (_.lastName), (_.getS), attrString)
-  val avatarUrl = Column[Option[String]]("AVATAR_URL", (_.avatarUrl), (_.getS.option), attrStringOpt)
-  def columns = Set(firstName, lastName, avatarUrl)
+  val avatarUrl = Column[Option[String]]("AVATAR_URL", (_.avatarUrl), (_.getS.option), attrString)
+  // All columns
+  val columns = Set(firstName, lastName, avatarUrl)
   def fromMap(implicit map: Map[String, AttributeValue]): Option[User] = allCatch opt User(
     id.build,
     createdAt.build,
     lastModifiedAt.build,
+    password.build,
     firstName.build,
     lastName.build,
     avatarUrl.build
@@ -57,7 +55,8 @@ object Users extends Table[User]("USER") {
   /**
    * Add new user
    */
-  def addNew(theFirstName: String, theLastName: String, theAvatarUrl: Option[String] = None): Option[User] = addNew(
+  def addNew(theEmail: String, thePassword: Option[String], theFirstName: String, theLastName: String, theAvatarUrl: Option[String] = None): Option[User] = addNew(theEmail,
+    password(thePassword),
     firstName(theFirstName),
     lastName(theLastName),
     avatarUrl(theAvatarUrl)

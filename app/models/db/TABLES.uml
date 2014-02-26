@@ -44,18 +44,15 @@
       <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="_v7PIkZU2EeOyV65-v-5Jxw" value="1"/>
     </ownedAttribute>
   </packagedElement>
-  <packagedElement xmi:type="uml:Class" xmi:id="__Xj18NKREeKdutvKZFXr_Q" name="Fish">
-    <ownedAttribute xmi:type="uml:Property" xmi:id="_1RiywNKSEeKdutvKZFXr_Q" name="NAME" type="_-MDkwNKUEeKdutvKZFXr_Q"/>
-    <ownedAttribute xmi:type="uml:Property" xmi:id="_20rZcNKSEeKdutvKZFXr_Q" name="CREATED_AT" type="_JN6vsNKVEeKdutvKZFXr_Q"/>
-  </packagedElement>
   <packagedElement xmi:type="uml:Class" xmi:id="_AhfScNKSEeKdutvKZFXr_Q" name="FishSize" visibility="package">
+    <ownedAttribute xmi:type="uml:Property" xmi:id="_Wi0cwKCEEeOIZLbMD44h3Q" name="NAME" type="_-MDkwNKUEeKdutvKZFXr_Q"/>
     <ownedAttribute xmi:type="uml:Property" xmi:id="__A4l4NKSEeKdutvKZFXr_Q" name="WEIGHT" type="_4HbTYNKVEeKdutvKZFXr_Q"/>
     <ownedAttribute xmi:type="uml:Property" xmi:id="_A9qboNKTEeKdutvKZFXr_Q" name="LENGTH" type="_4HbTYNKVEeKdutvKZFXr_Q"/>
-    <ownedAttribute xmi:type="uml:Property" xmi:id="_ZogIUJUgEeOyV65-v-5Jxw" name="FISH" type="__Xj18NKREeKdutvKZFXr_Q" association="_ZogvYJUgEeOyV65-v-5Jxw">
+    <ownedAttribute xmi:type="uml:Property" xmi:id="_ZogIUJUgEeOyV65-v-5Jxw" name="FISH">
       <lowerValue xmi:type="uml:LiteralInteger" xmi:id="_ZogIUZUgEeOyV65-v-5Jxw" value="1"/>
       <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="_ZogIUpUgEeOyV65-v-5Jxw" value="1"/>
     </ownedAttribute>
-    <ownedAttribute xmi:type="uml:Property" xmi:id="_pXp-QJUfEeOyV65-v-5Jxw" name="CATCH" type="_tsv2gNKQEeKdutvKZFXr_Q" association="_pXp-Q5UfEeOyV65-v-5Jxw">
+    <ownedAttribute xmi:type="uml:Property" xmi:id="_pXp-QJUfEeOyV65-v-5Jxw" name="PHOTO" type="_v1M3MJUkEeOyV65-v-5Jxw" association="_pXp-Q5UfEeOyV65-v-5Jxw">
       <lowerValue xmi:type="uml:LiteralInteger" xmi:id="_pXp-QZUfEeOyV65-v-5Jxw" value="1"/>
       <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="_pXp-QpUfEeOyV65-v-5Jxw" value="1"/>
     </ownedAttribute>
@@ -133,12 +130,6 @@
     <ownedEnd xmi:type="uml:Property" xmi:id="_pXqlUJUfEeOyV65-v-5Jxw" name="fishSize" type="_AhfScNKSEeKdutvKZFXr_Q" association="_pXp-Q5UfEeOyV65-v-5Jxw">
       <lowerValue xmi:type="uml:LiteralInteger" xmi:id="_pXqlUZUfEeOyV65-v-5Jxw" value="1"/>
       <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="_pXqlUpUfEeOyV65-v-5Jxw" value="*"/>
-    </ownedEnd>
-  </packagedElement>
-  <packagedElement xmi:type="uml:Association" xmi:id="_ZogvYJUgEeOyV65-v-5Jxw" name="fishSize" memberEnd="_ZogvYZUgEeOyV65-v-5Jxw _ZogIUJUgEeOyV65-v-5Jxw">
-    <ownedEnd xmi:type="uml:Property" xmi:id="_ZogvYZUgEeOyV65-v-5Jxw" name="size" type="_AhfScNKSEeKdutvKZFXr_Q" association="_ZogvYJUgEeOyV65-v-5Jxw">
-      <lowerValue xmi:type="uml:LiteralInteger" xmi:id="_ZogvYpUgEeOyV65-v-5Jxw" value="1"/>
-      <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="_ZogvY5UgEeOyV65-v-5Jxw" value="1"/>
     </ownedEnd>
   </packagedElement>
   <packagedElement xmi:type="uml:Class" xmi:id="_v1M3MJUkEeOyV65-v-5Jxw" name="Photo">

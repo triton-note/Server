@@ -7,55 +7,91 @@ import Scalaz._
 import com.amazonaws.services.dynamodbv2.model._
 import scala.collection.JavaConversions._
 import service.AWS.DynamoDB._
+import scala.annotation.tailrec
 
 package object db {
   def currentTimestamp = new Date
-  type TableObj = {
-    val id: Long
+  type ArrangedTableObj[K] = {
+    val id: K
     val createdAt: Date
     val lastModifiedAt: Option[Date]
   }
 }
 package db {
-  abstract class Table[T <: TableObj](tableName: String) {
+  trait TableRoot[T] {
     def numberFormat(n: Double) = f"$n%.10f"
+    def numberFormat(n: Long) = f"$n%d"
     val dateFormat = new {
       val du = new com.amazonaws.util.DateUtils
       def format(date: Date) = du.formatIso8601Date(date)
       def parse(s: String) = du.parseIso8601Date(s)
     }
+    /**
+     * Extension for AttribueValue
+     */
+    implicit class AttributeValueOpt(av: AttributeValue) {
+      def getDouble: Double = av.getN.toDouble
+      def getLong: Long = av.getN.toLong
+      def getDate: Date = av.getS.option.map(dateFormat.parse).orNull
+      def get[O](t: AutoIDTable[O]): Option[O] = t.get(av.getLong)
+      def get[O](t: AnyIDTable[O]): Option[O] = t.get(av.getS)
+    }
     implicit class NullOption[A](a: A) {
       def option: Option[A] = Option(a)
     }
-    implicit def attrStringOpt(s: Option[String]) = new AttributeValue().withS(s.orNull)
+    // for String
     implicit def attrString(s: String) = new AttributeValue().withS(s)
-    implicit def attrDoubleOpt(n: Option[Double]) = new AttributeValue().withN(n.map(numberFormat).orNull)
-    implicit def attrDouble(n: Double) = new AttributeValue().withN(numberFormat(n))
-    implicit def attrLongOpt(n: Option[Long]) = new AttributeValue().withN(n.map(_.toString).orNull)
-    implicit def attrLong(n: Long) = new AttributeValue().withN(n.toString)
-    implicit def attrDateOpt(date: Option[Date]) = new AttributeValue().withS(date.map(dateFormat.format).orNull)
-    implicit def attrDate(date: Date) = new AttributeValue().withS(dateFormat format date)
+    implicit def attrString(s: Option[String]) = new AttributeValue().withS(s.orNull)
     implicit def attrString(ss: Set[String]) = new AttributeValue().withSS(ss)
+    // for Double
+    implicit def attrDouble(n: Double) = new AttributeValue().withN(numberFormat(n))
+    implicit def attrDouble(n: Option[Double]) = new AttributeValue().withN(n.map(numberFormat).orNull)
     implicit def attrDouble(ns: Set[Double]) = new AttributeValue().withNS(ns map numberFormat)
-    implicit def attrLong(ns: Set[Long]) = new AttributeValue().withNS(ns.map(_.toString))
-    implicit class AttributeValueOpt(av: AttributeValue) {
-      def getDate: Date = av.getS.option.map(dateFormat.parse).orNull
-    }
+    // for Long
+    implicit def attrLong(n: Long) = new AttributeValue().withN(numberFormat(n))
+    implicit def attrLong(n: Option[Long]) = new AttributeValue().withN(n.map(numberFormat).orNull)
+    implicit def attrLong(ns: Set[Long]) = new AttributeValue().withNS(ns.map(numberFormat))
+    // for Date
+    implicit def attrDate(date: Date) = new AttributeValue().withS(dateFormat format date)
+    implicit def attrDate(date: Option[Date]) = new AttributeValue().withS(date.map(dateFormat.format).orNull)
+    // for ArrangedTableObj
+    implicit def attrObjLongID(o: Option[ArrangedTableObj[Long]]) = new AttributeValue().withN(o.map(_.id).map(numberFormat).orNull)
+    implicit def attrObjStringID(o: Option[ArrangedTableObj[String]]) = new AttributeValue().withN(o.map(_.id).orNull)
+    /**
+     * Representation of column.
+     */
     case class Column[A](name: String, getProp: T => A, valueOf: AttributeValue => A, toAttr: A => AttributeValue) {
       def apply(obj: T): (String, AttributeValue) = apply(getProp(obj))
       def apply(a: A): (String, AttributeValue) = name -> toAttr(a)
       def build(implicit map: Map[String, AttributeValue]): A = valueOf(map(name))
     }
-    def columns: Set[Column[_]]
-    def toAttributes(obj: T): Map[String, AttributeValue] = columns.map(_(obj)).toMap
     /**
-     * Mapping to AttributeValues from Object
+     * All columns
+     */
+    val allColumns: Set[Column[_]]
+    /**
+     * Mapping to Object from AttributeValues
+     * return None if failure.
      */
     def fromMap(implicit map: Map[String, AttributeValue]): Option[T]
     /**
-     * Column 'ID'
+     * Mapping to AttributeValues from Object
      */
-    val id = Column[Long]("ID", (_.id), (_.getN.toLong), attrLong)
+    def toMap(obj: T): Map[String, AttributeValue] = allColumns.map(_(obj)).toMap
+    /**
+     * Table name
+     */
+    val tableName: String
+  }
+  object TimestampledTable {
+    type ObjType[K] = {
+      val id: K
+      val createdAt: Date
+      val lastModifiedAt: Option[Date]
+    }
+  }
+  abstract class TimestampedTable[K, T <: TimestampledTable.ObjType[K]](val tableName: String) extends TableRoot[T] {
+    val id: Column[K]
     /**
      * Column 'CREATED_AT'
      */
@@ -63,36 +99,21 @@ package db {
     /**
      * Column 'LAST_MODIFIED_AT'
      */
-    val lastModifiedAt = Column[Option[Date]]("LAST_MODIFIED_AT", (_.lastModifiedAt), (_.getDate.option), attrDateOpt)
+    val lastModifiedAt = Column[Option[Date]]("LAST_MODIFIED_AT", (_.lastModifiedAt), (_.getDate.option), attrDate)
     /**
-     * Generating ID by random numbers.
+     * Other columns of which is defined in subclass.
      */
-    def generateID: Long = {
-      new Date().getTime + scala.util.Random.nextLong
-    }
+    val columns: Set[Column[_]]
     /**
-     * Add item.
-     *
-     * @return New item which has proper id.
+     * All columns
      */
-    def addNew(attributes: (String, AttributeValue)*): Option[T] = {
-      val map = (attributes.toMap - id.name - createdAt.name - lastModifiedAt.name) +
-        id(generateID) + createdAt(currentTimestamp)
-      try {
-        for {
-          result <- Option(client.putItem(tableName, map))
-          o <- fromMap(map)
-        } yield o
-      } catch {
-        case ex: Exception => None
-      }
-    }
+    val allColumns: Set[Column[_]] = Set(id, createdAt, lastModifiedAt) ++ columns
     /**
      * Delete item.
      *
      * @return true if successfully done
      */
-    def delete(i: Long): Boolean = {
+    def delete(i: K): Boolean = {
       val key = Map(id(i))
       try {
         client.deleteItem(tableName, key)
@@ -104,7 +125,7 @@ package db {
     /**
      * Get(Find) item by id
      */
-    def get(i: Long): Option[T] = {
+    def get(i: K): Option[T] = {
       val key = Map(id(i))
       try {
         for {
@@ -122,9 +143,9 @@ package db {
      *
      * @return updated item
      */
-    def update(obj: T): Option[T] = update(obj.id, toAttributes(obj))
-    def update(i: Long, attributes: (String, AttributeValue)*): Option[T] = update(i, attributes.toMap)
-    def update(i: Long, attributes: Map[String, AttributeValue]): Option[T] = {
+    def update(obj: T): Option[T] = update(obj.id, columns.map(_(obj)).toMap)
+    def update(i: K, attributes: (String, AttributeValue)*): Option[T] = update(i, attributes.toMap)
+    def update(i: K, attributes: Map[String, AttributeValue]): Option[T] = {
       val key = Map(id(i))
       try {
         val u = {
@@ -138,6 +159,80 @@ package db {
           item <- Option(result.getAttributes)
           if item.nonEmpty
           o <- fromMap(item.toMap)
+        } yield o
+      } catch {
+        case ex: Exception => None
+      }
+    }
+    /**
+     * Find item by attributes given.
+     */
+    def find(attributes: (String, AttributeValue)*): Set[T] = find(attributes.toMap)
+    def find(attributes: Map[String, AttributeValue]): Set[T] = {
+      val q = new QueryRequest(tableName).withKeyConditions(attributes map {
+        case (n, v) => n -> new Condition().withComparisonOperator(ComparisonOperator.EQ).withAttributeValueList(v)
+      })
+      for {
+        result <- Option(client.query(q)).toSet
+        item <- result.getItems
+        o <- fromMap(item.toMap)
+      } yield o
+    }
+  }
+  abstract class AnyIDTable[T <: ArrangedTableObj[String]](tableName: String) extends TimestampedTable[String, T](tableName) {
+    /**
+     * Column 'ID'
+     */
+    val id = Column[String]("ID", (_.id), (_.getS), attrString)
+    /**
+     * Add item.
+     *
+     * @return New item which has proper id.
+     */
+    def addNew(key: String, attributes: (String, AttributeValue)*): Option[T] = {
+      val map = (attributes.toMap - id.name - createdAt.name - lastModifiedAt.name) +
+        id(key) + createdAt(currentTimestamp)
+      try {
+        for {
+          result <- Option(client.putItem(tableName, map))
+          o <- fromMap(map)
+        } yield o
+      } catch {
+        case ex: Exception => None
+      }
+    }
+  }
+  abstract class AutoIDTable[T <: ArrangedTableObj[Long]](tableName: String) extends TimestampedTable[Long, T](tableName) {
+    /**
+     * Column 'ID'
+     */
+    val id = Column[Long]("ID", (_.id), (_.getLong), attrLong)
+    /**
+     * Generating ID by random numbers.
+     */
+    def generateID: Long = {
+      @tailrec
+      def gen: Long = {
+        val i = new Date().getTime + scala.util.Random.nextLong
+        get(i) match {
+          case None    => i
+          case Some(_) => gen
+        }
+      }
+      gen
+    }
+    /**
+     * Add item.
+     *
+     * @return New item which has proper id.
+     */
+    def addNew(attributes: (String, AttributeValue)*): Option[T] = {
+      val map = (attributes.toMap - id.name - createdAt.name - lastModifiedAt.name) +
+        id(generateID) + createdAt(currentTimestamp)
+      try {
+        for {
+          result <- Option(client.putItem(tableName, map))
+          o <- fromMap(map)
         } yield o
       } catch {
         case ex: Exception => None
