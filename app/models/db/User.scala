@@ -55,8 +55,8 @@ object Users extends AnyIDTable[User]("USER") {
   /**
    * Add new user
    */
-  def addNew(theEmail: String, thePassword: Option[String], theFirstName: String, theLastName: String, theAvatarUrl: Option[String] = None): Option[User] = addNew(theEmail,
-    password(thePassword),
+  def addNew(theEmail: String, unhashedPassword: Option[String], theFirstName: String, theLastName: String, theAvatarUrl: Option[String] = None): Option[User] = addNew(theEmail,
+    password(unhashedPassword.map(hash)),
     firstName(theFirstName),
     lastName(theLastName),
     avatarUrl(theAvatarUrl)
@@ -64,5 +64,5 @@ object Users extends AnyIDTable[User]("USER") {
   def get(email: String): Option[User] = find(id(email)).headOption
   // Password hashing
   val hashingWay = "SHA-1"
-  def hash(v: String): String = ???
+  def hash(v: String): String = play.api.libs.Codecs.sha1(v)
 }
