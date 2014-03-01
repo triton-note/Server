@@ -45,7 +45,7 @@ object CatchReports extends AutoIDTable[CatchReport]("CATCH_REPORT") {
   val latitude = Column[Double]("LATITUDE", (_.latitude), (_.getDouble), attrDouble)
   val longitude = Column[Double]("LONGITUDE", (_.longitude), (_.getDouble), attrDouble)
   // All columns
-  val columns = Set(timestamp, latitude, longitude)
+  val columns = List(timestamp, latitude, longitude)
   def fromMap(implicit map: Map[String, AttributeValue]): Option[CatchReport] = allCatch opt CatchReport(
     id.build,
     createdAt.build,

@@ -42,7 +42,7 @@ object Users extends AnyIDTable[User]("USER") {
   val lastName = Column[String]("LAST_NAME", (_.lastName), (_.getS), attrString)
   val avatarUrl = Column[Option[String]]("AVATAR_URL", (_.avatarUrl), (_.getS.some), attrString)
   // All columns
-  val columns = Set(firstName, lastName, avatarUrl)
+  val columns = List(firstName, lastName, avatarUrl)
   def fromMap(implicit map: Map[String, AttributeValue]): Option[User] = allCatch opt User(
     id.build,
     createdAt.build,

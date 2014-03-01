@@ -8,8 +8,8 @@ object ApplicationBuild extends Build {
   val appVersion      = "0.1.0-SNAPSHOT"
 
   val appDependencies = Seq(
-    "net.databinder.dispatch" %% "dispatch-core" % "0.10.1",
-    "securesocial" %% "securesocial" % "master-SNAPSHOT" withSources() exclude("org.scala-stm", "scala-stm_2.10.0"),
+    "net.databinder.dispatch" %% "dispatch-core" % "0.11.0",
+    "securesocial" %% "securesocial" % "master-SNAPSHOT" withSources() exclude("org.scala-stm", "scala-stm_2.10.0") changing(),
     "com.amazonaws" % "aws-java-sdk" % "1.7.1" withSources,
     "org.scalaz" %% "scalaz-core" % "7.0.5" withSources,
     jdbc,

@@ -29,7 +29,16 @@ object FishSizes extends AutoIDTable[FishSize]("FISH_SIZE") {
   val weight = Column[Option[Double]]("WEIGHT", (_.weight), (_.getDouble.some), attrDouble)
   val length = Column[Option[Double]]("LENGTH", (_.length), (_.getDouble.some), attrDouble)
   // All columns
-  val columns = Set(photo, name, weight, length)
+  val columns = List(photo, name, weight, length)
+  def fromMap(implicit map: Map[String, AttributeValue]): Option[FishSize] = allCatch opt FishSize(
+    id.build,
+    createdAt.build,
+    lastModifiedAt.build,
+    photo.build,
+    name.build,
+    weight.build,
+    length.build
+  )
   /**
    * Add new fish size
    */

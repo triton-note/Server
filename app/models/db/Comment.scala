@@ -33,7 +33,7 @@ object Comments extends AutoIDTable[Comment]("COMMENT") {
   val catchReport = Column[Option[CatchReport]]("CATCH_REPORT", (_.catchReport), (_.get(CatchReports)), attrObjLongID)
   val text = Column[String]("TEXT", (_.text), (_.getS), attrString)
   // All columns
-  val columns = Set(user, catchReport, text)
+  val columns = List(user, catchReport, text)
   def fromMap(implicit map: Map[String, AttributeValue]): Option[Comment] = allCatch opt Comment(
     id.build,
     createdAt.build,

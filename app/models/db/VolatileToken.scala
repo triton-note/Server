@@ -36,7 +36,14 @@ object VolatileTokens extends AnyIDTable[VolatileToken]("VOLATILE_TOKEN") {
   val expiration = Column[Date]("EXPIRATION", (_.expiration), (_.getDate), attrDate)
   val extra = Column[Option[String]]("EXTRA", (_.extra), (_.getS.some), attrString)
   // All columns
-  val columns = Set(expiration, extra)
+  val columns = List(expiration, extra)
+  def fromMap(implicit map: Map[String, AttributeValue]): Option[VolatileToken] = allCatch opt VolatileToken(
+    id.build,
+    createdAt.build,
+    lastModifiedAt.build,
+    expiration.build,
+    extra.build
+  )
   /**
    * Add new token
    */

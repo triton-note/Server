@@ -33,7 +33,14 @@ object Geographics extends AnyIDTable[Geographic]("GEOGRAPHIC") {
   val equatorialRadius = Column[Double]("EQUATORIAL_RADIUS", (_.equatorialRadius), (_.getDouble), attrDouble) // in meter
   val polarRadius = Column[Double]("POLAR_RADIUS", (_.polarRadius), (_.getDouble), attrDouble) // in meter
   // All columns
-  val columns = Set(equatorialRadius, polarRadius)
+  val columns = List(equatorialRadius, polarRadius)
+  def fromMap(implicit map: Map[String, AttributeValue]): Option[Geographic] = allCatch opt Geographic(
+    id.build,
+    createdAt.build,
+    lastModifiedAt.build,
+    equatorialRadius.build,
+    polarRadius.build
+  )
   /**
    * Add new
    */

@@ -60,7 +60,7 @@ package db {
     /**
      * All columns
      */
-    val allColumns: Set[Column[_]]
+    val allColumns: List[Column[_]]
     /**
      * Mapping to Object from AttributeValues
      * return None if failure.
@@ -93,13 +93,17 @@ package db {
      */
     val lastModifiedAt = Column[Option[Date]]("LAST_MODIFIED_AT", (_.lastModifiedAt), (_.getDate.some), attrDate)
     /**
+     * Columns at this class
+     */
+    val superColumns = List(id, createdAt, lastModifiedAt)
+    /**
      * Other columns of which is defined in subclass.
      */
-    val columns: Set[Column[_]]
+    val columns: List[Column[_]]
     /**
      * All columns
      */
-    val allColumns: Set[Column[_]] = Set(id, createdAt, lastModifiedAt) ++ columns
+    val allColumns: List[Column[_]] = superColumns ::: columns
     /**
      * Delete item.
      *

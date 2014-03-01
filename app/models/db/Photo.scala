@@ -26,7 +26,14 @@ case class Photo(id: Long,
 object Photos extends AutoIDTable[Photo]("PHOTO") {
   val catchReport = Column[Option[CatchReport]]("CATCH_REPORT", (_.catchReport), (_.get(CatchReports)), attrObjLongID)
   val image = Column[Option[Image]]("IMAGE", (_.image), (_.get(Images)), attrObjLongID)
-  val columns = Set(catchReport, image)
+  val columns = List(catchReport, image)
+  def fromMap(implicit map: Map[String, AttributeValue]): Option[Photo] = allCatch opt Photo(
+    id.build,
+    createdAt.build,
+    lastModifiedAt.build,
+    catchReport.build,
+    image.build
+  )
   /**
    * Add new photo.
    * Brand new id will be generated and injected into new Photo instance.
@@ -64,7 +71,17 @@ object Images extends AutoIDTable[Image]("IMAGE") {
   val width = Column[Long]("WIDTH", (_.width), (_.getLong), attrLong)
   val height = Column[Long]("HEIGHT", (_.height), (_.getLong), attrLong)
   // All columns
-  val columns = Set(kind, format, dataSize, width, height)
+  val columns = List(kind, format, dataSize, width, height)
+  def fromMap(implicit map: Map[String, AttributeValue]): Option[Image] = allCatch opt Image(
+    id.build,
+    createdAt.build,
+    lastModifiedAt.build,
+    kind.build,
+    format.build,
+    dataSize.build,
+    width.build,
+    height.build
+  )
   /**
    * Add new image data
    */
@@ -100,7 +117,15 @@ object ImageRelations extends AutoIDTable[ImageRelation]("IMAGE_RELATION") {
   val imageDst = Column[Option[Image]]("IMAGE_DST", (_.imageDst), (_.get(Images)), attrObjLongID)
   val relation = Column[String]("RELATION", (_.relation), (_.getS), attrString)
   // All columns
-  val columns = Set(imageSrc, imageDst, relation)
+  val columns = List(imageSrc, imageDst, relation)
+  def fromMap(implicit map: Map[String, AttributeValue]): Option[ImageRelation] = allCatch opt ImageRelation(
+    id.build,
+    createdAt.build,
+    lastModifiedAt.build,
+    imageSrc.build,
+    imageDst.build,
+    relation.build
+  )
   /**
    * Add new relation
    */
