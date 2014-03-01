@@ -6,7 +6,7 @@ import scalaz._
 import Scalaz._
 import com.amazonaws.services.dynamodbv2.model._
 
-case class Geographic(id: Long,
+case class Geographic(id: String,
                       createdAt: Date,
                       lastModifiedAt: Option[Date],
                       equatorialRadius: Double,
@@ -29,7 +29,7 @@ case class Geographic(id: Long,
   )
 }
 
-object Geographics extends AutoIDTable[Geographic]("GEOGRAPHIC") {
+object Geographics extends AnyIDTable[Geographic]("GEOGRAPHIC") {
   val equatorialRadius = Column[Double]("EQUATORIAL_RADIUS", (_.equatorialRadius), (_.getDouble), attrDouble) // in meter
   val polarRadius = Column[Double]("POLAR_RADIUS", (_.polarRadius), (_.getDouble), attrDouble) // in meter
   // All columns
@@ -37,8 +37,9 @@ object Geographics extends AutoIDTable[Geographic]("GEOGRAPHIC") {
   /**
    * Add new
    */
-  def addNew(theEquatorialRadius: Double, thePolarRadius: Double): Option[Geographic] = addNew(
+  def addNew(name: String, theEquatorialRadius: Double, thePolarRadius: Double): Option[Geographic] = addNew(name,
     equatorialRadius(theEquatorialRadius),
     polarRadius(thePolarRadius)
   )
+  def get: Geographic = get("Earth").get
 }

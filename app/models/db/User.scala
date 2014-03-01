@@ -37,10 +37,10 @@ case class User(id: String,
   }
 }
 object Users extends AnyIDTable[User]("USER") {
-  val password = Column[Option[String]]("PASSWORD", (_.avatarUrl), (_.getS.option), attrString)
+  val password = Column[Option[String]]("PASSWORD", (_.avatarUrl), (_.getS.some), attrString)
   val firstName = Column[String]("FIRST_NAME", (_.firstName), (_.getS), attrString)
   val lastName = Column[String]("LAST_NAME", (_.lastName), (_.getS), attrString)
-  val avatarUrl = Column[Option[String]]("AVATAR_URL", (_.avatarUrl), (_.getS.option), attrString)
+  val avatarUrl = Column[Option[String]]("AVATAR_URL", (_.avatarUrl), (_.getS.some), attrString)
   // All columns
   val columns = Set(firstName, lastName, avatarUrl)
   def fromMap(implicit map: Map[String, AttributeValue]): Option[User] = allCatch opt User(
@@ -61,4 +61,8 @@ object Users extends AnyIDTable[User]("USER") {
     lastName(theLastName),
     avatarUrl(theAvatarUrl)
   )
+  def get(email: String): Option[User] = find(id(email)).headOption
+  // Password hashing
+  val hashingWay = "SHA-1"
+  def hash(v: String): String = ???
 }

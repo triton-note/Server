@@ -17,7 +17,7 @@ object InitPhoto extends Controller with securesocial.core.SecureSocial {
   /**
    * Register authorized user to session
    */
-  private def completeAuth(ses: (String, String)*)(implicit user: db.UserAlias) = {
+  private def completeAuth(ses: (String, String)*)(implicit user: db.User) = {
     securesocial.core.Authenticator.create(user) match {
       case Left(error) => throw error
       case Right(authenticator) => {
@@ -35,8 +35,8 @@ object InitPhoto extends Controller with securesocial.core.SecureSocial {
                       }
                     </header>
         Logger debug f"Saving cookies and session as XML: $extra"
-        val vt = db.VolatileToken.createNew(5 minutes, Some(extra.toString))
-        Ok(vt.token).withCookies(cookies: _*).withSession(ses: _*)
+        val vt = db.VolatileTokens.createNew(5 minutes, Some(extra.toString))
+        Ok(vt.id).withCookies(cookies: _*).withSession(ses: _*)
       }
     }
   }
@@ -99,7 +99,7 @@ object InitPhoto extends Controller with securesocial.core.SecureSocial {
    * Set initializing info by user
    */
   def submit = SecuredAction { implicit request =>
-    implicit val user = request.user.user
+    implicit val user = request.user
     Logger.info(f"Uploaded form body: ${request.body}")
     formInitInput.bindFromRequest.fold(
       error => {
@@ -119,7 +119,7 @@ object InitPhoto extends Controller with securesocial.core.SecureSocial {
     )
   }
   def cancel = SecuredAction(parse.xml) { implicit request =>
-    implicit val user = request.user.user
+    implicit val user = request.user
     val uploading = sessionUploading(request)
     import models.RichXML._
     val filepath = request.body.head \@ "filepath"
@@ -135,7 +135,7 @@ object InitPhoto extends Controller with securesocial.core.SecureSocial {
    * Uploaded photo data
    */
   def upload = SecuredAction(parse.raw) { implicit request =>
-    implicit val user = request.user.user
+    implicit val user = request.user
     val uploading = sessionUploading(request)
     Logger.debug(f"Uploading photo with $uploading")
     val ok = uploading.flatMap { vt =>

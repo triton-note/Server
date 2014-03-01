@@ -8,7 +8,7 @@ class SessionValue(val name: String, val dur: FiniteDuration) {
   def apply(value: String): (String, String) = apply(Some(value))
   def apply(value: Option[String] = None): (String, String) = {
     val vt = db.VolatileTokens.createNew(dur, value)
-    (name, vt.token)
+    (name, vt.id)
   }
   def apply(req: Request[_]): Option[db.VolatileToken] = {
     val v = req.session.get(name)

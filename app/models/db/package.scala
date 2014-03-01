@@ -11,33 +11,25 @@ import scala.annotation.tailrec
 
 package object db {
   def currentTimestamp = new Date
-  type ArrangedTableObj[K] = {
-    val id: K
-    val createdAt: Date
-    val lastModifiedAt: Option[Date]
+  def numberFormat(n: Double) = f"$n%.10f"
+  def numberFormat(n: Long) = f"$n%d"
+  val dateFormat = new {
+    val du = new com.amazonaws.util.DateUtils
+    def format(date: Date) = du.formatIso8601Date(date)
+    def parse(s: String) = du.parseIso8601Date(s)
   }
 }
 package db {
   trait TableRoot[T] {
-    def numberFormat(n: Double) = f"$n%.10f"
-    def numberFormat(n: Long) = f"$n%d"
-    val dateFormat = new {
-      val du = new com.amazonaws.util.DateUtils
-      def format(date: Date) = du.formatIso8601Date(date)
-      def parse(s: String) = du.parseIso8601Date(s)
-    }
     /**
      * Extension for AttribueValue
      */
     implicit class AttributeValueOpt(av: AttributeValue) {
       def getDouble: Double = av.getN.toDouble
       def getLong: Long = av.getN.toLong
-      def getDate: Date = av.getS.option.map(dateFormat.parse).orNull
+      def getDate: Date = av.getS.some.map(dateFormat.parse).orNull
       def get[O](t: AutoIDTable[O]): Option[O] = t.get(av.getLong)
       def get[O](t: AnyIDTable[O]): Option[O] = t.get(av.getS)
-    }
-    implicit class NullOption[A](a: A) {
-      def option: Option[A] = Option(a)
     }
     // for String
     implicit def attrString(s: String) = new AttributeValue().withS(s)
@@ -55,8 +47,8 @@ package db {
     implicit def attrDate(date: Date) = new AttributeValue().withS(dateFormat format date)
     implicit def attrDate(date: Option[Date]) = new AttributeValue().withS(date.map(dateFormat.format).orNull)
     // for ArrangedTableObj
-    implicit def attrObjLongID(o: Option[ArrangedTableObj[Long]]) = new AttributeValue().withN(o.map(_.id).map(numberFormat).orNull)
-    implicit def attrObjStringID(o: Option[ArrangedTableObj[String]]) = new AttributeValue().withN(o.map(_.id).orNull)
+    implicit def attrObjLongID(o: Option[TimestampledTable.ObjType[Long]]) = new AttributeValue().withN(o.map(_.id).map(numberFormat).orNull)
+    implicit def attrObjStringID(o: Option[TimestampledTable.ObjType[String]]) = new AttributeValue().withN(o.map(_.id).orNull)
     /**
      * Representation of column.
      */
@@ -99,7 +91,7 @@ package db {
     /**
      * Column 'LAST_MODIFIED_AT'
      */
-    val lastModifiedAt = Column[Option[Date]]("LAST_MODIFIED_AT", (_.lastModifiedAt), (_.getDate.option), attrDate)
+    val lastModifiedAt = Column[Option[Date]]("LAST_MODIFIED_AT", (_.lastModifiedAt), (_.getDate.some), attrDate)
     /**
      * Other columns of which is defined in subclass.
      */
@@ -179,7 +171,7 @@ package db {
       } yield o
     }
   }
-  abstract class AnyIDTable[T <: ArrangedTableObj[String]](tableName: String) extends TimestampedTable[String, T](tableName) {
+  abstract class AnyIDTable[T <: TimestampledTable.ObjType[String]](tableName: String) extends TimestampedTable[String, T](tableName) {
     /**
      * Column 'ID'
      */
@@ -202,7 +194,7 @@ package db {
       }
     }
   }
-  abstract class AutoIDTable[T <: ArrangedTableObj[Long]](tableName: String) extends TimestampedTable[Long, T](tableName) {
+  abstract class AutoIDTable[T <: TimestampledTable.ObjType[Long]](tableName: String) extends TimestampedTable[Long, T](tableName) {
     /**
      * Column 'ID'
      */

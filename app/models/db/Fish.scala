@@ -26,8 +26,8 @@ case class FishSize(id: Long,
 object FishSizes extends AutoIDTable[FishSize]("FISH_SIZE") {
   val photo = Column[Option[Photo]]("PHOTO", (_.photo), (_.get(Photos)), attrObjLongID)
   val name = Column[String]("NAME", (_.name), (_.getS), attrString)
-  val weight = Column[Option[Double]]("WEIGHT", (_.weight), (_.getDouble.option), attrDouble)
-  val length = Column[Option[Double]]("LENGTH", (_.length), (_.getDouble.option), attrDouble)
+  val weight = Column[Option[Double]]("WEIGHT", (_.weight), (_.getDouble.some), attrDouble)
+  val length = Column[Option[Double]]("LENGTH", (_.length), (_.getDouble.some), attrDouble)
   // All columns
   val columns = Set(photo, name, weight, length)
   /**

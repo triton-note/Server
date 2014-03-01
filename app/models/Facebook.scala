@@ -56,14 +56,14 @@ object Facebook {
      * If UserAlias is not found, return email which is obtained by accessKey.
      * If UserAlias is found by email, return UserAlias.
      */
-    def find(implicit accesskey: AccessKey): Future[Option[Either[String, db.UserAlias]]] = {
+    def find(implicit accesskey: AccessKey): Future[Option[Either[String, db.User]]] = {
       obtain("email") map { opt =>
         for {
           json <- opt
           email <- (json \ "email").asOpt[String]
         } yield {
           Logger debug f"Getting UserAlias by email: $email"
-          db.UserAliases.get(email, db.UserAliasDomain.facebook) match {
+          db.Users.get(email) match {
             case Some(user) => Right(user)
             case None       => Left(email)
           }
@@ -74,7 +74,7 @@ object Facebook {
      * Create UserAlias by email.
      * The email is obtained by accessKey.
      */
-    def create(implicit accesskey: AccessKey): Future[Option[db.UserAlias]] = {
+    def create(implicit accesskey: AccessKey): Future[Option[db.User]] = {
       obtain("email", "first_name", "last_name", "picture") map { opt =>
         for {
           json <- opt
@@ -82,12 +82,10 @@ object Facebook {
           firstName <- (json \ "first_name").asOpt[String]
           lastName <- (json \ "last_name").asOpt[String]
           avatarUrl = (json \ "picture" \ "data" \ "url").asOpt[String]
-          user <- db.Users.addNew(firstName, lastName, avatarUrl)
-          u1 <- db.UserAliases.addNew(user, email, db.UserAliasDomain.email, 0)
-          u2 <- db.UserAliases.addNew(user, email, db.UserAliasDomain.facebook, 0)
+          user <- db.Users.addNew(email, None, firstName, lastName, avatarUrl)
         } yield {
           Logger.info(f"Creating alias '$email' of $user as facebook and email at once")
-          u2
+          user
         }
       }
     }
@@ -96,7 +94,7 @@ object Facebook {
      * If UserAlias is not created yet, create it.
      * If accessKey is not valid, return None.
      */
-    def apply(accesskey: String): Future[Option[db.UserAlias]] = {
+    def apply(accesskey: String): Future[Option[db.User]] = {
       implicit val ak = AccessKey(accesskey)
       Logger.debug(f"Login as user with $ak")
       find flatMap (_ match {

@@ -34,7 +34,7 @@ case class VolatileToken(id: String,
 }
 object VolatileTokens extends AnyIDTable[VolatileToken]("VOLATILE_TOKEN") {
   val expiration = Column[Date]("EXPIRATION", (_.expiration), (_.getDate), attrDate)
-  val extra = Column[Option[String]]("EXTRA", (_.extra), (_.getS.option), attrString)
+  val extra = Column[Option[String]]("EXTRA", (_.extra), (_.getS.some), attrString)
   // All columns
   val columns = Set(expiration, extra)
   /**

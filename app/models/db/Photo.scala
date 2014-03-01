@@ -69,7 +69,7 @@ object Images extends AutoIDTable[Image]("IMAGE") {
    * Add new image data
    */
   def addNew(theDataSize: Long, theWidth: Long, theHeight: Long,
-             theKind: String = KIND_ORIGINAL, theFormat: String = "JPEG"): Option[Image] = addNew(
+             theFormat: String = "JPEG", theKind: String = KIND_ORIGINAL): Option[Image] = addNew(
     kind(theKind),
     format(theFormat),
     dataSize(theDataSize),

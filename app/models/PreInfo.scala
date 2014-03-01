@@ -186,14 +186,11 @@ case class PreInfo(basic: PreInfo.BasicInfo,
   def commit(file: java.io.File)(implicit user: User): Option[PreInfo] = committed match {
     case Some(id) => None
     case None => submitted.map { s =>
-      withTransaction {
-        Logger.trace(f"Committing file(${file.getName}) for $user")
-        val album = AlbumOwner.create(user, s.date, s.grounds)
-        val photo = Photo.addNew(basic.geoinfo, basic.timestamp.map(a => a)) bindTo user bindTo album add s.comment
-        val data = Image.addNew(Image.KIND_ORIGINAL, photo, basic.format, file.length, basic.width, basic.height)
-        data.file write file
-        copy(committed = Some(photo.id))
-      }
+      Logger.trace(f"Committing file(${file.getName}) for $user")
+      val data = Images.addNew(file.length, basic.width, basic.height, basic.format)
+      val photo = Photos.addNew(basic.geoinfo, basic.timestamp.map(a => a)) bindTo user bindTo album add s.comment
+      data.file write file
+      copy(committed = Some(photo.id))
     }
   }
   def submit(date: Date, grounds: String, comment: String)(implicit user: User): Option[PreInfo] = {
@@ -204,25 +201,23 @@ case class PreInfo(basic: PreInfo.BasicInfo,
         Some(copy(submitted = Some(s)))
       }
       case Some(id) => Photos.get(id) map { p =>
-        withTransaction {
-          val photo = p add s.comment
-          val b = submitted match {
-            case None    => s
-            case Some(n) => n.copy(comment = s.comment)
-          }
-          if (b != s) {
-            def findAlbum(s: SubmittedInfo) = photo.findAlbum(s.grounds, s.date)
-            findAlbum(s) match {
-              case None           => db.Album.addNew(s.date, s.grounds)
-              case Some(newAlbum) => Logger.info(f"The new album (id=${newAlbum.id}) has already been associated with this photo.")
-            }
-            findAlbum(b) match {
-              case None           => Logger.warn("The old album is not associated with this photo.")
-              case Some(oldAlbum) => if (oldAlbum.photos.isEmpty) oldAlbum.delete
-            }
-          }
-          copy(submitted = Some(s))
+        val photo = p add s.comment
+        val b = submitted match {
+          case None    => s
+          case Some(n) => n.copy(comment = s.comment)
         }
+        if (b != s) {
+          def findAlbum(s: SubmittedInfo) = photo.findAlbum(s.grounds, s.date)
+          findAlbum(s) match {
+            case None           => db.Album.addNew(s.date, s.grounds)
+            case Some(newAlbum) => Logger.info(f"The new album (id=${newAlbum.id}) has already been associated with this photo.")
+          }
+          findAlbum(b) match {
+            case None           => Logger.warn("The old album is not associated with this photo.")
+            case Some(oldAlbum) => if (oldAlbum.photos.isEmpty) oldAlbum.delete
+          }
+        }
+        copy(submitted = Some(s))
       }
     }
   }
