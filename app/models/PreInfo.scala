@@ -1,5 +1,7 @@
 package models
 
+import scala.util.control.Exception._
+import scala.xml._
 import play.api.Logger
 import java.util.Date
 import db._
@@ -7,55 +9,11 @@ import db._
 object PreInfo {
   import javax.xml.transform.stream._
   import javax.xml.validation._
-  import scala.xml._
-  val formatTimestamp = new java.text.SimpleDateFormat("yyyy-MM-dd'T'h:m:ss'Z'")
-  val formatDate = new java.text.SimpleDateFormat("yyyy-MM-dd'Z'")
   implicit def stringToSource(text: String) = new StreamSource(new java.io.StringReader(text))
-  val XSD = <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
-              <xs:element name="files">
-                <xs:complexType>
-                  <xs:sequence>
-                    <xs:element name="file" minOccurs="1" maxOccurs="unbounded">
-                      <xs:complexType>
-                        <xs:sequence>
-                          <xs:element name="geoinfo" minOccurs="0" maxOccurs="1">
-                            <xs:complexType>
-                              <xs:attribute name="latitude" type="xs:double" use="required"/>
-                              <xs:attribute name="longitude" type="xs:double" use="required"/>
-                            </xs:complexType>
-                          </xs:element>
-                          <xs:element name="inference" minOccurs="0" maxOccurs="1">
-                            <xs:complexType>
-                              <xs:attribute name="grounds" type="xs:string" use="required"/>
-                              <xs:attribute name="date" type="xs:date" use="required"/>
-                            </xs:complexType>
-                          </xs:element>
-                          <xs:element name="info" minOccurs="0" maxOccurs="1">
-                            <xs:complexType>
-                              <xs:sequence>
-                                <xs:element name="comment" type="xs:string" minOccurs="1" maxOccurs="1"/>
-                              </xs:sequence>
-                              <xs:attribute name="grounds" type="xs:string" use="required"/>
-                              <xs:attribute name="date" type="xs:date" use="required"/>
-                            </xs:complexType>
-                          </xs:element>
-                          <xs:element name="committed" minOccurs="0" maxOccurs="1">
-                            <xs:complexType>
-                              <xs:attribute name="id" type="xs:string" use="required"/>
-                            </xs:complexType>
-                          </xs:element>
-                        </xs:sequence>
-                        <xs:attribute name="filepath" type="xs:string" use="required"/>
-                        <xs:attribute name="format" type="xs:string" use="required"/>
-                        <xs:attribute name="width" type="xs:long" use="required"/>
-                        <xs:attribute name="height" type="xs:long" use="required"/>
-                        <xs:attribute name="timestamp" type="xs:dateTime"/>
-                      </xs:complexType>
-                    </xs:element>
-                  </xs:sequence>
-                </xs:complexType>
-              </xs:element>
-            </xs:schema>
+  val XSD: Elem = {
+    val name = getClass.getName.split(".").last
+    XML load getClass.getResourceAsStream(name)
+  }
   /**
    * Schema of XSD for validation
    */
@@ -67,158 +25,144 @@ object PreInfo {
   /**
    * Validate XML
    */
-  private def validate(string: String): Option[String] = {
-    try {
-      schema.newValidator().validate(string)
-      Some(string)
-    } catch {
-      case ex: Exception => Logger.error(ex.getLocalizedMessage); None
-    }
+  private def validate(string: String): Option[String] = allCatch opt {
+    schema.newValidator().validate(string)
+    string
   }
   /**
    * Parse XML and into PreInfo objects
    */
-  private def load(xml: Node): List[PreInfo] = {
+  private def load(xml: Node): Option[PreInfo] = {
     import RichXML._
-    for {
-      info <- (xml \ "file").toList
-      filepath <- info \@ "filepath"
-      format <- info \@ "format"
-      width <- info \@% "width"
-      height <- info \@% "height"
-    } yield {
-      val timestamp = (info \@ "timestamp").map(formatTimestamp.parse)
-      val geoinfo = for {
-        geo <- (info \ "geoinfo").headOption
+    def makeGeoInfo(x: Node) = {
+      for {
+        geo <- (x \ "geoinfo").headOption
         latitude <- geo \@% "latitude"
         longitude <- geo \@% "longitude"
       } yield GeoInfo(latitude, longitude)
-      PreInfo(
-        BasicInfo(filepath, format, width.round, height.round, timestamp, geoinfo),
-        {
-          for {
-            i <- (info \ "inference").headOption
-            d <- (i \@ "date").map(formatDate.parse)
-            g <- i \@ "grounds"
-          } yield InferentialInfo(d, g)
-        },
-        {
-          for {
-            i <- (info \ "info").headOption
-            d <- (i \@ "date").map(formatDate.parse)
-            g <- i \@ "grounds"
-            c <- (i \ "comment").headOption
-          } yield SubmittedInfo(d, g, c.text)
-        },
-        {
-          for {
-            c <- (info \ "committed").headOption
-            id <- c \@% "id"
-          } yield id.toLong
-        }
-      )
     }
+    def makeFishes(x: Node) = {
+      for {
+        fish <- (x \ "fish").toList
+        name <- fish \@ "name"
+        length = fish \@% "length"
+        weight = fish \@% "widht"
+      } yield Fish(name, length, weight)
+    }
+    val basic = {
+      for {
+        filepath <- xml \@ "filepath"
+        uploaded = xml \@# "uploaded"
+        format <- xml \@ "format"
+        width <- xml \@# "width"
+        height <- xml \@# "height"
+        timestamp = (xml \@ "timestamp").map(dateFormat.parse)
+        geoinfo = makeGeoInfo(xml)
+      } yield BasicInfo(uploaded, filepath, format, width, height, timestamp, geoinfo)
+    }
+    val inference = {
+      for {
+        x <- (xml \ "inference").headOption
+        date <- (x \@ "date").map(dateFormat.parse)
+        spots = (x \ "spot").toList.flatMap(_ \@ "name")
+        fishes = makeFishes(x)
+      } yield InferentialInfo(date, spots, fishes)
+    }
+    val submission = {
+      for {
+        x <- (xml \ "submission").headOption
+        spot <- x \@ "spot"
+        date <- (x \@ "date").map(dateFormat.parse)
+        geoinfo <- makeGeoInfo(x)
+        fishes = makeFishes(x)
+        comment <- (x \ "comment").headOption.map(_.text)
+      } yield SubmittedInfo(date, spot, geoinfo, fishes, comment)
+    }
+    basic.map(PreInfo(_, inference, submission))
   }
   /**
    * Find PreInfo in the given XML.
    */
-  def read(xml: String): List[PreInfo] = {
+  def apply(xml: String): Option[PreInfo] = {
     Logger.trace(f"Loading PreInfo from XML: $xml")
     for {
-      string <- validate(xml).toList
+      string <- validate(xml)
       info <- load(scala.xml.XML loadString string)
     } yield info
   }
-  def asXML(infos: List[PreInfo]): scala.xml.Elem = {
-    implicit def fromDouble(v: Double) = f"$v%1.10f"
-    implicit def fromLong(v: Long) = f"$v%d"
-    <files>{
-      infos map { info =>
-        val b = info.basic
-        <file filepath={ b.filepath } format={ b.format } width={ b.width } height={ b.height } timestamp={ b.timestamp.map(formatTimestamp.format).orNull }>{
-          b.geoinfo.toSeq map { g =>
-            <geoinfo latitude={ g.latitude } longitude={ g.longitude }/>
-          }
-        }{
-          info.inference.toSeq map { i =>
-            <inference date={ formatDate format i.date } grounds={ i.grounds }/>
-          }
-        }{
-          info.submitted.toSeq map { s =>
-            <submitted date={ formatDate format s.date } grounds={ s.grounds }>
-              <comment>{ s.comment }</comment>
-            </submitted>
-          }
-        }{
-          info.committed.toSeq map { c =>
-            <committed id={ c }/>
-          }
-        }</file>
-      }
-    }</files>
-  }
-  case class BasicInfo private[PreInfo] (filepath: String, format: String, width: Long, height: Long, timestamp: Option[Date], geoinfo: Option[GeoInfo])
-  case class SubmittedInfo private[PreInfo] (date: Date, grounds: String, comment: String)
-  case class InferentialInfo private[PreInfo] (date: Date, grounds: String)
-  // avoid null string
-  def an(o: String) = Option(o) getOrElse ""
-  def submission(date: Date, grounds: String, comment: String) = SubmittedInfo(date, an(grounds), an(comment))
-  def inference(date: Date, grounds: String) = InferentialInfo(date, an(grounds))
+  case class BasicInfo private[PreInfo] (uploaded: Option[Long], filepath: String, format: String, width: Long, height: Long, timestamp: Option[Date], geoinfo: Option[GeoInfo])
+  case class SubmittedInfo private[PreInfo] (date: Date, spot: String, geoinfo: GeoInfo, fishes: List[Fish], comment: String)
+  case class InferentialInfo private[PreInfo] (date: Date, spots: List[String], fishes: List[Fish])
+  case class Fish private[PreInfo] (name: String, length: Option[Double], weight: Option[Double])
 }
 case class PreInfo(basic: PreInfo.BasicInfo,
                    inference: Option[PreInfo.InferentialInfo],
-                   submitted: Option[PreInfo.SubmittedInfo],
-                   committed: Option[Long]) {
+                   submission: Option[PreInfo.SubmittedInfo]) {
   import PreInfo._
-  /**
-   * Submitted Or Inference
-   */
-  lazy val soi = {
-    case class SOI(date: Date, grounds: String, comment: Option[String])
-    submitted match {
-      case Some(s) => Some(SOI(s.date, s.grounds, Some(s.comment)))
-      case None => inference match {
-        case Some(i) => Some(SOI(i.date, i.grounds, None))
-        case None    => None
+  def toXML: Node = {
+    implicit def fromBoolean(v: Boolean) = v.toString
+    implicit def fromDouble(v: Double) = f"$v%1.10f"
+    implicit def fromDoubleO(o: Option[Double]) = o.map(v => f"$v%1.10f").orNull
+    implicit def fromLong(v: Long) = f"$v%d"
+    implicit def fromLongO(o: Option[Long]) = o.map(v => f"$v%d").orNull
+    implicit def fromDate(v: Date) = dateFormat.format(v)
+    implicit def fromDateO(o: Option[Date]) = o.map(dateFormat.format).orNull
+    def xmlFishes(fishes: List[Fish]) = fishes map { fish =>
+      <fish name={ fish.name } length={ fish.length } weight={ fish.weight }/>
+    }
+    def xmlGeoInfo(geoinfos: GeoInfo*) = geoinfos map { g =>
+      <geoinfo latitude={ g.latitude } longitude={ g.longitude }/>
+    }
+    <file uploaded={ basic.uploaded } filepath={ basic.filepath } format={ basic.format } width={ basic.width } height={ basic.height } timestamp={ basic.timestamp }>
+      {
+        xmlGeoInfo(basic.geoinfo.toSeq: _*)
+      }{
+        inference.toSeq map { i =>
+          <inference date={ i.date }>
+            {
+              i.spots map { spot =>
+                <spot name={ spot }/>
+              }
+            }{
+              xmlFishes(i.fishes)
+            }
+          </inference>
+        }
+      }{
+        submission.toSeq map { s =>
+          <submitted date={ s.date } spot={ s.spot }>
+            {
+              xmlGeoInfo(s.geoinfo)
+            }{
+              xmlFishes(s.fishes)
+            }
+            <comment>{ s.comment }</comment>
+          </submitted>
+        }
       }
+    </file>
+  }
+  def upload(file: java.io.File): PreInfo = if (basic.uploaded.nonEmpty) this else {
+    Logger.trace(f"Uploaded file(${file.getName})")
+    Images.addNew(file.length, basic.width, basic.height, basic.format) match {
+      case Some(image) if (image.file write file) => copy(basic = basic.copy(uploaded = Some(image.id)))
+      case _                                      => this
     }
   }
-  def commit(file: java.io.File)(implicit user: User): Option[PreInfo] = committed match {
-    case Some(id) => None
-    case None => submitted.map { s =>
-      Logger.trace(f"Committing file(${file.getName}) for $user")
-      val data = Images.addNew(file.length, basic.width, basic.height, basic.format)
-      val photo = Photos.addNew(basic.geoinfo, basic.timestamp.map(a => a)) bindTo user bindTo album add s.comment
-      data.file write file
-      copy(committed = Some(photo.id))
-    }
+  def submit(date: Date, spot: String, geoinfo: GeoInfo, comment: String, fishes: List[Fish]): PreInfo = {
+    val s = SubmittedInfo(date, spot, geoinfo, fishes, comment)
+    Logger.trace(f"Submitting $s")
+    copy(submission = Some(s))
   }
-  def submit(date: Date, grounds: String, comment: String)(implicit user: User): Option[PreInfo] = {
-    val s = submission(date, grounds, comment)
-    Logger.trace(f"Submitting $s for $user")
-    committed match {
-      case None => {
-        Some(copy(submitted = Some(s)))
-      }
-      case Some(id) => Photos.get(id) map { p =>
-        val photo = p add s.comment
-        val b = submitted match {
-          case None    => s
-          case Some(n) => n.copy(comment = s.comment)
-        }
-        if (b != s) {
-          def findAlbum(s: SubmittedInfo) = photo.findAlbum(s.grounds, s.date)
-          findAlbum(s) match {
-            case None           => db.Album.addNew(s.date, s.grounds)
-            case Some(newAlbum) => Logger.info(f"The new album (id=${newAlbum.id}) has already been associated with this photo.")
-          }
-          findAlbum(b) match {
-            case None           => Logger.warn("The old album is not associated with this photo.")
-            case Some(oldAlbum) => if (oldAlbum.photos.isEmpty) oldAlbum.delete
-          }
-        }
-        copy(submitted = Some(s))
-      }
+  def commit(user: User): Option[List[FishSize]] = {
+    for {
+      s <- submission
+      imageId <- basic.uploaded
+      image <- Images.get(imageId)
+      report <- CatchReports.addNew(user, s.geoinfo, s.date)
+      photo <- Photos.addNew(report, image)
+    } yield s.fishes.flatMap { f =>
+      FishSizes.addNew(photo, f.name, f.weight, f.length)
     }
   }
 }

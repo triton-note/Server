@@ -10,6 +10,7 @@ import models.GeoInfo
 case class CatchReport(id: Long,
                        createdAt: Date,
                        lastModifiedAt: Option[Date],
+                       user: Option[User],
                        timestamp: Date,
                        latitude: Double,
                        longitude: Double) {
@@ -41,6 +42,7 @@ case class CatchReport(id: Long,
 }
 
 object CatchReports extends AutoIDTable[CatchReport]("CATCH_REPORT") {
+  val user = Column[Option[User]]("USER", (_.user), (_.get(Users)), attrObjStringID)
   val timestamp = Column[Date]("TIMESTAMP", (_.timestamp), (_.getDate), attrDate)
   val latitude = Column[Double]("LATITUDE", (_.latitude), (_.getDouble), attrDouble)
   val longitude = Column[Double]("LONGITUDE", (_.longitude), (_.getDouble), attrDouble)
@@ -50,6 +52,7 @@ object CatchReports extends AutoIDTable[CatchReport]("CATCH_REPORT") {
     id.build,
     createdAt.build,
     lastModifiedAt.build,
+    user.build,
     timestamp.build,
     latitude.build,
     longitude.build
@@ -57,7 +60,8 @@ object CatchReports extends AutoIDTable[CatchReport]("CATCH_REPORT") {
   /**
    * Add new
    */
-  def addNew(theGeoinfo: GeoInfo, theTimestamp: Date): Option[CatchReport] = addNew(
+  def addNew(theUser: User, theGeoinfo: GeoInfo, theTimestamp: Date): Option[CatchReport] = addNew(
+    user(Some(theUser)),
     timestamp(theTimestamp),
     latitude(theGeoinfo.latitude),
     longitude(theGeoinfo.longitude)

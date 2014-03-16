@@ -9,6 +9,9 @@ object Settings {
     def timeoutUpload: FiniteDuration = 1 hour
   }
   object Pulish {
-    def timer = 3 minutes
+    def timer: FiniteDuration = 3 minutes
+  }
+  object Strage {
+    def retryLimit: Int = 5
   }
 }

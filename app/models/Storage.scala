@@ -1,9 +1,11 @@
 package models
 
+import scala.util.control.Exception._
 import scala.concurrent.duration._
-import play.{Logger => Log}
+import play.{ Logger => Log }
 import com.amazonaws.auth.BasicAWSCredentials
 import com.amazonaws.services.s3.model.ObjectMetadata
+import java.io.IOException
 
 object Storage {
   lazy val s3 = service.AWS.S3.client
@@ -37,18 +39,19 @@ object Storage {
     def exists: Boolean = {
       s3.getObjectMetadata(bucketName, path) != null
     }
-    def write(src: java.io.File): Boolean = {
+    def write(src: java.io.File, retryCount: Int = Settings.Strage.retryLimit): Boolean = {
       import java.io._
-      write(new BufferedInputStream(new FileInputStream(src)))
+      slurp(new BufferedInputStream(new FileInputStream(src)), retryCount)
     }
-    def write(source: java.io.InputStream): Boolean = {
+    def slurp(source: java.io.InputStream, retryCount: Int = Settings.Strage.retryLimit): Boolean = {
       Log.debug(f"Storing for S3:${bucketName}:${path}")
-      s3.putObject(bucketName, path, source, new ObjectMetadata())
-      true
+      allCatch opt s3.putObject(bucketName, path, source, new ObjectMetadata()) match {
+        case None    => if (retryCount > 0) slurp(source, retryCount - 1) else false
+        case Some(_) => true
+      }
     }
     def delete: Boolean = {
-      s3.deleteObject(bucketName, path)
-      true
+      (allCatch opt s3.deleteObject(bucketName, path)).isDefined
     }
     def read: java.io.InputStream = {
       val obj = s3.getObject(bucketName, path)
@@ -56,7 +59,7 @@ object Storage {
     }
     def move(dstPaths: String*): S3File = {
       val dstFile = new S3File(dstPaths.toList)
-      dstFile write read
+      dstFile slurp read
       delete
       dstFile
     }
