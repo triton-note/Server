@@ -45,6 +45,7 @@
     </complexType>
     <complexType name="Fish">
         <attribute name="name" type="string" use="required" />
+        <attribute name="count" type="long" use="required" />
         <attribute name="length" type="double" use="optional" />
         <attribute name="weight" type="double" use="optional" />
     </complexType>

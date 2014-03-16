@@ -11,6 +11,7 @@ case class FishSize(id: Long,
                     lastModifiedAt: Option[Date],
                     photo: Option[Photo],
                     name: String,
+                    count: Long,
                     weight: Option[Double],
                     length: Option[Double]) {
   /**
@@ -26,6 +27,7 @@ case class FishSize(id: Long,
 object FishSizes extends AutoIDTable[FishSize]("FISH_SIZE") {
   val photo = Column[Option[Photo]]("PHOTO", (_.photo), (_.get(Photos)), attrObjLongID)
   val name = Column[String]("NAME", (_.name), (_.getS), attrString)
+  val count = Column[Long]("COUNT", (_.count), (_.getLong), attrLong)
   val weight = Column[Option[Double]]("WEIGHT", (_.weight), (_.getDouble.some), attrDouble)
   val length = Column[Option[Double]]("LENGTH", (_.length), (_.getDouble.some), attrDouble)
   // All columns
@@ -36,15 +38,17 @@ object FishSizes extends AutoIDTable[FishSize]("FISH_SIZE") {
     lastModifiedAt.build,
     photo.build,
     name.build,
+    count.build,
     weight.build,
     length.build
   )
   /**
    * Add new fish size
    */
-  def addNew(thePhoto: Photo, theName: String, theWeight: Option[Double] = None, theLength: Option[Double] = None): Option[FishSize] = addNew(
+  def addNew(thePhoto: Photo, theName: String, theCount: Long, theWeight: Option[Double] = None, theLength: Option[Double] = None): Option[FishSize] = addNew(
     photo(Option(thePhoto)),
     name(theName),
+    count(theCount),
     weight(theWeight),
     length(theLength)
   )

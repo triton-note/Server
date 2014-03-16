@@ -45,9 +45,10 @@ object PreInfo {
       for {
         fish <- (x \ "fish").toList
         name <- fish \@ "name"
+        count <- fish \@# "count"
         length = fish \@% "length"
         weight = fish \@% "widht"
-      } yield Fish(name, length, weight)
+      } yield Fish(name, count, length, weight)
     }
     val basic = {
       for {
@@ -93,7 +94,7 @@ object PreInfo {
   case class BasicInfo private[PreInfo] (uploaded: Option[Long], filepath: String, format: String, width: Long, height: Long, timestamp: Option[Date], geoinfo: Option[GeoInfo])
   case class SubmittedInfo private[PreInfo] (date: Date, spot: String, geoinfo: GeoInfo, fishes: List[Fish], comment: String)
   case class InferentialInfo private[PreInfo] (date: Date, spots: List[String], fishes: List[Fish])
-  case class Fish private[PreInfo] (name: String, length: Option[Double], weight: Option[Double])
+  case class Fish(name: String, count: Long, length: Option[Double], weight: Option[Double])
 }
 case class PreInfo(basic: PreInfo.BasicInfo,
                    inference: Option[PreInfo.InferentialInfo],
@@ -108,7 +109,7 @@ case class PreInfo(basic: PreInfo.BasicInfo,
     implicit def fromDate(v: Date) = dateFormat.format(v)
     implicit def fromDateO(o: Option[Date]) = o.map(dateFormat.format).orNull
     def xmlFishes(fishes: List[Fish]) = fishes map { fish =>
-      <fish name={ fish.name } length={ fish.length } weight={ fish.weight }/>
+      <fish name={ fish.name } count={ fish.count } length={ fish.length } weight={ fish.weight }/>
     }
     def xmlGeoInfo(geoinfos: GeoInfo*) = geoinfos map { g =>
       <geoinfo latitude={ g.latitude } longitude={ g.longitude }/>
@@ -142,8 +143,8 @@ case class PreInfo(basic: PreInfo.BasicInfo,
       }
     </file>
   }
-  def infer(date: Date, spots: List[String], fishes: List[String]): PreInfo = {
-    val i = InferentialInfo(date, spots, fishes.map(name => Fish(name, None, None)))
+  def infer(date: Date, spots: List[String], fishes: List[Fish]): PreInfo = {
+    val i = InferentialInfo(date, spots, fishes)
     copy(inference = Some(i))
   }
   def upload(file: java.io.File): PreInfo = if (basic.uploaded.nonEmpty) this else {
@@ -165,8 +166,11 @@ case class PreInfo(basic: PreInfo.BasicInfo,
       image <- Images.get(imageId)
       report <- CatchReports.addNew(user, s.geoinfo, s.date)
       photo <- Photos.addNew(report, image)
-    } yield s.fishes.flatMap { f =>
-      FishSizes.addNew(photo, f.name, f.weight, f.length)
+    } yield {
+      if (s.comment.length > 0) Comments.addNew(user, report, s.comment)
+      s.fishes.flatMap { f =>
+        FishSizes.addNew(photo, f.name, f.count, f.weight, f.length)
+      }
     }
   }
 }

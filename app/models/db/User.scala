@@ -12,6 +12,8 @@ case class User(id: String,
                 password: Option[String],
                 firstName: String,
                 lastName: String,
+                lengthUnit: String,
+                weightUnit: String,
                 avatarUrl: Option[String] = None) {
   /**
    * Reload from DB.
@@ -40,6 +42,8 @@ object Users extends AnyIDTable[User]("USER") {
   val password = Column[Option[String]]("PASSWORD", (_.avatarUrl), (_.getS.some), attrString)
   val firstName = Column[String]("FIRST_NAME", (_.firstName), (_.getS), attrString)
   val lastName = Column[String]("LAST_NAME", (_.lastName), (_.getS), attrString)
+  val lengthUnit = Column[String]("LENGTH_UNIT", (_.lengthUnit), (_.getS), attrString)
+  val weightUnit = Column[String]("WEIGHT_UNIT", (_.weightUnit), (_.getS), attrString)
   val avatarUrl = Column[Option[String]]("AVATAR_URL", (_.avatarUrl), (_.getS.some), attrString)
   // All columns
   val columns = List(firstName, lastName, avatarUrl)
@@ -50,15 +54,25 @@ object Users extends AnyIDTable[User]("USER") {
     password.build,
     firstName.build,
     lastName.build,
+    lengthUnit.build,
+    weightUnit.build,
     avatarUrl.build
   )
   /**
    * Add new user
    */
-  def addNew(theEmail: String, unhashedPassword: Option[String], theFirstName: String, theLastName: String, theAvatarUrl: Option[String] = None): Option[User] = addNew(theEmail,
+  def addNew(theEmail: String,
+             unhashedPassword: Option[String],
+             theFirstName: String,
+             theLastName: String,
+             theLengthUnit: String,
+             theWeightUnit: String,
+             theAvatarUrl: Option[String] = None): Option[User] = addNew(theEmail,
     password(unhashedPassword.map(hash)),
     firstName(theFirstName),
     lastName(theLastName),
+    lengthUnit(theLengthUnit),
+    weightUnit(theWeightUnit),
     avatarUrl(theAvatarUrl)
   )
   def get(email: String): Option[User] = find(id(email)).headOption
