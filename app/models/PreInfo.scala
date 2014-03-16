@@ -130,17 +130,21 @@ case class PreInfo(basic: PreInfo.BasicInfo,
         }
       }{
         submission.toSeq map { s =>
-          <submitted date={ s.date } spot={ s.spot }>
+          <submission date={ s.date } spot={ s.spot }>
             {
               xmlGeoInfo(s.geoinfo)
             }{
               xmlFishes(s.fishes)
             }
             <comment>{ s.comment }</comment>
-          </submitted>
+          </submission>
         }
       }
     </file>
+  }
+  def infer(date: Date, spots: List[String], fishes: List[String]): PreInfo = {
+    val i = InferentialInfo(date, spots, fishes.map(name => Fish(name, None, None)))
+    copy(inference = Some(i))
   }
   def upload(file: java.io.File): PreInfo = if (basic.uploaded.nonEmpty) this else {
     Logger.trace(f"Uploaded file(${file.getName})")

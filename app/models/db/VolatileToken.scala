@@ -28,7 +28,7 @@ case class VolatileToken(id: String,
     VolatileTokens.extra(extra),
     VolatileTokens.expiration(expiration)
   )
-  def setExtra(xml: scala.xml.Elem) = update(extra = Some(xml.toString))
+  def setExtra(xml: scala.xml.NodeSeq) = update(extra = Some(xml.toString))
   def removeExtra = update(extra = None)
   def changeExpiration(theNext: Date) = update(expiration = theNext)
 }
