@@ -2,7 +2,9 @@ package service
 
 import java.util.Date
 import scala.concurrent._
+import ExecutionContext.Implicits.global
 import scala.concurrent.duration._
+import play.api.Logger
 import akka.actor._
 import akka.pattern._
 import akka.util._
@@ -11,14 +13,13 @@ import models.db._
 import Facebook._
 
 object PublishPhoto {
-  import ExecutionContext.Implicits.global
-  val dateFormat = new java.text.SimpleDateFormat("yyyy-MM-dd")
   /**
    * Name of Album on FaceBook
    */
   val albumName: String = System.getenv("ALBUM_NAME")
   def publish(fishes: List[FishSize])(implicit accessKey: AccessKey): Future[List[ObjectId]] = {
     val photos = fishes.groupBy(_.photo)
+    Logger.info(f"Publishing ${photos.keys.mkString(", ")}")
     def addAll(albumIdOpt: Option[ObjectId]) = for {
       photo <- photos.keys.flatten
       albumId <- albumIdOpt

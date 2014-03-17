@@ -168,6 +168,7 @@ case class PreInfo(basic: PreInfo.BasicInfo,
       report <- CatchReports.addNew(user, s.geoinfo, s.date)
       photo <- Photos.addNew(report, image)
     } yield {
+      Logger.debug(f"Saving to DataBase $this")
       if (s.comment.length > 0) Comments.addNew(user, report, s.comment)
       s.fishes.flatMap { f =>
         FishSizes.addNew(photo, f.name, f.count, f.weight, f.length)

@@ -76,7 +76,7 @@ object InitPhoto extends Controller with securesocial.core.SecureSocial {
    * Set initializing info by user
    */
   def submit = SecuredAction(parse.xml) { implicit request =>
-    implicit val user = request.user
+    implicit val user: db.User = request.user
     Logger.info(f"Uploaded form body: ${request.body}")
     val ok = for {
       vt <- sessionUploading(request)
@@ -91,7 +91,6 @@ object InitPhoto extends Controller with securesocial.core.SecureSocial {
     ok getOrElse Results.BadRequest
   }
   def cancel = SecuredAction(parse.text) { implicit request =>
-    implicit val user = request.user
     val ok = for {
       vt <- sessionUploading(request)
       xml <- vt.extra
@@ -107,31 +106,28 @@ object InitPhoto extends Controller with securesocial.core.SecureSocial {
    * Uploaded photo data
    */
   def upload = SecuredAction(parse.raw) { implicit request =>
-    implicit val user = request.user
+    implicit val user: db.User = request.user
     val ok = for {
       vt <- sessionUploading(request)
       xml <- vt.extra
       info <- PreInfo(xml)
     } yield {
-      Logger.debug(f"Uploading photo with $vt")
       val tmp = request.body.asFile
-      Logger.trace(f"Uploaded $tmp")
+      Logger.trace(f"Uploaded $tmp for $vt")
       info.upload(tmp)
       commit(info)
       Ok("Uploaded")
     }
     ok getOrElse Results.BadRequest
   }
-  def commit(info: PreInfo)(implicit user: securesocial.core.Identity, request: Request[_]): Option[Future[Int]] = {
-    if (info.basic.uploaded.isDefined && info.submission.isDefined) {
-      for {
-        fishes <- info.commit(user)
-        fb <- sessionFacebook(request)
-        key <- fb.extra
-      } yield {
-        implicit val ak = Facebook.AccessKey(key)
-        PublishPhoto.publish(fishes).map(_.size)
-      }
-    } else None
+  def commit(info: PreInfo)(implicit user: db.User, request: Request[_]): Option[Future[Int]] = {
+    for {
+      fishes <- info.commit(user)
+      fb <- sessionFacebook(request)
+      key <- fb.extra
+    } yield {
+      implicit val ak = Facebook.AccessKey(key)
+      PublishPhoto.publish(fishes).map(_.size)
+    }
   }
 }
