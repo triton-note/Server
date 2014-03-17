@@ -27,8 +27,7 @@ object InitPhoto extends Controller with securesocial.core.SecureSocial {
                         for {
                           c <- cookies
                         } yield <cookie name={ c.name } value={ c.value } maxAge={ c.maxAge.map(_.toString) orNull }/>
-                      }
-                      {
+                      }{
                         for {
                           (name, value) <- ses
                         } yield <session name={ name } value={ value }/>
@@ -58,76 +57,49 @@ object InitPhoto extends Controller with securesocial.core.SecureSocial {
     }
   }
   /**
-   * Save uploaded xml of file info
+   * ファイル情報の XML を保存して、
+   * 推測された情報を返す。
    */
   def saveInfo = SecuredAction(parse.xml) { implicit request =>
     val ok = for {
       vt <- sessionUploading(request)
       xml <- request.body.headOption
+      info <- PreInfo(xml)
     } yield {
-      val infos = InferencePreInfo.initialize(vt, xml)
-      // Ignore result on Future
-      Ok("OK")
+      val infered = InferencePreInfo.infer(info).toXML
+      vt.refresh.map(_ setExtra infered)
+      Ok(infered)
     }
     ok getOrElse Results.BadRequest
   }
-  /**
-   * Getting info of photos in session for JavaScript
-   */
-  def getInfo = SecuredAction { implicit request =>
-    val ok = for {
-      vt <- sessionUploading(request)
-      xml <- vt.extra
-    } yield {
-      val infos = PreInfo read xml
-      Ok(PreInfo asXML infos)
-    }
-    ok getOrElse Results.BadRequest
-  }
-  /**
-   * Form of initializing photo
-   */
-  case class InitInput(date: java.util.Date, grounds: String, comment: String)
-  val formInitInput = Form[InitInput](
-    Forms.mapping(
-      "date" -> Forms.date("yyyy-MM-dd"),
-      "grounds" -> Forms.nonEmptyText,
-      "comment" -> Forms.text
-    )(InitInput.apply)(InitInput.unapply)
-  )
   /**
    * Set initializing info by user
    */
-  def submit = SecuredAction { implicit request =>
+  def submit = SecuredAction(parse.xml) { implicit request =>
     implicit val user = request.user
     Logger.info(f"Uploaded form body: ${request.body}")
-    formInitInput.bindFromRequest.fold(
-      error => {
-        Logger.error(f"$request is not comfirm for $formInitInput")
-        Results.BadRequest
-      },
-      adding => {
-        val ok = for {
-          vt <- sessionUploading(request)
-        } yield {
-          val info = InferencePreInfo.submitByUser(vt)(adding.date, adding.grounds, adding.comment)
-          // Ignore result on Future
-          Ok("Updated")
-        }
-        ok getOrElse Results.BadRequest
-      }
-    )
+    val ok = for {
+      vt <- sessionUploading(request)
+      xml <- request.body.headOption
+      info <- PreInfo(xml)
+      if info.submission.isDefined
+    } yield {
+      vt.setExtra(info.toXML)
+      commit(info)
+      Ok("Submitted")
+    }
+    ok getOrElse Results.BadRequest
   }
-  def cancel = SecuredAction(parse.xml) { implicit request =>
+  def cancel = SecuredAction(parse.text) { implicit request =>
     implicit val user = request.user
-    val uploading = sessionUploading(request)
-    import models.RichXML._
-    val filepath = request.body.head \@ "filepath"
-    Logger.debug(f"Canceling $filepath in $uploading")
-    val ok = uploading.flatMap { vt =>
-      vt.extra.toList.flatMap(PreInfo.read).find(_.basic.filepath == filepath).map { info =>
-        Ok("Canceled")
-      }
+    val ok = for {
+      vt <- sessionUploading(request)
+      xml <- vt.extra
+      info <- PreInfo(xml)
+      if info.basic.filepath == request.body
+    } yield {
+      Logger.debug(f"Canceling ${info.basic.filepath}")
+      if (vt.delete) Ok("Canceled") else NoContent
     }
     ok getOrElse Results.BadRequest
   }
@@ -136,24 +108,30 @@ object InitPhoto extends Controller with securesocial.core.SecureSocial {
    */
   def upload = SecuredAction(parse.raw) { implicit request =>
     implicit val user = request.user
-    val uploading = sessionUploading(request)
-    Logger.debug(f"Uploading photo with $uploading")
-    val ok = uploading.flatMap { vt =>
+    val ok = for {
+      vt <- sessionUploading(request)
+      xml <- vt.extra
+      info <- PreInfo(xml)
+    } yield {
+      Logger.debug(f"Uploading photo with $vt")
       val tmp = request.body.asFile
       Logger.trace(f"Uploaded $tmp")
-      // 現在のところファイルは１つずつしかアップロード出来ない
-      vt.extra.flatMap(xml => (PreInfo read xml).headOption).map(_.basic.filepath).map { filename =>
-        InferencePreInfo.commitByUpload(vt)(filename, tmp).map { a =>
-          for {
-            committed <- a
-            v <- sessionFacebook(request)
-            accessKey <- v.extra
-          } yield PublishPhotoCollection.add(Facebook.AccessKey(accessKey), committed)
-        }
-        // Ignore result on Future
-        Ok("OK")
-      }
+      info.upload(tmp)
+      commit(info)
+      Ok("Uploaded")
     }
     ok getOrElse Results.BadRequest
+  }
+  def commit(info: PreInfo)(implicit user: securesocial.core.Identity, request: Request[_]): Option[Future[Int]] = {
+    if (info.basic.uploaded.isDefined && info.submission.isDefined) {
+      for {
+        fishes <- info.commit(user)
+        fb <- sessionFacebook(request)
+        key <- fb.extra
+      } yield {
+        implicit val ak = Facebook.AccessKey(key)
+        PublishPhoto.publish(fishes).map(_.size)
+      }
+    } else None
   }
 }

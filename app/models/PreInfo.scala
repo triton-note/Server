@@ -81,6 +81,7 @@ object PreInfo {
     }
     basic.map(PreInfo(_, inference, submission))
   }
+  def apply(xml: Node): Option[PreInfo] = apply(xml.toString)
   /**
    * Find PreInfo in the given XML.
    */
