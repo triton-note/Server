@@ -12,9 +12,9 @@ case class User(id: String,
                 password: Option[String],
                 firstName: String,
                 lastName: String,
+                avatarUrl: Option[String],
                 lengthUnit: String,
-                weightUnit: String,
-                avatarUrl: Option[String] = None) {
+                weightUnit: String) {
   /**
    * Reload from DB.
    * If there is no longer me, returns None.
@@ -35,16 +35,22 @@ case class User(id: String,
              firstName: String = this.firstName,
              lastName: String = this.lastName,
              avatarUrl: Option[String] = this.avatarUrl): Option[User] = {
-    Users update copy(password = password, firstName = firstName, lastName = lastName, avatarUrl = avatarUrl)
+    val map = List(
+      (password != this.password) option Users.password(password),
+      (firstName != this.firstName) option Users.firstName(firstName),
+      (lastName != this.lastName) option Users.lastName(lastName),
+      (avatarUrl != this.avatarUrl) option Users.avatarUrl(avatarUrl)
+    ).flatten.toMap
+    Users.update(id, map)
   }
 }
 object Users extends AnyIDTable[User]("USER") {
   val password = Column[Option[String]]("PASSWORD", (_.avatarUrl), (_.getS.some), attrString)
   val firstName = Column[String]("FIRST_NAME", (_.firstName), (_.getS), attrString)
   val lastName = Column[String]("LAST_NAME", (_.lastName), (_.getS), attrString)
+  val avatarUrl = Column[Option[String]]("AVATAR_URL", (_.avatarUrl), (_.getS.some), attrString)
   val lengthUnit = Column[String]("LENGTH_UNIT", (_.lengthUnit), (_.getS), attrString)
   val weightUnit = Column[String]("WEIGHT_UNIT", (_.weightUnit), (_.getS), attrString)
-  val avatarUrl = Column[Option[String]]("AVATAR_URL", (_.avatarUrl), (_.getS.some), attrString)
   // All columns
   val columns = List(firstName, lastName, avatarUrl)
   def fromMap(implicit map: Map[String, AttributeValue]): Option[User] = allCatch opt User(
@@ -54,9 +60,9 @@ object Users extends AnyIDTable[User]("USER") {
     password.build,
     firstName.build,
     lastName.build,
+    avatarUrl.build,
     lengthUnit.build,
-    weightUnit.build,
-    avatarUrl.build
+    weightUnit.build
   )
   /**
    * Add new user
@@ -65,17 +71,17 @@ object Users extends AnyIDTable[User]("USER") {
              unhashedPassword: Option[String],
              theFirstName: String,
              theLastName: String,
-             theLengthUnit: String,
-             theWeightUnit: String,
-             theAvatarUrl: Option[String] = None): Option[User] = addNew(theEmail,
+             theAvatarUrl: Option[String] = None,
+             theLengthUnit: String = "cm",
+             theWeightUnit: String = "Kg"): Option[User] = addNew(theEmail,
     password(unhashedPassword.map(hash)),
     firstName(theFirstName),
     lastName(theLastName),
+    avatarUrl(theAvatarUrl),
     lengthUnit(theLengthUnit),
-    weightUnit(theWeightUnit),
-    avatarUrl(theAvatarUrl)
+    weightUnit(theWeightUnit)
   )
-  def get(email: String): Option[User] = find(id(email)).headOption
+  def find(email: String): Option[User] = find(id(email)).headOption
   // Password hashing
   val hashingWay = "SHA-1"
   def hash(v: String): String = play.api.libs.Codecs.sha1(v)

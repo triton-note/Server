@@ -28,8 +28,8 @@ package db {
       def getDouble: Double = av.getN.toDouble
       def getLong: Long = av.getN.toLong
       def getDate: Date = av.getS.some.map(dateFormat.parse).orNull
-      def get[O](t: AutoIDTable[O]): Option[O] = t.get(av.getLong)
-      def get[O](t: AnyIDTable[O]): Option[O] = t.get(av.getS)
+      def get[O <: TimestampledTable.ObjType[Long]](t: AutoIDTable[O]): Option[O] = t.get(av.getLong)
+      def get[O <: TimestampledTable.ObjType[String]](t: AnyIDTable[O]): Option[O] = t.get(av.getS)
     }
     // for String
     implicit def attrString(s: String) = new AttributeValue().withS(s)
@@ -53,7 +53,6 @@ package db {
      * Representation of column.
      */
     case class Column[A](name: String, getProp: T => A, valueOf: AttributeValue => A, toAttr: A => AttributeValue) {
-      def apply(obj: T): (String, AttributeValue) = apply(getProp(obj))
       def apply(a: A): (String, AttributeValue) = name -> toAttr(a)
       def build(implicit map: Map[String, AttributeValue]): A = valueOf(map(name))
     }
@@ -66,10 +65,6 @@ package db {
      * return None if failure.
      */
     def fromMap(implicit map: Map[String, AttributeValue]): Option[T]
-    /**
-     * Mapping to AttributeValues from Object
-     */
-    def toMap(obj: T): Map[String, AttributeValue] = allColumns.map(_(obj)).toMap
     /**
      * Table name
      */
@@ -139,7 +134,6 @@ package db {
      *
      * @return updated item
      */
-    def update(obj: T): Option[T] = update(obj.id, columns.map(_(obj)).toMap)
     def update(i: K, attributes: (String, AttributeValue)*): Option[T] = update(i, attributes.toMap)
     def update(i: K, attributes: Map[String, AttributeValue]): Option[T] = {
       val key = Map(id(i))

@@ -3,7 +3,6 @@ GET    /assets/*file             controllers.Assets.at(path="/public", file)
 # Photo uploading
 POST   /photo/initByFacebook     controllers.InitPhoto.createTokenByFacebook
 POST   /photo/saveInfo           controllers.InitPhoto.saveInfo
-GET    /photo/getInfo            controllers.InitPhoto.getInfo
 POST   /photo/submit             controllers.InitPhoto.submit
 POST   /photo/upload             controllers.InitPhoto.upload
 POST   /photo/cancel             controllers.InitPhoto.cancel

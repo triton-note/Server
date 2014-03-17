@@ -23,7 +23,7 @@ class UserCredential(application: Application) extends UserServicePlugin(applica
     } yield alias
   }
 
-  def save(user: Identity): Option[Identity] = {
+  def save(user: Identity): Identity = {
     for {
       email <- user.email
       u <- Users.addNew(email, user.passwordInfo.map(_.password), user.firstName, user.lastName, user.avatarUrl)
@@ -31,6 +31,7 @@ class UserCredential(application: Application) extends UserServicePlugin(applica
       Logger.debug(f"Saved as $u")
       u
     }
+    user
   }
 
   def save(token: Token) {
@@ -64,7 +65,7 @@ object UserCredential {
       lazy val firstName = alias.firstName
       lazy val lastName = alias.lastName
       lazy val fullName = alias.fullName
-      lazy val email = alias.id
+      lazy val email = Some(alias.id)
       lazy val avatarUrl = alias.avatarUrl
       lazy val authMethod = AuthenticationMethod.UserPassword
       lazy val oAuth1Info: Option[OAuth1Info] = None

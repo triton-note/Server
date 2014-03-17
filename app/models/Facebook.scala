@@ -63,7 +63,7 @@ object Facebook {
           email <- (json \ "email").asOpt[String]
         } yield {
           Logger debug f"Getting UserAlias by email: $email"
-          db.Users.get(email) match {
+          db.Users.find(email) match {
             case Some(user) => Right(user)
             case None       => Left(email)
           }
@@ -71,7 +71,7 @@ object Facebook {
       }
     }
     /**
-     * Create UserAlias by email.
+     * Create User by email.
      * The email is obtained by accessKey.
      */
     def create(implicit accesskey: AccessKey): Future[Option[db.User]] = {
