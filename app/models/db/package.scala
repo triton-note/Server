@@ -28,8 +28,8 @@ package db {
       def getDouble: Double = av.getN.toDouble
       def getLong: Long = av.getN.toLong
       def getDate: Date = av.getS.some.map(dateFormat.parse).orNull
-      def get[O <: TimestampledTable.ObjType[Long]](t: AutoIDTable[O]): Option[O] = t.get(av.getLong)
-      def get[O <: TimestampledTable.ObjType[String]](t: AnyIDTable[O]): Option[O] = t.get(av.getS)
+      def get[O <: TimestampedTable.ObjType[Long]](t: AutoIDTable[O]): Option[O] = t.get(av.getLong)
+      def get[O <: TimestampedTable.ObjType[String]](t: AnyIDTable[O]): Option[O] = t.get(av.getS)
     }
     // for String
     implicit def attrString(s: String) = new AttributeValue().withS(s)
@@ -47,8 +47,8 @@ package db {
     implicit def attrDate(date: Date) = new AttributeValue().withS(dateFormat format date)
     implicit def attrDate(date: Option[Date]) = new AttributeValue().withS(date.map(dateFormat.format).orNull)
     // for ArrangedTableObj
-    implicit def attrObjLongID(o: Option[TimestampledTable.ObjType[Long]]) = new AttributeValue().withN(o.map(_.id).map(numberFormat).orNull)
-    implicit def attrObjStringID(o: Option[TimestampledTable.ObjType[String]]) = new AttributeValue().withN(o.map(_.id).orNull)
+    implicit def attrObjLongID(o: Option[TimestampedTable.ObjType[Long]]) = new AttributeValue().withN(o.map(_.id).map(numberFormat).orNull)
+    implicit def attrObjStringID(o: Option[TimestampedTable.ObjType[String]]) = new AttributeValue().withN(o.map(_.id).orNull)
     /**
      * Representation of column.
      */
@@ -69,15 +69,29 @@ package db {
      * Table name
      */
     val tableName: String
+    /**
+     * Find item by attributes given.
+     */
+    def find(attributes: (String, AttributeValue)*): Set[T] = find(attributes.toMap)
+    def find(attributes: Map[String, AttributeValue]): Set[T] = {
+      val q = new QueryRequest(tableName).withKeyConditions(attributes map {
+        case (n, v) => n -> new Condition().withComparisonOperator(ComparisonOperator.EQ).withAttributeValueList(v)
+      })
+      for {
+        result <- Option(client query q).toSet
+        item <- result.getItems
+        o <- fromMap(item.toMap)
+      } yield o
+    }
   }
-  object TimestampledTable {
+  object TimestampedTable {
     type ObjType[K] = {
       val id: K
       val createdAt: Date
       val lastModifiedAt: Option[Date]
     }
   }
-  abstract class TimestampedTable[K, T <: TimestampledTable.ObjType[K]](val tableName: String) extends TableRoot[T] {
+  trait TimestampedTable[K, T <: TimestampedTable.ObjType[K]] extends TableRoot[T] {
     val id: Column[K]
     /**
      * Column 'CREATED_AT'
@@ -98,7 +112,7 @@ package db {
     /**
      * All columns
      */
-    val allColumns: List[Column[_]] = superColumns ::: columns
+    lazy val allColumns: List[Column[_]] = superColumns ::: columns
     /**
      * Delete item.
      *
@@ -154,22 +168,8 @@ package db {
         case ex: Exception => None
       }
     }
-    /**
-     * Find item by attributes given.
-     */
-    def find(attributes: (String, AttributeValue)*): Set[T] = find(attributes.toMap)
-    def find(attributes: Map[String, AttributeValue]): Set[T] = {
-      val q = new QueryRequest(tableName).withKeyConditions(attributes map {
-        case (n, v) => n -> new Condition().withComparisonOperator(ComparisonOperator.EQ).withAttributeValueList(v)
-      })
-      for {
-        result <- Option(client.query(q)).toSet
-        item <- result.getItems
-        o <- fromMap(item.toMap)
-      } yield o
-    }
   }
-  abstract class AnyIDTable[T <: TimestampledTable.ObjType[String]](tableName: String) extends TimestampedTable[String, T](tableName) {
+  abstract class AnyIDTable[T <: TimestampedTable.ObjType[String]](val tableName: String) extends TimestampedTable[String, T] {
     /**
      * Column 'ID'
      */
@@ -192,7 +192,7 @@ package db {
       }
     }
   }
-  abstract class AutoIDTable[T <: TimestampledTable.ObjType[Long]](tableName: String) extends TimestampedTable[Long, T](tableName) {
+  abstract class AutoIDTable[T <: TimestampedTable.ObjType[Long]](val tableName: String) extends TimestampedTable[Long, T] {
     /**
      * Column 'ID'
      */

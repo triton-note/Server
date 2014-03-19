@@ -4,6 +4,7 @@ import java.util.Date
 import scala.util.control.Exception._
 import scalaz._
 import Scalaz._
+import play.api.Logger
 import com.amazonaws.services.dynamodbv2.model._
 import scala.annotation.tailrec
 import scala.concurrent.duration.FiniteDuration
@@ -68,11 +69,20 @@ object VolatileTokens extends AnyIDTable[VolatileToken]("VOLATILE_TOKEN") {
    */
   def deleteExpired: Int = {
     import scala.collection.JavaConversions._
-    val q = new QueryRequest(tableName).withKeyConditions(Map(
-      expiration.name -> new Condition().withComparisonOperator(ComparisonOperator.LE).withAttributeValueList(expiration(currentTimestamp)._2)
-    ))
+    def query = {
+      val q = new QueryRequest(tableName).withKeyConditions(Map(
+        expiration.name -> new Condition().withComparisonOperator(ComparisonOperator.LE).withAttributeValueList(expiration toAttr currentTimestamp)
+      ))
+      try {
+        Option(service.AWS.DynamoDB.client.query(q))
+      } catch {
+        case ex: Exception => 
+          Logger.error(f"Failed to query to '$tableName'", ex)
+          None
+      }
+    }
     val expired = for {
-      result <- Option(service.AWS.DynamoDB.client.query(q)).toSet
+      result <- query.toSet
       item <- result.getItems
       o <- fromMap(item.toMap)
     } yield o

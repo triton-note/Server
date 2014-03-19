@@ -1,6 +1,6 @@
 package test
 
-import org.specs2.mutable._
+import org.specs2._
 
 import play.api.test._
 import play.api.test.Helpers._
@@ -10,19 +10,13 @@ import play.api.test.Helpers._
  * An integration test will fire up a whole play application in a real (or headless) browser
  */
 class IntegrationSpec extends Specification {
-  
-  "Application" should {
-    
-    "work from within a browser" in {
-      running(TestServer(3333), HTMLUNIT) { browser =>
-
-        browser.goTo("http://localhost:3333/")
-
-        browser.pageSource must contain("Your new application is ready.")
-       
-      }
+  def is = s2"""
+  Application work from with in a browser $a1
+"""
+  def a1 = {
+    running(TestServer(3333), HTMLUNIT) { browser =>
+      browser.goTo("http://localhost:3333/")
+      browser.pageSource must contain("Action not found")
     }
-    
   }
-  
 }

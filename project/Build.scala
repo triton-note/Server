@@ -10,7 +10,7 @@ object ApplicationBuild extends Build {
   val appDependencies = Seq(
     "net.databinder.dispatch" %% "dispatch-core" % "0.11.0",
     "securesocial" %% "securesocial" % "master-SNAPSHOT" withSources() exclude("org.scala-stm", "scala-stm_2.10.0") changing(),
-    "com.amazonaws" % "aws-java-sdk" % "1.7.1" withSources,
+    "com.amazonaws" % "aws-java-sdk" % "1.7.5" withSources,
     "org.scalaz" %% "scalaz-core" % "7.0.5" withSources,
     jdbc,
     anorm
