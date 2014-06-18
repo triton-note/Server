@@ -8,14 +8,10 @@ dist
 /.idea
 /*.iml
 /out
-/.idea_modules
 /.classpath
 /.project
 /RUNNING_PID
 /.settings
-.target
-.cache
 bin
 SSL
 .*
-activator-sbt-*.sbt
