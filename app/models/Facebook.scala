@@ -1,42 +1,39 @@
 package models
 
-import play.Logger
-import dispatch._
-import Defaults._
-import play.api.libs.json._
-import play.api.libs.functional.syntax._
-import com.ning.http.multipart._
+import scala.{Left, Right}
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
+import scala.concurrent.duration.DurationInt
+import scala.util.control.Exception.allCatch
+
+import play.api.Logger
+import play.api.Play.current
+import play.api.libs.functional.syntax.{functionalCanBuildApplicative, toFunctionalBuilderOps}
+import play.api.libs.json.{JsValue, __}
+import play.api.libs.ws.{WS, WSResponse}
+
+import com.ning.http.client.{FilePart, RequestBuilder, StringPart}
 
 object Facebook {
-  def fb = host("graph.facebook.com").secure
+  object fb {
+    val host = "https://graph.facebook.com"
+    val client = WS.client
+    def /(path: String) = client url "${host}/${path}"
+  }
   case class AccessKey(token: String)
   case class ObjectId(id: String)
-  def part(file: Storage.S3File): FilePart = {
-    val source = new PartSource {
-      def createInputStream = file.read
-      def getFileName = file.name
-      def getLength = file.length
-    }
-    new FilePart(file.name, source)
+  def part(file: Storage.S3File) = {
+
   }
   object parse {
-    import com.ning.http.client.Response
-    def JSON(res: Response): JsValue = {
-      val text = as.String(res)
-      Logger.debug(f"Parsing json: $text")
-      Json parse text
-    }
-    def ObjectID(res: Response): ObjectId = {
-      ObjectId((JSON(res) \ "id").as[String])
-    }
-    def NameID(res: Response): List[(String, String)] = {
+    def ObjectID(res: WSResponse) = ObjectId((res.json \ "id").as[String])
+    def NameID(res: WSResponse): List[(String, String)] = {
       implicit val jsonNameReader = {
         (
           (__ \ "id").read[String] ~
-          (__ \ "name").read[String]
-        ) tupled
+          (__ \ "name").read[String]) tupled
       }
-      (JSON(res) \ "data").as[List[(String, String)]]
+      (res.json \ "data").as[List[(String, String)]]
     }
   }
   object User {
@@ -45,10 +42,11 @@ object Facebook {
      * The attributes is specified by fields.
      */
     def obtain(fields: String*)(implicit accesskey: AccessKey): Future[Option[JsValue]] = {
-      val req = (fb / "me").GET <<? Map(
+      (fb / "me").withQueryString(
         "fields" -> fields.mkString(","),
-        "access_token" -> accesskey.token)
-      Http(req OK parse.JSON).option
+        "access_token" -> accesskey.token).get().map {
+          allCatch opt _.json
+        }
     }
     /**
      * Find UserAlias by given accessKey.
@@ -65,7 +63,7 @@ object Facebook {
           Logger debug f"Getting UserAlias by email: $email"
           db.Users.find(email) match {
             case Some(user) => Right(user)
-            case None       => Left(email)
+            case None => Left(email)
           }
         }
       }
@@ -108,11 +106,10 @@ object Facebook {
   }
   object Publish {
     def findAlbum(name: String)(implicit accessKey: AccessKey): Future[Option[ObjectId]] = {
-      def find = {
-        val req = (fb / "me" / "albums").GET << Map(
-          "access_token" -> accessKey.token)
-        Http(req OK parse.NameID).option
-      }
+      def find = (fb / "me/albums").withQueryString(
+        "access_token" -> accessKey.token).get().map {
+          allCatch opt parse.NameID(_)
+        }
       for {
         opt <- find
       } yield {
@@ -128,28 +125,26 @@ object Facebook {
       for {
         found <- findAlbum(name)
         id <- found match {
-          case None    => makeAlbum(name, message)
+          case None => makeAlbum(name, message)
           case Some(_) => Future(found)
         }
       } yield id
     }
     def makeAlbum(name: String, message: Option[String] = None)(implicit accessKey: AccessKey): Future[Option[ObjectId]] = {
-      val mes = message.map("message" -> _).toMap
-      val req = (fb / "me" / "album").POST << mes << Map(
+      val body = message.map("message" -> Seq(_)).toMap
+      (fb / "me/album").withQueryString(
         "access_token" -> accessKey.token,
-        "name" -> name
-      )
-      Http(req OK parse.ObjectID).option
+        "name" -> name).post(body).map {
+          allCatch opt parse.ObjectID(_)
+        }
     }
     def addPhoto(albumId: ObjectId)(file: Storage.S3File, message: Option[String] = None)(implicit accessKey: AccessKey): Future[Option[ObjectId]] = {
-      val req = {
-        val r = (fb / albumId.id / "photo").POST addBodyPart part(file)
-        message match {
-          case None    => r
-          case Some(m) => r addBodyPart new StringPart("message", m)
-        }
+      val body = Map(
+        "message" -> message.toSeq,
+        "photo" -> Seq(file.generateURL(24 * 365 hours).toString))
+      (fb / "${albumId.id}/photo").post(body).map {
+        allCatch opt parse.ObjectID(_)
       }
-      Http(req OK parse.ObjectID).option
     }
   }
 }

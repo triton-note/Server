@@ -1,6 +1,5 @@
 package models
 
-import java.io.File
 import scala.concurrent.duration._
 
 object Settings {
