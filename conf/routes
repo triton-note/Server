@@ -1,11 +1,16 @@
 GET    /assets/*file             controllers.Assets.at(path="/public", file)
 
-# Photo uploading
-POST   /photo/initByFacebook     controllers.InitPhoto.createTokenByFacebook
-POST   /photo/saveInfo           controllers.InitPhoto.saveInfo
-POST   /photo/submit             controllers.InitPhoto.submit
-POST   /photo/upload             controllers.InitPhoto.upload
-POST   /photo/cancel             controllers.InitPhoto.cancel
+# Login
+POST   /login-byToken            controllers.Account.byToken
+
+# Record posting
+POST   /record/new-session       controllers.RecordSession.start
+POST   /record/photo             controllers.RecordSession.addPhoto
+POST   /record/submit            controllers.RecordSession.submit
+POST   /record/publish           controllers.RecordSession.publish
+
+# Record loading
+POST   /record/load              controllers.Record.load
 
 # Login page
 GET    /login                    securesocial.controllers.LoginPage.login
