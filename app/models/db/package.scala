@@ -14,9 +14,8 @@ package object db {
   def numberFormat(n: Double) = f"$n%.10f"
   def numberFormat(n: Long) = f"$n%d"
   val dateFormat = new {
-    val du = new com.amazonaws.util.DateUtils
-    def format(date: Date) = du.formatIso8601Date(date)
-    def parse(s: String) = du.parseIso8601Date(s)
+    def format(date: Date) = com.amazonaws.util.DateUtils.formatISO8601Date(date)
+    def parse(s: String) = com.amazonaws.util.DateUtils.parseISO8601Date(s)
   }
 }
 package db {
