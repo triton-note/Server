@@ -8,6 +8,7 @@ import play.api.Logger
 import com.amazonaws.services.dynamodbv2.model._
 import scala.annotation.tailrec
 import scala.concurrent.duration.FiniteDuration
+import play.api.libs.json.JsObject
 
 case class VolatileToken(id: String,
                          createdAt: Date,
@@ -29,7 +30,7 @@ case class VolatileToken(id: String,
     VolatileTokens.extra(extra),
     VolatileTokens.expiration(expiration)
   )
-  def setExtra(xml: scala.xml.NodeSeq) = update(extra = Some(xml.toString))
+  def setExtra(json: JsObject) = update(extra = Some(json.toString))
   def removeExtra = update(extra = None)
   def changeExpiration(theNext: Date) = update(expiration = theNext)
 }

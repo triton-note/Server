@@ -1,6 +1,8 @@
 package models
 
 import scala.math.BigDecimal
+import play.api.libs.json.Json
+import play.api.libs.json.JsValue
 
 /**
  * Hold geographic location, latitude and longitude, in degrees.
@@ -12,12 +14,18 @@ case class GeoInfo(latitude: BigDecimal, longitude: BigDecimal) {
     lazy val lng = longitude.toDouble.toRadians
   }
   def distanceTo(o: GeoInfo) = hubeny.dictance(this, o)
+  def toJson = Json.obj(
+    "latitude" -> latitude,
+    "longitude" -> longitude
+  )
 }
 object GeoInfo {
-  def apply(a: Option[Double], o: Option[Double]): Option[GeoInfo] = for {
-    la <- a
-    lo <- o
-  } yield apply(la, lo)
+  def fromJson(v: JsValue) = {
+    for {
+      lat <- (v \ "latitude").asOpt[BigDecimal]
+      lng <- (v \ "longitude").asOpt[BigDecimal]
+    } yield GeoInfo(lat, lng)
+  }
   /**
    * Estimation of distance by Hubeny's formula
    */
