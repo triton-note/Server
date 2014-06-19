@@ -63,7 +63,7 @@ object CatchReports extends AutoIDTable[CatchReport]("CATCH_REPORT") {
   def addNew(theUser: User, theGeoinfo: GeoInfo, theTimestamp: Date): Option[CatchReport] = addNew(
     user(Some(theUser)),
     timestamp(theTimestamp),
-    latitude(theGeoinfo.latitude),
-    longitude(theGeoinfo.longitude)
+    latitude(theGeoinfo.latitude.toDouble),
+    longitude(theGeoinfo.longitude.toDouble)
   )
 }

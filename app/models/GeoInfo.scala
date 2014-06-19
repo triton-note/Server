@@ -1,13 +1,15 @@
 package models
 
+import scala.math.BigDecimal
+
 /**
  * Hold geographic location, latitude and longitude, in degrees.
  */
-case class GeoInfo(latitude: Double, longitude: Double) {
+case class GeoInfo(latitude: BigDecimal, longitude: BigDecimal) {
   import GeoInfo._
   object radian {
-    lazy val lat = latitude.toRadians
-    lazy val lng = longitude.toRadians
+    lazy val lat = latitude.toDouble.toRadians
+    lazy val lng = longitude.toDouble.toRadians
   }
   def distanceTo(o: GeoInfo) = hubeny.dictance(this, o)
 }

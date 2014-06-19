@@ -8,33 +8,20 @@ import scala.util.control.Exception.allCatch
 
 import play.api.Logger
 import play.api.Play.current
-import play.api.libs.functional.syntax.{functionalCanBuildApplicative, toFunctionalBuilderOps}
-import play.api.libs.json.{JsValue, __}
+import play.api.libs.json.JsValue
 import play.api.libs.ws.{WS, WSResponse}
 
-import com.ning.http.client.{FilePart, RequestBuilder, StringPart}
-
 object Facebook {
+  case class AccessKey(token: String)
+  case class ObjectId(id: String)
   object fb {
     val host = "https://graph.facebook.com"
     val client = WS.client
     def /(path: String) = client url "${host}/${path}"
   }
-  case class AccessKey(token: String)
-  case class ObjectId(id: String)
-  def part(file: Storage.S3File) = {
-
-  }
   object parse {
-    def ObjectID(res: WSResponse) = ObjectId((res.json \ "id").as[String])
-    def NameID(res: WSResponse): List[(String, String)] = {
-      implicit val jsonNameReader = {
-        (
-          (__ \ "id").read[String] ~
-          (__ \ "name").read[String]) tupled
-      }
-      (res.json \ "data").as[List[(String, String)]]
-    }
+    def JSON(res: WSResponse) = allCatch opt res.json
+    def ObjectID(res: WSResponse) = allCatch opt ObjectId((res.json \ "id").as[String])
   }
   object User {
     /**
@@ -44,9 +31,8 @@ object Facebook {
     def obtain(fields: String*)(implicit accesskey: AccessKey): Future[Option[JsValue]] = {
       (fb / "me").withQueryString(
         "fields" -> fields.mkString(","),
-        "access_token" -> accesskey.token).get().map {
-          allCatch opt _.json
-        }
+        "access_token" -> accesskey.token
+      ).get().map(parse.JSON)
     }
     /**
      * Find UserAlias by given accessKey.
@@ -63,7 +49,7 @@ object Facebook {
           Logger debug f"Getting UserAlias by email: $email"
           db.Users.find(email) match {
             case Some(user) => Right(user)
-            case None => Left(email)
+            case None       => Left(email)
           }
         }
       }
@@ -104,47 +90,14 @@ object Facebook {
       })
     }
   }
-  object Publish {
-    def findAlbum(name: String)(implicit accessKey: AccessKey): Future[Option[ObjectId]] = {
-      def find = (fb / "me/albums").withQueryString(
-        "access_token" -> accessKey.token).get().map {
-          allCatch opt parse.NameID(_)
-        }
-      for {
-        opt <- find
-      } yield {
-        val list = for {
-          albums <- opt.toList
-          (albumId, albumName) <- albums
-          if (albumName == name)
-        } yield ObjectId(albumId)
-        list.headOption
-      }
-    }
-    def getAlbumOrCreate(name: String, message: Option[String] = None)(implicit accessKey: AccessKey): Future[Option[ObjectId]] = {
-      for {
-        found <- findAlbum(name)
-        id <- found match {
-          case None => makeAlbum(name, message)
-          case Some(_) => Future(found)
-        }
-      } yield id
-    }
-    def makeAlbum(name: String, message: Option[String] = None)(implicit accessKey: AccessKey): Future[Option[ObjectId]] = {
-      val body = message.map("message" -> Seq(_)).toMap
-      (fb / "me/album").withQueryString(
-        "access_token" -> accessKey.token,
-        "name" -> name).post(body).map {
-          allCatch opt parse.ObjectID(_)
-        }
-    }
-    def addPhoto(albumId: ObjectId)(file: Storage.S3File, message: Option[String] = None)(implicit accessKey: AccessKey): Future[Option[ObjectId]] = {
-      val body = Map(
-        "message" -> message.toSeq,
-        "photo" -> Seq(file.generateURL(24 * 365 hours).toString))
-      (fb / "${albumId.id}/photo").post(body).map {
-        allCatch opt parse.ObjectID(_)
-      }
+  object Fishing {
+    def publish(photo: List[Storage.S3File], message: Option[String])(implicit accessKey: AccessKey) = {
+      (fb / "me/triton-note:fish").withQueryString(
+        "access_token" -> accessKey.token
+      ).post(Map(
+          "image" -> photo.map(_.generateURL(24 hours).toString),
+          "message" -> message.toSeq
+        )).map(parse.ObjectID)
     }
   }
 }

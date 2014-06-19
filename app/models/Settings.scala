@@ -4,7 +4,7 @@ import scala.concurrent.duration._
 
 object Settings {
   object Session {
-    def timeoutFacebook: FiniteDuration = 30 minutes
+    def timeoutTicket: FiniteDuration = 30 minutes
     def timeoutUpload: FiniteDuration = 1 hour
   }
   object Pulish {

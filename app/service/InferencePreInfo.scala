@@ -11,12 +11,11 @@ object InferencePreInfo {
    * Inference of Date, Spot and Fishes.
    * This should finish before submission.
    */
-  def infer(info: PreInfo): PreInfo = {
-    info.inference match {
+  def infer(info: Option[String]) = {
+    info match {
       case Some(_) => info
       case None => {
         // TODO Inference by referencing all other CatchReports
-        info.infer(db.currentTimestamp, Nil, Nil)
       }
     }
   }

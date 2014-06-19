@@ -20,9 +20,8 @@ object PublishPhoto {
   def publish(fishes: List[FishSize])(implicit accessKey: AccessKey): Future[List[ObjectId]] = {
     val photos = fishes.groupBy(_.photo)
     Logger.info(f"Publishing ${photos.keys.mkString(", ")}")
-    def addAll(albumIdOpt: Option[ObjectId]) = for {
-      photo <- photos.keys.flatten
-      albumId <- albumIdOpt
+    val all = for {
+      photo <- photos.keys.flatten.toList
       image <- photo.image
       report <- photo.catchReport
       user <- report.user
@@ -48,11 +47,8 @@ object PublishPhoto {
         }
         records.mkString("\n") + msg
       }
-      Publish.addPhoto(albumId)(image.file, Some(comment))
+      Fishing.publish(List(image.file), Some(comment))
     }
-    for {
-      albumId <- Publish getAlbumOrCreate albumName
-      list <- Future sequence addAll(albumId)
-    } yield list.flatten.toList
+    Future.sequence(all).map(_.flatten)
   }
 }
