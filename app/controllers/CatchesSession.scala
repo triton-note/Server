@@ -13,7 +13,7 @@ import play.api.libs.json._
 import play.api.mvc.{Action, Controller}
 
 import models.{GeoInfo, Record, Settings}
-import models.db.{CatchReport, CatchReports, FishSizes, Image, Images, Photos, User, Users, VolatileTokens}
+import models.db.{CatchReport, CatchReports, FishSizes, Image, Images, Photos, User, Users, VolatileToken, VolatileTokens}
 import service.InferenceCatches
 
 object CatchesSession extends Controller {
@@ -97,13 +97,7 @@ object CatchesSession extends Controller {
                   Ok(Json toJson catches)
                 }
                 case Some(record) => {
-                  commit(image, record)(user) match {
-                    case Some(report) => {
-                      vt setExtra value.copy(committed = Some(report.id)).toString
-                      Ok(Json toJson record.catches)
-                    }
-                    case None => InternalServerError("Failed to commit the submit")
-                  }
+                  commit(vt, value, image, record)(user)
                 }
               }
             }
@@ -117,11 +111,17 @@ object CatchesSession extends Controller {
   def submit = Action.async { implicit request =>
     val form = Form(tuple(
       "session" -> nonEmptyText,
-      "record" -> nonEmptyText
+      "record" -> nonEmptyText,
+      "publish" -> optional(
+        mapping(
+          "way" -> nonEmptyText,
+          "token" -> nonEmptyText
+        )(SessionValue.Publishing.apply)(SessionValue.Publishing.unapply)
+      )
     )).bindFromRequest.lr
     form match {
       case Left(res) => res
-      case Right((session, json)) => Future {
+      case Right((session, json, publishing)) => Future {
         val res = for {
           vt <- VolatileTokens get session
           extra <- vt.extra
@@ -130,15 +130,9 @@ object CatchesSession extends Controller {
         } yield {
           val given = Json.parse(json).as[Record]
           value.image match {
-            case Some(image) => commit(image, given)(user) match {
-              case Some(report) => {
-                vt setExtra value.copy(committed = Some(report.id)).toString
-                Ok
-              }
-              case None => InternalServerError("Failed to commit the submit")
-            }
+            case Some(image) => commit(vt, value.copy(publishing = publishing), image, given)(user)
             case None => {
-              vt setExtra value.copy(record = Some(given)).toString
+              vt setExtra value.copy(record = Some(given), publishing = publishing).toString
               Ok
             }
           }
@@ -147,8 +141,8 @@ object CatchesSession extends Controller {
       }
     }
   }
-  def commit(image: Image, given: Record)(implicit user: User): Option[CatchReport] = {
-    for {
+  def commit(vt: VolatileToken, value: SessionValue, image: Image, given: Record)(implicit user: User) = {
+    val report = for {
       report <- CatchReports.addNew(user, given.geoinfo.get, given.date)
       photo <- Photos.addNew(report, image)
     } yield {
@@ -158,31 +152,23 @@ object CatchesSession extends Controller {
       report.addComment(given.comment)
       report
     }
-  }
-  def publish = Action.async { implicit request =>
-    val form = Form(tuple(
-      "session" -> nonEmptyText,
-      "way" -> nonEmptyText,
-      "token" -> nonEmptyText
-    )).bindFromRequest.lr
-    form match {
-      case Left(res) => res
-      case Right((session, way, token)) => {
-        way match {
-          case "facebook" => {
-            val ok = for {
-              vt <- VolatileTokens get session
-              extra <- vt.extra
-              value <- Json.parse(extra).as[Option[SessionValue]]
-            } yield {
-
-              Future(NotImplemented)
-            }
-            ok getOrElse Future(BadRequest("Session Expired"))
-          }
-          case _ => Future(NotImplemented)
+    report match {
+      case Some(report) => {
+        vt setExtra value.copy(committed = Some(report.id)).toString
+        value.publishing match {
+          case Some(SessionValue.Publishing(way, token)) => publish(way, token, report)
+          case None                                      => Ok
         }
       }
+      case None => InternalServerError("Failed to commit the submit")
+    }
+  }
+  def publish(way: String, token: String, report: CatchReport) = {
+    way match {
+      case "facebook" => {
+        Ok
+      }
+      case _ => NotImplemented
     }
   }
 }

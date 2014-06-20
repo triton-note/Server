@@ -7,7 +7,6 @@ POST   /login-byToken            controllers.Account.byToken
 POST   /record/new-session       controllers.CatchesSession.start
 POST   /record/photo             controllers.CatchesSession.addPhoto
 POST   /record/submit            controllers.CatchesSession.submit
-POST   /record/publish           controllers.CatchesSession.publish
 
 # Record loading
 POST   /record/load              controllers.RecordSession.load
