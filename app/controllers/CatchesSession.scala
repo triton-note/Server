@@ -1,6 +1,6 @@
 package controllers
 
-import scala.{Left, Right}
+import scala.{ Left, Right }
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.util.control.Exception.allCatch
@@ -11,10 +11,10 @@ import play.api.data.Form
 import play.api.data.Forms._
 import play.api.libs.json._
 import play.api.libs.json.Json.toJsFieldJsValueWrapper
-import play.api.mvc.{Action, Controller}
+import play.api.mvc.{ Action, Controller }
 
-import models.{GeoInfo, Record, Settings, Storage}
-import models.db.{User, Users, VolatileToken, VolatileTokens}
+import models.{ GeoInfo, Record, Settings, Storage }
+import models.db.{ User, Users, VolatileToken, VolatileTokens }
 import service.InferenceCatches
 
 object CatchesSession extends Controller {
@@ -23,31 +23,23 @@ object CatchesSession extends Controller {
       (f) => Left(Future(BadRequest(f.errors.mkString("\n")))),
       Right(_))
   }
-  def getUser(vt: VolatileToken) = {
-    for {
-      json <- vt.extra
-      id <- (Json.parse(json) \ "user").asOpt[String]
-      user <- Users get id
-    } yield user
-  }
-  def toJson(user: User, geoinfo: Option[GeoInfo], photo: Option[Storage.S3File] = None, record: Option[Record] = None) = Json.obj(
-    "user" -> user.id,
-    "geoinfo" -> geoinfo,
-    "photo" -> photo,
-    "record" -> record
-  )
-  def fromToken(token: String) = {
-    for {
-      vt <- VolatileTokens get token
-      extra <- vt.extra
-      top <- allCatch opt Json.parse(extra)
-      userId <- (top \ "user").asOpt[String]
-      user <- Users get userId
-    } yield {
-      val geoinfo = (top \ "geoinfo").asOpt[GeoInfo]
-      val photo = (top \ "photo").asOpt[Storage.S3File]
-      val record = (top \ "catches").asOpt[Record]
-      (vt, user, geoinfo, photo, record)
+  case class SessionValue(
+    userId: String,
+    geoinfo: Option[GeoInfo],
+    photo: Option[Storage.S3File] = None,
+    record: Option[Record] = None)
+  object SessionValue {
+    implicit val valueFormat = Json.format[SessionValue]
+    def toJson(user: User, geoinfo: Option[GeoInfo], photo: Option[Storage.S3File] = None, record: Option[Record] = None) = {
+      toJsFieldJsValueWrapper(SessionValue(user.id, geoinfo, photo, record))
+    }
+    def fromToken(token: String) = {
+      for {
+        vt <- VolatileTokens get token
+        json <- vt.extra
+        v = Json.parse(json).as[SessionValue]
+        user <- Users get v.userId
+      } yield (vt, user, v.geoinfo, v.photo, v.record)
     }
   }
   def start = Action.async { implicit request =>
@@ -63,12 +55,17 @@ object CatchesSession extends Controller {
     form match {
       case Left(res) => res
       case Right((ticket, geoinfo)) => Future {
-        fromToken(ticket).map {
-          case (_, user, _, _, _) =>
-            val value = toJson(user, geoinfo)
-            val ticket = VolatileTokens.createNew(Settings.Session.timeoutUpload, Option(value.toString))
-            Ok(ticket.id)
-        } getOrElse BadRequest("Ticket Expired")
+        val ok = for {
+          vt <- VolatileTokens get ticket
+          json <- vt.extra
+          id <- (Json.parse(json) \ "user").asOpt[String]
+          user <- Users get id
+        } yield {
+          val value = SessionValue.toJson(user, geoinfo)
+          val session = VolatileTokens.createNew(Settings.Session.timeoutUpload, Option(value.toString))
+          Ok(session.id)
+        }
+        ok getOrElse BadRequest("Ticket Expired")
       }
     }
   }
@@ -87,11 +84,11 @@ object CatchesSession extends Controller {
     form match {
       case Left(res) => res
       case Right((session, photoFile)) => Future {
-        fromToken(session).map {
+        SessionValue.fromToken(session).map {
           case (vt, user, geoinfo, _, catches) =>
             val file = Storage.file(user.id, session)
             file.write(photoFile)
-            vt.setExtra(toJson(user, geoinfo, Option(file), catches))
+            vt.setExtra(SessionValue.toJson(user, geoinfo, Option(file), catches).toString)
             val infos = InferenceCatches.infer(file, geoinfo)
             val res = Json.arr(infos.map(_.toJson))
             Ok(res.toString)
@@ -107,7 +104,7 @@ object CatchesSession extends Controller {
     form match {
       case Left(res) => res
       case Right((session, json)) => Future {
-        fromToken(session).map {
+        SessionValue.fromToken(session).map {
           case (vt, user, geoinfo, photo, _) =>
 
             NotImplemented
@@ -126,7 +123,7 @@ object CatchesSession extends Controller {
       case Right((session, way, token)) => {
         way match {
           case "facebook" => {
-            fromToken(session).map {
+            SessionValue.fromToken(session).map {
               case (vt, user, geoinfo, photo, record) =>
 
                 Future(NotImplemented)

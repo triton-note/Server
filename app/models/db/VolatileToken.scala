@@ -30,7 +30,7 @@ case class VolatileToken(id: String,
     VolatileTokens.extra(extra),
     VolatileTokens.expiration(expiration)
   )
-  def setExtra(json: JsObject) = update(extra = Some(json.toString))
+  def setExtra(text: String) = update(extra = Some(text))
   def removeExtra = update(extra = None)
   def changeExpiration(theNext: Date) = update(expiration = theNext)
 }
