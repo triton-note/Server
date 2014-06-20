@@ -36,8 +36,8 @@ object Storage {
   }
   object S3File {
     implicit val photostorageFormat = Format[Storage.S3File](
-      Reads(jv => JsSuccess(Storage file jv.as[String])),
-      Writes(a => JsString(a.path))
+      __.read[String].map(Storage file _),
+      Writes(Json toJson _.path)
     )
   }
   class S3File(val paths: List[String]) {

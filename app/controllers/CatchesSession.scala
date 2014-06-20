@@ -9,12 +9,13 @@ import scalaz.Scalaz._
 
 import play.api.data.Form
 import play.api.data.Forms._
+import play.api.libs.functional.syntax._
 import play.api.libs.json._
 import play.api.libs.json.Json.toJsFieldJsValueWrapper
 import play.api.mvc.{ Action, Controller }
 
 import models.{ GeoInfo, Record, Settings, Storage }
-import models.db.{ User, Users, VolatileToken, VolatileTokens }
+import models.db.{ Users, User, VolatileToken, VolatileTokens }
 import service.InferenceCatches
 
 object CatchesSession extends Controller {
@@ -23,24 +24,27 @@ object CatchesSession extends Controller {
       (f) => Left(Future(BadRequest(f.errors.mkString("\n")))),
       Right(_))
   }
+  object SessionValue {
+    implicit val sessionOptionFormat =
+      (
+        (__ \ "user").format[Option[User]] and
+        (__ \ "geoinfo").formatNullable[GeoInfo] and
+        (__ \ "photo").formatNullable[Storage.S3File] and
+        (__ \ "record").formatNullable[Record]
+      )(
+          (user, geoinfo, photo, record) => user.map {
+            SessionValue(_, geoinfo, photo, record)
+          },
+          unlift((vOpt: Option[SessionValue]) => vOpt.map {
+            v => (Some(v.user), v.geoinfo, v.photo, v.record)
+          }))
+  }
   case class SessionValue(
-    userId: String,
+    user: User,
     geoinfo: Option[GeoInfo],
     photo: Option[Storage.S3File] = None,
-    record: Option[Record] = None)
-  object SessionValue {
-    implicit val valueFormat = Json.format[SessionValue]
-    def toJson(user: User, geoinfo: Option[GeoInfo], photo: Option[Storage.S3File] = None, record: Option[Record] = None) = {
-      toJsFieldJsValueWrapper(SessionValue(user.id, geoinfo, photo, record))
-    }
-    def fromToken(token: String) = {
-      for {
-        vt <- VolatileTokens get token
-        json <- vt.extra
-        v = Json.parse(json).as[SessionValue]
-        user <- Users get v.userId
-      } yield (vt, user, v.geoinfo, v.photo, v.record)
-    }
+    record: Option[Record] = None) {
+    override def toString = Json.toJson(Option(this)).toString
   }
   def start = Action.async { implicit request =>
     val form = Form(tuple(
@@ -57,11 +61,10 @@ object CatchesSession extends Controller {
       case Right((ticket, geoinfo)) => Future {
         val ok = for {
           vt <- VolatileTokens get ticket
-          json <- vt.extra
-          id <- (Json.parse(json) \ "user").asOpt[String]
-          user <- Users get id
+          extra <- vt.extra
+          user <- (Json.parse(extra) \ "user").as[Option[User]]
         } yield {
-          val value = SessionValue.toJson(user, geoinfo)
+          val value = SessionValue(user, geoinfo)
           val session = VolatileTokens.createNew(Settings.Session.timeoutUpload, Option(value.toString))
           Ok(session.id)
         }
@@ -84,15 +87,19 @@ object CatchesSession extends Controller {
     form match {
       case Left(res) => res
       case Right((session, photoFile)) => Future {
-        SessionValue.fromToken(session).map {
-          case (vt, user, geoinfo, _, catches) =>
-            val file = Storage.file(user.id, session)
-            file.write(photoFile)
-            vt.setExtra(SessionValue.toJson(user, geoinfo, Option(file), catches).toString)
-            val infos = InferenceCatches.infer(file, geoinfo)
-            val res = Json.arr(infos.map(_.toJson))
-            Ok(res.toString)
-        } getOrElse BadRequest("Session Expired")
+        val ok = for {
+          vt <- VolatileTokens get session
+          extra <- vt.extra
+          value <- Json.parse(extra).as[Option[SessionValue]]
+        } yield {
+          val file = Storage.file(value.user.id, session)
+          file.write(photoFile)
+          vt.setExtra(value.copy(photo = Some(file)).toString)
+          val infos = InferenceCatches.infer(file, value.geoinfo)
+          val res = Json.arr(infos.map(_.toJson))
+          Ok(res.toString)
+        }
+        ok getOrElse BadRequest("Session Expired")
       }
     }
   }
@@ -104,11 +111,15 @@ object CatchesSession extends Controller {
     form match {
       case Left(res) => res
       case Right((session, json)) => Future {
-        SessionValue.fromToken(session).map {
-          case (vt, user, geoinfo, photo, _) =>
+        val ok = for {
+          vt <- VolatileTokens get session
+          extra <- vt.extra
+          value <- Json.parse(extra).as[Option[SessionValue]]
+        } yield {
 
-            NotImplemented
-        } getOrElse BadRequest("Session Expired")
+          NotImplemented
+        }
+        ok getOrElse BadRequest("Session Expired")
       }
     }
   }
@@ -123,11 +134,15 @@ object CatchesSession extends Controller {
       case Right((session, way, token)) => {
         way match {
           case "facebook" => {
-            SessionValue.fromToken(session).map {
-              case (vt, user, geoinfo, photo, record) =>
+            val ok = for {
+              vt <- VolatileTokens get session
+              extra <- vt.extra
+              value <- Json.parse(extra).as[Option[SessionValue]]
+            } yield {
 
-                Future(NotImplemented)
-            } getOrElse Future(BadRequest("Session Expired"))
+              Future(NotImplemented)
+            }
+            ok getOrElse Future(BadRequest("Session Expired"))
           }
           case _ => Future(NotImplemented)
         }
