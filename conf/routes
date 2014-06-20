@@ -4,10 +4,10 @@ GET    /assets/*file             controllers.Assets.at(path="/public", file)
 POST   /login-byToken            controllers.Account.byToken
 
 # Record posting
-POST   /record/new-session       controllers.RecordSession.start
-POST   /record/photo             controllers.RecordSession.addPhoto
-POST   /record/submit            controllers.RecordSession.submit
-POST   /record/publish           controllers.RecordSession.publish
+POST   /record/new-session       controllers.CatchesSession.start
+POST   /record/photo             controllers.CatchesSession.addPhoto
+POST   /record/submit            controllers.CatchesSession.submit
+POST   /record/publish           controllers.CatchesSession.publish
 
 # Record loading
-POST   /record/load              controllers.Record.load
+POST   /record/load              controllers.RecordSession.load

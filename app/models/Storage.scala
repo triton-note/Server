@@ -28,8 +28,9 @@ object Storage {
     None
   }
   def file(paths: String*) = {
-    Logger.trace(f"Creating S3File: $paths")
-    new S3File(paths.toList)
+    val list = paths.map(_ split "/").flatten.toList
+    Logger.trace(f"Creating S3File: $list")
+    new S3File(list)
   }
   class S3File(val paths: List[String]) {
     lazy val path = paths.mkString("/")

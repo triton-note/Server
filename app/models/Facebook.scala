@@ -91,7 +91,7 @@ object Facebook {
     }
   }
   object Fishing {
-    def publish(photo: List[Storage.S3File], message: Option[String])(implicit accessKey: AccessKey) = {
+    def publish(photo: List[Storage.S3File], message: Option[String])(implicit accessKey: AccessKey): Future[Option[ObjectId]] = {
       (fb / "me/triton-note:fish").withQueryString(
         "access_token" -> accessKey.token
       ).post(Map(
