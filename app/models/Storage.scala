@@ -3,10 +3,12 @@ package models
 import java.io.{BufferedInputStream, FileInputStream}
 import java.util.Date
 
+import scala.annotation.implicitNotFound
 import scala.concurrent.duration._
 import scala.util.control.Exception.allCatch
 
 import play.api.Logger
+import play.api.libs.json._
 
 import com.amazonaws.services.s3.model.ObjectMetadata
 
@@ -31,6 +33,12 @@ object Storage {
     val list = paths.map(_ split "/").flatten.toList
     Logger.trace(f"Creating S3File: $list")
     new S3File(list)
+  }
+  object S3File {
+    implicit val photostorageFormat = Format[Storage.S3File](
+      Reads(jv => JsSuccess(Storage file jv.as[String])),
+      Writes(a => JsString(a.path))
+    )
   }
   class S3File(val paths: List[String]) {
     lazy val path = paths.mkString("/")

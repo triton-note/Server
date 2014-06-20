@@ -9,7 +9,7 @@ import scalaz.Scalaz._
 
 import play.api.data.Form
 import play.api.data.Forms._
-import play.api.libs.json.Json
+import play.api.libs.json._
 import play.api.libs.json.Json.toJsFieldJsValueWrapper
 import play.api.mvc.{Action, Controller}
 
@@ -32,9 +32,9 @@ object CatchesSession extends Controller {
   }
   def toJson(user: User, geoinfo: Option[GeoInfo], photo: Option[Storage.S3File] = None, record: Option[Record] = None) = Json.obj(
     "user" -> user.id,
-    "geoinfo" -> geoinfo.map(_.toJson),
-    "photo" -> photo.map(_.path),
-    "record" -> record.map(_.toJson)
+    "geoinfo" -> geoinfo,
+    "photo" -> photo,
+    "record" -> record
   )
   def fromToken(token: String) = {
     for {
@@ -44,11 +44,9 @@ object CatchesSession extends Controller {
       userId <- (top \ "user").asOpt[String]
       user <- Users get userId
     } yield {
-      val geoinfo = (top \\ "geoinfo").map(GeoInfo.fromJson).flatten.headOption
-      val photo = (top \ "photo").asOpt[String].map { path =>
-        Storage file path
-      }
-      val record = (top \\ "catches").map(Record.fromJson).flatten.headOption
+      val geoinfo = (top \ "geoinfo").asOpt[GeoInfo]
+      val photo = (top \ "photo").asOpt[Storage.S3File]
+      val record = (top \ "catches").asOpt[Record]
       (vt, user, geoinfo, photo, record)
     }
   }
