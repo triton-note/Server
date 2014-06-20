@@ -49,12 +49,6 @@ object Photos extends AutoIDTable[Photo]("PHOTO") {
   )
 }
 
-object Image {
-  implicit val userFormat = Format[Option[Image]](
-    __.read[Long].map(Images.get),
-    Writes(Json toJson _.map(_.id))
-  )
-}
 case class Image(id: Long,
   createdAt: Date,
   lastModifiedAt: Option[Date],

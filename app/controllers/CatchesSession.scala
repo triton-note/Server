@@ -9,14 +9,11 @@ import scalaz.Scalaz._
 
 import play.api.data.Form
 import play.api.data.Forms._
-import play.api.libs.functional.syntax.{functionalCanBuildApplicative, toFunctionalBuilderOps, unlift}
 import play.api.libs.json._
-import play.api.libs.json.Json.toJsFieldJsValueWrapper
-import play.api.libs.json.__
 import play.api.mvc.{Action, Controller}
 
 import models.{GeoInfo, Record, Settings}
-import models.db.{CatchReports, FishSizes, Image, Images, Photos, User, VolatileTokens}
+import models.db.{CatchReport, CatchReports, FishSizes, Image, Images, Photos, User, Users, VolatileTokens}
 import service.InferenceCatches
 
 object CatchesSession extends Controller {
@@ -26,27 +23,22 @@ object CatchesSession extends Controller {
       Right(_))
   }
   object SessionValue {
-    implicit val sessionOptionFormat =
-      (
-        (__ \ "user").format[Option[User]] and
-        (__ \ "geoinfo").formatNullable[GeoInfo] and
-        (__ \ "photo").formatNullable[Option[Image]] and
-        (__ \ "record").formatNullable[Record]
-      )(
-          (user, geoinfo, photo, record) => for {
-            u <- user
-            p <- photo
-          } yield SessionValue(u, geoinfo, p, record),
-          unlift((vOpt: Option[SessionValue]) => vOpt.map {
-            v => (Some(v.user), v.geoinfo, Some(v.photo), v.record)
-          }))
+    case class Publishing(way: String, token: String)
+    object Publishing {
+      implicit val publishingFormat = Json.format[Publishing]
+    }
+    implicit val sessionOptionFormat = Json.format[SessionValue]
   }
   case class SessionValue(
-    user: User,
+    userId: String,
     geoinfo: Option[GeoInfo],
-    photo: Option[Image] = None,
-    record: Option[Record] = None) {
-    override def toString = Json.toJson(Option(this)).toString
+    imageId: Option[Long] = None,
+    record: Option[Record] = None,
+    committed: Option[Long] = None,
+    publishing: Option[SessionValue.Publishing] = None) {
+    lazy val user = Users get userId
+    lazy val image = imageId.flatMap(Images.get)
+    override def toString = Json.toJson(this).toString
   }
   def start = Action.async { implicit request =>
     val form = Form(tuple(
@@ -64,9 +56,10 @@ object CatchesSession extends Controller {
         val ok = for {
           vt <- VolatileTokens get ticket
           extra <- vt.extra
-          user <- (Json.parse(extra) \ "user").as[Option[User]]
+          userId <- (Json.parse(extra) \ "user").asOpt[String]
+          user <- Users get userId
         } yield {
-          val value = SessionValue(user, geoinfo)
+          val value = SessionValue(user.id, geoinfo)
           val session = VolatileTokens.createNew(Settings.Session.timeoutUpload, Option(value.toString))
           Ok(session.id)
         }
@@ -89,18 +82,35 @@ object CatchesSession extends Controller {
     form match {
       case Left(res) => res
       case Right((session, file)) => Future {
-        val ok = for {
+        val res = for {
           vt <- VolatileTokens get session
           extra <- vt.extra
-          value <- Json.parse(extra).as[Option[SessionValue]]
-          image <- Images.addNew(file)
+          value <- Json.parse(extra).asOpt[SessionValue]
+          user <- value.user
         } yield {
-          vt.setExtra(value.copy(photo = Some(image)).toString)
-          val catches = InferenceCatches.infer(image.file, value.geoinfo)
-          val res = Json.arr(catches)
-          Ok(res.toString)
+          Images.addNew(file) match {
+            case Some(image) => {
+              value.record match {
+                case None => {
+                  vt setExtra value.copy(imageId = Some(image.id)).toString
+                  val catches = InferenceCatches.infer(image.file, value.geoinfo)
+                  Ok(Json toJson catches)
+                }
+                case Some(record) => {
+                  commit(image, record)(user) match {
+                    case Some(report) => {
+                      vt setExtra value.copy(committed = Some(report.id)).toString
+                      Ok(Json toJson record.catches)
+                    }
+                    case None => InternalServerError("Failed to commit the submit")
+                  }
+                }
+              }
+            }
+            case None => InternalServerError("Failed to save photo")
+          }
         }
-        ok getOrElse BadRequest("Session Expired")
+        res getOrElse BadRequest("Session Expired")
       }
     }
   }
@@ -112,26 +122,35 @@ object CatchesSession extends Controller {
     form match {
       case Left(res) => res
       case Right((session, json)) => Future {
-        val ok = for {
+        val res = for {
           vt <- VolatileTokens get session
           extra <- vt.extra
-          value <- Json.parse(extra).as[Option[SessionValue]]
+          value <- Json.parse(extra).asOpt[SessionValue]
+          user <- value.user
         } yield {
           val given = Json.parse(json).as[Record]
-          val ok = for {
-            photo <- value.photo
-            report <- commit(photo, given)(value.user)
-          } yield Ok
-          ok getOrElse InternalServerError("Failed to commit the submit")
+          value.image match {
+            case Some(image) => commit(image, given)(user) match {
+              case Some(report) => {
+                vt setExtra value.copy(committed = Some(report.id)).toString
+                Ok
+              }
+              case None => InternalServerError("Failed to commit the submit")
+            }
+            case None => {
+              vt setExtra value.copy(record = Some(given)).toString
+              Ok
+            }
+          }
         }
-        ok getOrElse BadRequest("Session Expired")
+        res getOrElse BadRequest("Session Expired")
       }
     }
   }
-  def commit(photo: Image, given: Record)(implicit user: User) = {
+  def commit(image: Image, given: Record)(implicit user: User): Option[CatchReport] = {
     for {
       report <- CatchReports.addNew(user, given.geoinfo.get, given.date)
-      photo <- Photos.addNew(report, photo)
+      photo <- Photos.addNew(report, image)
     } yield {
       given.catches.map { fish =>
         FishSizes.addNew(photo, fish.name, fish.count, fish.weight, fish.length)

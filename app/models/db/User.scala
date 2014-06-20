@@ -10,12 +10,6 @@ import play.api.libs.json.{Format, Json, Writes, __}
 
 import com.amazonaws.services.dynamodbv2.model.AttributeValue
 
-object User {
-  implicit val userFormat = Format[Option[User]](
-    __.read[String].map(Users.get),
-    Writes(Json toJson _.map(_.id))
-  )
-}
 case class User(id: String,
   createdAt: Date,
   lastModifiedAt: Option[Date],
