@@ -1,18 +1,23 @@
 package models.db
 
 import java.util.Date
-import scala.util.control.Exception._
-import scalaz._
-import Scalaz._
-import com.amazonaws.services.dynamodbv2.model._
+
+import javax.imageio.ImageIO
+
 import scala.concurrent.duration._
+import scala.util.control.Exception.allCatch
+
+import play.api.libs.json.{Format, Json, Writes, __}
+
+import com.amazonaws.services.dynamodbv2.model.AttributeValue
+
 import models.Storage
 
 case class Photo(id: Long,
-                 createdAt: Date,
-                 lastModifiedAt: Option[Date],
-                 catchReport: Option[CatchReport],
-                 image: Option[Image]) {
+  createdAt: Date,
+  lastModifiedAt: Option[Date],
+  catchReport: Option[CatchReport],
+  image: Option[Image]) {
   /**
    * Reload from DB.
    * If there is no longer me, returns None.
@@ -44,14 +49,20 @@ object Photos extends AutoIDTable[Photo]("PHOTO") {
   )
 }
 
+object Image {
+  implicit val userFormat = Format[Option[Image]](
+    __.read[Long].map(Images.get),
+    Writes(Json toJson _.map(_.id))
+  )
+}
 case class Image(id: Long,
-                 createdAt: Date,
-                 lastModifiedAt: Option[Date],
-                 kind: String,
-                 format: String,
-                 dataSize: Long,
-                 width: Long,
-                 height: Long) {
+  createdAt: Date,
+  lastModifiedAt: Option[Date],
+  kind: String,
+  format: String,
+  dataSize: Long,
+  width: Long,
+  height: Long) {
   /**
    * Reload from DB.
    * If there is no longer me, returns None.
@@ -85,8 +96,17 @@ object Images extends AutoIDTable[Image]("IMAGE") {
   /**
    * Add new image data
    */
+  def addNew(imageFile: java.io.File): Option[Image] = {
+    for {
+      bi <- allCatch opt ImageIO.read(imageFile)
+      image <- addNew(imageFile.length, bi.getWidth, bi.getHeight)
+    } yield {
+      image.file write imageFile
+      image
+    }
+  }
   def addNew(theDataSize: Long, theWidth: Long, theHeight: Long,
-             theFormat: String = "JPEG", theKind: String = KIND_ORIGINAL): Option[Image] = addNew(
+    theFormat: String = "JPEG", theKind: String = KIND_ORIGINAL): Option[Image] = addNew(
     kind(theKind),
     format(theFormat),
     dataSize(theDataSize),
@@ -97,11 +117,11 @@ object Images extends AutoIDTable[Image]("IMAGE") {
 }
 
 case class ImageRelation(id: Long,
-                         createdAt: Date,
-                         lastModifiedAt: Option[Date],
-                         imageSrc: Option[Image],
-                         imageDst: Option[Image],
-                         relation: String) {
+  createdAt: Date,
+  lastModifiedAt: Option[Date],
+  imageSrc: Option[Image],
+  imageDst: Option[Image],
+  relation: String) {
   /**
    * Reload from DB.
    * If there is no longer me, returns None.

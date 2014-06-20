@@ -1,21 +1,22 @@
 package controllers
 
-import scala.{ Left, Right }
+import scala.{Left, Right}
+import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
-import scala.util.control.Exception.allCatch
 
 import scalaz.Scalaz._
 
 import play.api.data.Form
 import play.api.data.Forms._
-import play.api.libs.functional.syntax._
+import play.api.libs.functional.syntax.{functionalCanBuildApplicative, toFunctionalBuilderOps, unlift}
 import play.api.libs.json._
 import play.api.libs.json.Json.toJsFieldJsValueWrapper
-import play.api.mvc.{ Action, Controller }
+import play.api.libs.json.__
+import play.api.mvc.{Action, Controller}
 
-import models.{ GeoInfo, Record, Settings, Storage }
-import models.db.{ Users, User, VolatileToken, VolatileTokens }
+import models.{GeoInfo, Record, Settings}
+import models.db.{CatchReports, FishSizes, Image, Images, Photos, User, VolatileTokens}
 import service.InferenceCatches
 
 object CatchesSession extends Controller {
@@ -29,20 +30,21 @@ object CatchesSession extends Controller {
       (
         (__ \ "user").format[Option[User]] and
         (__ \ "geoinfo").formatNullable[GeoInfo] and
-        (__ \ "photo").formatNullable[Storage.S3File] and
+        (__ \ "photo").formatNullable[Option[Image]] and
         (__ \ "record").formatNullable[Record]
       )(
-          (user, geoinfo, photo, record) => user.map {
-            SessionValue(_, geoinfo, photo, record)
-          },
+          (user, geoinfo, photo, record) => for {
+            u <- user
+            p <- photo
+          } yield SessionValue(u, geoinfo, p, record),
           unlift((vOpt: Option[SessionValue]) => vOpt.map {
-            v => (Some(v.user), v.geoinfo, v.photo, v.record)
+            v => (Some(v.user), v.geoinfo, Some(v.photo), v.record)
           }))
   }
   case class SessionValue(
     user: User,
     geoinfo: Option[GeoInfo],
-    photo: Option[Storage.S3File] = None,
+    photo: Option[Image] = None,
     record: Option[Record] = None) {
     override def toString = Json.toJson(Option(this)).toString
   }
@@ -86,17 +88,16 @@ object CatchesSession extends Controller {
     }
     form match {
       case Left(res) => res
-      case Right((session, photoFile)) => Future {
+      case Right((session, file)) => Future {
         val ok = for {
           vt <- VolatileTokens get session
           extra <- vt.extra
           value <- Json.parse(extra).as[Option[SessionValue]]
+          image <- Images.addNew(file)
         } yield {
-          val file = Storage.file(value.user.id, session)
-          file.write(photoFile)
-          vt.setExtra(value.copy(photo = Some(file)).toString)
-          val infos = InferenceCatches.infer(file, value.geoinfo)
-          val res = Json.arr(infos.map(_.toJson))
+          vt.setExtra(value.copy(photo = Some(image)).toString)
+          val catches = InferenceCatches.infer(image.file, value.geoinfo)
+          val res = Json.arr(catches)
           Ok(res.toString)
         }
         ok getOrElse BadRequest("Session Expired")
@@ -116,11 +117,27 @@ object CatchesSession extends Controller {
           extra <- vt.extra
           value <- Json.parse(extra).as[Option[SessionValue]]
         } yield {
-
-          NotImplemented
+          val given = Json.parse(json).as[Record]
+          val ok = for {
+            photo <- value.photo
+            report <- commit(photo, given)(value.user)
+          } yield Ok
+          ok getOrElse InternalServerError("Failed to commit the submit")
         }
         ok getOrElse BadRequest("Session Expired")
       }
+    }
+  }
+  def commit(photo: Image, given: Record)(implicit user: User) = {
+    for {
+      report <- CatchReports.addNew(user, given.geoinfo.get, given.date)
+      photo <- Photos.addNew(report, photo)
+    } yield {
+      given.catches.map { fish =>
+        FishSizes.addNew(photo, fish.name, fish.count, fish.weight, fish.length)
+      }
+      report.addComment(given.comment)
+      report
     }
   }
   def publish = Action.async { implicit request =>
