@@ -4,7 +4,8 @@ import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
-import play.api.libs.json._
+import play.api.libs.functional.syntax.{functionalCanBuildApplicative, toFunctionalBuilderOps}
+import play.api.libs.json.{Json, __}
 import play.api.mvc.{Action, Controller, Result}
 
 import models.{GeoInfo, Record, Settings}
@@ -29,8 +30,10 @@ object CatchesSession extends Controller {
     lazy val image = imageId.flatMap(Images.get)
     override def toString = Json.toJson(this).toString
   }
-  def start(ticket: String) = Action.async(parse.json) { implicit request =>
-    val geoinfo = (request.body \ "geoinfo").asOpt[GeoInfo]
+  def start(ticket: String) = Action.async(parse.json(
+    (__ \ "geoinfo").readNullable[GeoInfo])
+  ) { implicit request =>
+    val geoinfo = request.body
     Future {
       ticket.asTokenOfUser[TicketValue] match {
         case None => BadRequest("Ticket Expired")
@@ -61,9 +64,11 @@ object CatchesSession extends Controller {
       }
     }
   }
-  def submit(session: String) = Action.async(parse.json) { implicit request =>
-    val record = (request.body \ "record").as[Record]
-    val publishing = (request.body \ "publishing").asOpt[SessionValue.Publishing]
+  def submit(session: String) = Action.async(parse.json((
+    (__ \ "record").read[Record] and
+    (__ \ "publishing").readNullable[SessionValue.Publishing]
+  ).tupled)) { implicit request =>
+    val (record, publishing) = request.body
     Future {
       session.asTokenOfUser[SessionValue] match {
         case None => BadRequest("Session Expired")
