@@ -25,7 +25,7 @@ case class Comment(id: Long,
    * Change text
    */
   def update(text: String): Option[Comment] = {
-    Comments.update(id, Comments.text(text))
+    Comments.update(id, Map(Comments.text(text)))
   }
 }
 object Comments extends AutoIDTable[Comment]("COMMENT") {
