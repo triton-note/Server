@@ -7,7 +7,7 @@ case class Record(
   comment: String,
   date: java.util.Date,
   location: String,
-  geoinfo: Option[GeoInfo],
+  geoinfo: GeoInfo,
   catches: Seq[Record.Catches]) {
 }
 object Record {
