@@ -1,14 +1,17 @@
 package models.db
 
 import java.util.Date
-import scala.util.control.Exception._
-import scalaz._
-import Scalaz._
-import play.api.Logger
-import com.amazonaws.services.dynamodbv2.model._
+
 import scala.annotation.tailrec
-import scala.concurrent.duration.FiniteDuration
-import play.api.libs.json.JsObject
+import scala.collection.JavaConversions.{asScalaBuffer, mapAsJavaMap, mapAsScalaMap}
+import scala.concurrent.duration._
+import scala.util.control.Exception.allCatch
+
+import scalaz.Scalaz._
+
+import play.api.Logger
+
+import com.amazonaws.services.dynamodbv2.model.{AttributeValue, ComparisonOperator, Condition, QueryRequest}
 
 case class VolatileToken(id: String,
                          createdAt: Date,

@@ -7,7 +7,7 @@ import play.api.mvc.{Action, Controller}
 
 object RecordSession extends Controller {
 
-  def load = Action.async { implicit request =>
+  def load(ticket: String) = Action.async { implicit request =>
     Future(NotImplemented)
   }
 }

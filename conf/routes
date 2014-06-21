@@ -1,12 +1,12 @@
-GET    /assets/*file             controllers.Assets.at(path="/public", file)
+GET    /assets/*file             	controllers.Assets.at(path="/public", file)
 
 # Login
-POST   /login-byToken            controllers.Account.byToken
+POST   /login/:way	            	controllers.Account.login(way: String)
 
 # Record posting
-POST   /record/new-session       controllers.CatchesSession.start
-POST   /record/photo             controllers.CatchesSession.addPhoto
-POST   /record/submit            controllers.CatchesSession.submit
+POST   /record/new-session/:ticket  controllers.CatchesSession.start(ticket: String)
+POST   /record/photo/:session    	controllers.CatchesSession.photo(session: String)
+POST   /record/submit/:session   	controllers.CatchesSession.submit(session: String)
 
 # Record loading
-POST   /record/load              controllers.RecordSession.load
+POST   /record/load/:ticket        	controllers.RecordSession.load(ticket: String)
