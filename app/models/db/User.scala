@@ -49,7 +49,7 @@ case class User(id: String,
   }
 }
 object Users extends AnyIDTable[User]("USER") {
-  val password = Column[Option[String]]("PASSWORD", (_.avatarUrl), (_.getS.some), attrString)
+  val password = Column[Option[String]]("PASSWORD", (_.password), (_.getS.some), attrString)
   val firstName = Column[String]("FIRST_NAME", (_.firstName), (_.getS), attrString)
   val lastName = Column[String]("LAST_NAME", (_.lastName), (_.getS), attrString)
   val avatarUrl = Column[Option[String]]("AVATAR_URL", (_.avatarUrl), (_.getS.some), attrString)
