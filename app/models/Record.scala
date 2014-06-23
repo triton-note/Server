@@ -15,7 +15,9 @@ object Record {
     name: String,
     count: Int,
     weight: Option[Double],
-    length: Option[Double]) {
+    weightUnit: String,
+    length: Option[Double],
+    lengthUnit: String) {
   }
   object Catches {
     implicit val catchesFormat = Json.format[Catches]

@@ -10,8 +10,9 @@ import play.api.libs.functional.syntax.{ functionalCanBuildApplicative, toFuncti
 import play.api.libs.json.{ Json, __ }
 import play.api.mvc.{ Action, Controller, Result }
 
-import models.{ GeoInfo, Record, Settings }
-import models.db.{ CatchReport, CatchReports, FishSizes, Images, Photos, User, VolatileToken, VolatileTokens }
+import models.{ GeoInfo, Record, Settings, Storage }
+import models.Facebook.{ AccessKey, Fishing }
+import models.db.{ CatchReports, FishSizes, Images, Photos, User, VolatileToken, VolatileTokens }
 import service.InferenceCatches
 
 object CatchesSession extends Controller {
@@ -47,17 +48,15 @@ object CatchesSession extends Controller {
   }
   def photo(session: String) = Action.async(parse.temporaryFile) { implicit request =>
     val file = request.body.file
-    Future {
-      Images.addNew(file) match {
-        case None => InternalServerError("Failed to save photo")
-        case Some(image) =>
-          mayCommit(session) {
-            _.copy(imageId = Some(image.id))
-          } { value =>
-            value.record.isEmpty option Ok(
-              Json toJson InferenceCatches.infer(image.file, value.geoinfo))
-          }
-      }
+    Images.addNew(file) match {
+      case None => Future(InternalServerError("Failed to save photo"))
+      case Some(image) =>
+        mayCommit(session) {
+          _.copy(imageId = Some(image.id))
+        } { value =>
+          value.record.isEmpty option Ok(
+            Json toJson InferenceCatches.infer(image.file, value.geoinfo))
+        }
     }
   }
   def submit(session: String) = Action.async(parse.json((
@@ -65,16 +64,14 @@ object CatchesSession extends Controller {
     (__ \ "publishing").readNullable[SessionValue.Publishing]
   ).tupled)) { implicit request =>
     val (record, publishing) = request.body
-    Future {
-      mayCommit(session) {
-        _.copy(record = Some(record), publishing = publishing)
-      } { _.imageId.isEmpty option Ok }
-    }
+    mayCommit(session) {
+      _.copy(record = Some(record), publishing = publishing)
+    } { _.imageId.isEmpty option Ok }
   }
-  def mayCommit(token: String)(convert: SessionValue => SessionValue)(result: SessionValue => Option[Result]): Result = {
-    def commit(vt: VolatileToken)(implicit user: User): Result = {
-      val value = vt.json[SessionValue].get
-      val report = for {
+  def mayCommit(token: String)(convert: SessionValue => SessionValue)(result: SessionValue => Option[Result]): Future[Result] = {
+    def commit(vt: VolatileToken)(implicit user: User): Future[Result] = {
+      val ok = for {
+        value <- vt.json[SessionValue]
         given <- value.record
         image <- value.imageId.flatMap(Images.get)
         report <- CatchReports.addNew(user, given.geoinfo, given.location, given.date)
@@ -83,37 +80,55 @@ object CatchesSession extends Controller {
         if given.catches.map { fish =>
           FishSizes.addNew(photo, fish.name, fish.count, fish.weight, fish.length).isDefined
         }.forall(_ == true)
-      } yield report
-      report match {
-        case Some(report) =>
-          vt json value.copy(committed = Some(report.id)) match {
-            case Some(vt) => value.publishing match {
-              case Some(SessionValue.Publishing(way, token)) => publish(way, token, report)
-              case None                                      => Ok
-            }
-            case None => InternalServerError("Failed to update the session")
+      } yield {
+        vt json value.copy(committed = Some(report.id)) match {
+          case Some(vt) => value.publishing match {
+            case Some(SessionValue.Publishing(way, token)) => publish(way, token)(given, image.file)
+            case None                                      => Future(Ok)
           }
-        case None => InternalServerError("Failed to commit the submit")
+          case None => Future(InternalServerError("Failed to update the session"))
+        }
       }
+      ok getOrElse Future(InternalServerError("Failed to commit the submit"))
     }
     @tailrec
-    def retry(count: Int): Result = token.asTokenOfUser[SessionValue] match {
-      case None => BadRequest("Session Expired")
+    def retry(count: Int): Future[Result] = token.asTokenOfUser[SessionValue] match {
+      case None => Future(BadRequest("Session Expired"))
       case Some((vt, value, user)) =>
         val next = convert(value)
         vt json next match {
-          case Some(vt)          => result(next) getOrElse commit(vt)(user)
+          case Some(vt)          => result(next).map(Future(_)) getOrElse commit(vt)(user)
           case None if count > 0 => retry(count - 1)
-          case None              => InternalServerError("Failed to update the session")
+          case None              => Future(InternalServerError("Failed to update the session"))
         }
     }
     retry(3)
   }
-  def publish(way: String, token: String, report: CatchReport): Result = {
+  def publish(way: String, token: String)(record: Record, image: Storage.S3File): Future[Result] = {
+    def mkMessage = {
+      val catches = record.catches.map { fish =>
+        val size = List(
+          fish.length.map { l => "$l ${fish.lengthUnit}" },
+          fish.weight.map { w => "$w ${fish.weightUnit}" }
+        ).flatten match {
+            case Nil  => ""
+            case list => list.mkString("(", ",", ")")
+          }
+        val count = fish.count match {
+          case c if c == 1 => ""
+          case c           => " x ${c}"
+        }
+        "${fish.name}${size}${count}"
+      }.mkString("\n")
+      catches + "\n\n" + record.comment
+    }
     way match {
       case "facebook" =>
-        Ok
-      case _ => NotImplemented
+        Fishing.publish(List(image), Some(mkMessage))(new AccessKey(token)).map(_ match {
+          case Some(id) => Ok
+          case None     => InternalServerError("Failed to publish to $way")
+        })
+      case _ => Future(NotImplemented)
     }
   }
 }
