@@ -73,7 +73,6 @@ package db {
     /**
      * Find item by attributes given.
      */
-    def find(attributes: (String, AttributeValue)*): Set[T] = find(attributes.toMap)
     def find(attributes: Map[String, AttributeValue]): Set[T] = {
       val q = new QueryRequest(tableName).withKeyConditions(attributes map {
         case (n, v) => n -> new Condition().withComparisonOperator(ComparisonOperator.EQ).withAttributeValueList(v)

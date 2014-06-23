@@ -31,7 +31,7 @@ case class CatchReport(id: Long,
   /**
    * All comments
    */
-  lazy val comments: List[Comment] = Comments.find(Comments.catchReport(Option(this))).toList.sortBy {
+  lazy val comments: List[Comment] = Comments.find(Map(Comments.catchReport(Option(this)))).toList.sortBy {
     a => a.lastModifiedAt getOrElse a.createdAt
   }
   /**
