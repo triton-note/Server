@@ -127,7 +127,9 @@ package db {
         client.deleteItem(tableName, key)
         true
       } catch {
-        case ex: Exception => false
+        case ex: Exception =>
+          Logger error f"Failed to delete ${tableName}: ${ex.getMessage}"
+          false
       }
     }
     /**
@@ -144,7 +146,9 @@ package db {
           o <- fromMap(item.toMap)
         } yield o
       } catch {
-        case ex: Exception => None
+        case ex: Exception =>
+          Logger error f"Failed to get ${tableName}: ${ex.getMessage}"
+          None
       }
     }
     /**
@@ -169,7 +173,9 @@ package db {
           o <- fromMap(item.toMap)
         } yield o
       } catch {
-        case ex: Exception => None
+        case ex: Exception =>
+          Logger error f"Failed to update ${tableName}: ${ex.getMessage}"
+          None
       }
     }
   }
@@ -193,7 +199,9 @@ package db {
           o <- fromMap(map)
         } yield o
       } catch {
-        case ex: Exception => None
+        case ex: Exception =>
+          Logger error f"Failed to put ${tableName}: ${ex.getMessage}"
+          None
       }
     }
   }
@@ -231,7 +239,9 @@ package db {
           o <- fromMap(map)
         } yield o
       } catch {
-        case ex: Exception => None
+        case ex: Exception =>
+          Logger error f"Failed to put ${tableName}: ${ex.getMessage}"
+          None
       }
     }
   }
