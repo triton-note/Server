@@ -122,7 +122,7 @@ package db {
      */
     def delete(i: K): Boolean = {
       val key = Map(id(i))
-      Logger debug "Deleting ${tableName} by ${key}"
+      Logger debug f"Deleting ${tableName} by ${key}"
       try {
         client.deleteItem(tableName, key)
         true
@@ -135,7 +135,7 @@ package db {
      */
     def get(i: K): Option[T] = {
       val key = Map(id(i))
-      Logger debug "Getting ${tableName} by ${key}"
+      Logger debug f"Getting ${tableName} by ${key}"
       try {
         for {
           result <- Option(client.getItem(tableName, key, true))
@@ -154,7 +154,7 @@ package db {
      */
     def update(i: K, attributes: Map[String, AttributeValue])(implicit expected: Map[String, ExpectedAttributeValue] = Map()): Option[T] = {
       val key = Map(id(i))
-      Logger debug "Updating ${tableName} by ${key}"
+      Logger debug f"Updating ${tableName} by ${key}"
       try {
         val request = {
           val u = for {
@@ -186,7 +186,7 @@ package db {
     def addNew(key: String, attributes: (String, AttributeValue)*): Option[T] = {
       val map = (attributes.toMap - id.name - createdAt.name - lastModifiedAt.name) +
         id(key) + createdAt(currentTimestamp)
-      Logger debug "Putting ${tableName} by ${map}"
+      Logger debug f"Putting ${tableName} by ${map}"
       try {
         for {
           result <- Option(client.putItem(tableName, map))
@@ -224,7 +224,7 @@ package db {
     def addNew(attributes: (String, AttributeValue)*): Option[T] = {
       val map = (attributes.toMap - id.name - createdAt.name - lastModifiedAt.name) +
         id(generateID) + createdAt(currentTimestamp)
-      Logger debug "Putting ${tableName} by ${map}"
+      Logger debug f"Putting ${tableName} by ${map}"
       try {
         for {
           result <- Option(client.putItem(tableName, map))

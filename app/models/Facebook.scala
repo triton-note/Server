@@ -17,7 +17,7 @@ object Facebook {
   object fb {
     val host = "https://graph.facebook.com"
     val client = WS.client
-    def /(path: String) = client url "${host}/${path}"
+    def /(path: String) = client url f"${host}/${path}"
   }
   object parse {
     def JSON(res: WSResponse) = allCatch opt res.json

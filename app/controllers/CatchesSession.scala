@@ -6,13 +6,13 @@ import scala.concurrent.Future
 
 import scalaz.Scalaz._
 
-import play.api.libs.functional.syntax.{ functionalCanBuildApplicative, toFunctionalBuilderOps }
-import play.api.libs.json.{ Json, __ }
-import play.api.mvc.{ Action, Controller, Result }
+import play.api.libs.functional.syntax.{functionalCanBuildApplicative, toFunctionalBuilderOps}
+import play.api.libs.json.{Json, __}
+import play.api.mvc.{Action, Controller, Result}
 
-import models.{ GeoInfo, Record, Settings, Storage }
-import models.Facebook.{ AccessKey, Fishing }
-import models.db.{ CatchReports, FishSizes, Images, Photos, User, VolatileToken, VolatileTokens }
+import models.{GeoInfo, Record, Settings, Storage}
+import models.Facebook.{AccessKey, Fishing}
+import models.db.{CatchReports, FishSizes, Images, Photos, User, VolatileToken, VolatileTokens}
 import service.InferenceCatches
 
 object CatchesSession extends Controller {
@@ -108,17 +108,17 @@ object CatchesSession extends Controller {
     def mkMessage = {
       val catches = record.catches.map { fish =>
         val size = List(
-          fish.length.map { l => "$l ${fish.lengthUnit}" },
-          fish.weight.map { w => "$w ${fish.weightUnit}" }
+          fish.length.map { v => f"${v.value} ${v.unit}" },
+          fish.weight.map { v => f"${v.value} ${v.unit}" }
         ).flatten match {
             case Nil  => ""
             case list => list.mkString("(", ",", ")")
           }
         val count = fish.count match {
           case c if c == 1 => ""
-          case c           => " x ${c}"
+          case c           => f" x ${c}"
         }
-        "${fish.name}${size}${count}"
+        f"${fish.name}${size}${count}"
       }.mkString("\n")
       catches + "\n\n" + record.comment
     }
@@ -126,7 +126,7 @@ object CatchesSession extends Controller {
       case "facebook" =>
         Fishing.publish(List(image), Some(mkMessage))(new AccessKey(token)).map(_ match {
           case Some(id) => Ok
-          case None     => InternalServerError("Failed to publish to $way")
+          case None     => InternalServerError(f"Failed to publish to $way")
         })
       case _ => Future(NotImplemented)
     }
