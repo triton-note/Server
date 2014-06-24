@@ -140,9 +140,9 @@ package db {
       Logger debug f"Getting ${tableName} by ${key}"
       try {
         for {
-          result <- Option(client.getItem(tableName, key, true))
-          item <- Option(result.getItem)
-          if item.nonEmpty
+          _ <- true option true
+          result = client.getItem(tableName, key, true)
+          item = result.getItem
           o <- fromMap(item.toMap)
         } yield o
       } catch {
