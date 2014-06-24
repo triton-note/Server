@@ -1,11 +1,16 @@
 package models
 
-import scala.util.control.Exception._
+import java.io.{BufferedInputStream, FileInputStream}
+import java.util.Date
+
+import scala.annotation.implicitNotFound
 import scala.concurrent.duration._
-import play.{ Logger => Log }
-import com.amazonaws.auth.BasicAWSCredentials
+import scala.util.control.Exception.allCatch
+
+import play.api.Logger
+import play.api.libs.json._
+
 import com.amazonaws.services.s3.model.ObjectMetadata
-import java.io.IOException
 
 object Storage {
   lazy val s3 = service.AWS.S3.client
@@ -25,8 +30,15 @@ object Storage {
     None
   }
   def file(paths: String*) = {
-    Log.trace(f"Creating S3File: $paths")
-    new S3File(paths.toList)
+    val list = paths.map(_ split "/").flatten.toList
+    Logger.trace(f"Creating S3File: $list")
+    new S3File(list)
+  }
+  object S3File {
+    implicit val photostorageFormat = Format[Storage.S3File](
+      __.read[String].map(Storage file _),
+      Writes(Json toJson _.path)
+    )
   }
   class S3File(val paths: List[String]) {
     lazy val path = paths.mkString("/")
@@ -44,7 +56,7 @@ object Storage {
       slurp(new BufferedInputStream(new FileInputStream(src)), retryCount)
     }
     def slurp(source: java.io.InputStream, retryCount: Int = Settings.Strage.retryLimit): Boolean = {
-      Log.debug(f"Storing for S3:${bucketName}:${path}")
+      Logger.debug(f"Storing for S3:${bucketName}:${path}")
       allCatch opt s3.putObject(bucketName, path, source, new ObjectMetadata()) match {
         case None    => if (retryCount > 0) slurp(source, retryCount - 1) else false
         case Some(_) => true

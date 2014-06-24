@@ -1,20 +1,24 @@
 package models.db
 
 import java.util.Date
-import scala.util.control.Exception._
-import scalaz._
-import Scalaz._
-import com.amazonaws.services.dynamodbv2.model._
+
+import scala.util.control.Exception.allCatch
+
+import scalaz.Scalaz._
+
+import play.api.libs.json.{Format, Json, Writes, __}
+
+import com.amazonaws.services.dynamodbv2.model.AttributeValue
 
 case class User(id: String,
-                createdAt: Date,
-                lastModifiedAt: Option[Date],
-                password: Option[String],
-                firstName: String,
-                lastName: String,
-                avatarUrl: Option[String],
-                lengthUnit: String,
-                weightUnit: String) {
+  createdAt: Date,
+  lastModifiedAt: Option[Date],
+  password: Option[String],
+  firstName: String,
+  lastName: String,
+  avatarUrl: Option[String],
+  lengthUnit: String,
+  weightUnit: String) {
   /**
    * Reload from DB.
    * If there is no longer me, returns None.
@@ -32,9 +36,9 @@ case class User(id: String,
    * Change properties (like a copy) and update Database
    */
   def update(password: Option[String] = this.password,
-             firstName: String = this.firstName,
-             lastName: String = this.lastName,
-             avatarUrl: Option[String] = this.avatarUrl): Option[User] = {
+    firstName: String = this.firstName,
+    lastName: String = this.lastName,
+    avatarUrl: Option[String] = this.avatarUrl): Option[User] = {
     val map = List(
       (password != this.password) option Users.password(password),
       (firstName != this.firstName) option Users.firstName(firstName),
@@ -45,7 +49,7 @@ case class User(id: String,
   }
 }
 object Users extends AnyIDTable[User]("USER") {
-  val password = Column[Option[String]]("PASSWORD", (_.avatarUrl), (_.getS.some), attrString)
+  val password = Column[Option[String]]("PASSWORD", (_.password), (_.getS.some), attrString)
   val firstName = Column[String]("FIRST_NAME", (_.firstName), (_.getS), attrString)
   val lastName = Column[String]("LAST_NAME", (_.lastName), (_.getS), attrString)
   val avatarUrl = Column[Option[String]]("AVATAR_URL", (_.avatarUrl), (_.getS.some), attrString)
@@ -68,12 +72,12 @@ object Users extends AnyIDTable[User]("USER") {
    * Add new user
    */
   def addNew(theEmail: String,
-             unhashedPassword: Option[String],
-             theFirstName: String,
-             theLastName: String,
-             theAvatarUrl: Option[String] = None,
-             theLengthUnit: String = "cm",
-             theWeightUnit: String = "Kg"): Option[User] = addNew(theEmail,
+    unhashedPassword: Option[String],
+    theFirstName: String,
+    theLastName: String,
+    theAvatarUrl: Option[String] = None,
+    theLengthUnit: String = "cm",
+    theWeightUnit: String = "Kg"): Option[User] = addNew(theEmail,
     password(unhashedPassword.map(hash)),
     firstName(theFirstName),
     lastName(theLastName),
@@ -81,7 +85,7 @@ object Users extends AnyIDTable[User]("USER") {
     lengthUnit(theLengthUnit),
     weightUnit(theWeightUnit)
   )
-  def find(email: String): Option[User] = find(id(email)).headOption
+  def find(email: String): Option[User] = find(Map(id(email))).headOption
   // Password hashing
   val hashingWay = "SHA-1"
   def hash(v: String): String = play.api.libs.Codecs.sha1(v)

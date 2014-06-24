@@ -1,22 +1,23 @@
 package models
 
 import java.util.Date
-import scala.util.control.Exception._
-import scalaz._
-import Scalaz._
-import com.amazonaws.services.dynamodbv2.model._
-import scala.collection.JavaConversions._
-import service.AWS.DynamoDB._
+
 import scala.annotation.tailrec
+import scala.collection.JavaConversions.{ asScalaBuffer, mapAsJavaMap, mapAsScalaMap, setAsJavaSet }
+
+import scalaz.Scalaz._
+
+import com.amazonaws.services.dynamodbv2.model._
+
+import service.AWS.DynamoDB.client
 
 package object db {
   def currentTimestamp = new Date
   def numberFormat(n: Double) = f"$n%.10f"
   def numberFormat(n: Long) = f"$n%d"
   val dateFormat = new {
-    val du = new com.amazonaws.util.DateUtils
-    def format(date: Date) = du.formatIso8601Date(date)
-    def parse(s: String) = du.parseIso8601Date(s)
+    def format(date: Date) = com.amazonaws.util.DateUtils.formatISO8601Date(date)
+    def parse(s: String) = com.amazonaws.util.DateUtils.parseISO8601Date(s)
   }
 }
 package db {
@@ -72,7 +73,6 @@ package db {
     /**
      * Find item by attributes given.
      */
-    def find(attributes: (String, AttributeValue)*): Set[T] = find(attributes.toMap)
     def find(attributes: Map[String, AttributeValue]): Set[T] = {
       val q = new QueryRequest(tableName).withKeyConditions(attributes map {
         case (n, v) => n -> new Condition().withComparisonOperator(ComparisonOperator.EQ).withAttributeValueList(v)
@@ -148,18 +148,17 @@ package db {
      *
      * @return updated item
      */
-    def update(i: K, attributes: (String, AttributeValue)*): Option[T] = update(i, attributes.toMap)
-    def update(i: K, attributes: Map[String, AttributeValue]): Option[T] = {
+    def update(i: K, attributes: Map[String, AttributeValue])(implicit expected: Map[String, ExpectedAttributeValue] = Map()): Option[T] = {
       val key = Map(id(i))
       try {
-        val u = {
-          attributes.toMap - id.name - createdAt.name +
-            lastModifiedAt(Option(currentTimestamp))
-        }.map {
-          case (n, v) => n -> new AttributeValueUpdate().withAction(AttributeAction.ADD).withValue(v)
+        val request = {
+          val u = for {
+            (n, v) <- attributes.toMap - id.name - createdAt.name + lastModifiedAt(Option(currentTimestamp))
+          } yield n -> new AttributeValueUpdate().withAction(AttributeAction.ADD).withValue(v)
+          new UpdateItemRequest(tableName, key, u, "ALL_NEW").withExpected(expected)
         }
         for {
-          result <- Option(client.updateItem(tableName, key, u, "ALL_NEW"))
+          result <- Option(client updateItem request)
           item <- Option(result.getAttributes)
           if item.nonEmpty
           o <- fromMap(item.toMap)

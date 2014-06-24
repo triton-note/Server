@@ -12,6 +12,7 @@ case class CatchReport(id: Long,
                        lastModifiedAt: Option[Date],
                        user: Option[User],
                        timestamp: Date,
+                       location: String,
                        latitude: Double,
                        longitude: Double) {
   /**
@@ -30,7 +31,7 @@ case class CatchReport(id: Long,
   /**
    * All comments
    */
-  lazy val comments: List[Comment] = Comments.find(Comments.catchReport(Option(this))).toList.sortBy {
+  lazy val comments: List[Comment] = Comments.find(Map(Comments.catchReport(Option(this)))).toList.sortBy {
     a => a.lastModifiedAt getOrElse a.createdAt
   }
   /**
@@ -44,6 +45,7 @@ case class CatchReport(id: Long,
 object CatchReports extends AutoIDTable[CatchReport]("CATCH_REPORT") {
   val user = Column[Option[User]]("USER", (_.user), (_.get(Users)), attrObjStringID)
   val timestamp = Column[Date]("TIMESTAMP", (_.timestamp), (_.getDate), attrDate)
+  val location = Column[String]("LATITUDE", (_.location), (_.getS), attrString)
   val latitude = Column[Double]("LATITUDE", (_.latitude), (_.getDouble), attrDouble)
   val longitude = Column[Double]("LONGITUDE", (_.longitude), (_.getDouble), attrDouble)
   // All columns
@@ -54,16 +56,18 @@ object CatchReports extends AutoIDTable[CatchReport]("CATCH_REPORT") {
     lastModifiedAt.build,
     user.build,
     timestamp.build,
+    location.build,
     latitude.build,
     longitude.build
   )
   /**
    * Add new
    */
-  def addNew(theUser: User, theGeoinfo: GeoInfo, theTimestamp: Date): Option[CatchReport] = addNew(
+  def addNew(theUser: User, theGeoinfo: GeoInfo, theLocation: String, theTimestamp: Date): Option[CatchReport] = addNew(
     user(Some(theUser)),
     timestamp(theTimestamp),
-    latitude(theGeoinfo.latitude),
-    longitude(theGeoinfo.longitude)
+    location(theLocation),
+    latitude(theGeoinfo.latitude.toDouble),
+    longitude(theGeoinfo.longitude.toDouble)
   )
 }

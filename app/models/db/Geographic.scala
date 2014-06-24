@@ -7,10 +7,10 @@ import Scalaz._
 import com.amazonaws.services.dynamodbv2.model._
 
 case class Geographic(id: String,
-                      createdAt: Date,
-                      lastModifiedAt: Option[Date],
-                      equatorialRadius: Double,
-                      polarRadius: Double) {
+  createdAt: Date,
+  lastModifiedAt: Option[Date],
+  equatorialRadius: Double,
+  polarRadius: Double) {
   /**
    * Reload from DB.
    * If there is no longer me, returns None.
@@ -23,10 +23,10 @@ case class Geographic(id: String,
   /**
    * Change property (like a copy) and update Database
    */
-  def update(equatorialRadius: Double = equatorialRadius, polarRadius: Double = polarRadius): Option[Geographic] = Geographics.update(id,
+  def update(equatorialRadius: Double = equatorialRadius, polarRadius: Double = polarRadius): Option[Geographic] = Geographics.update(id, Map(
     Geographics.equatorialRadius(equatorialRadius),
     Geographics.polarRadius(polarRadius)
-  )
+  ))
 }
 
 object Geographics extends AnyIDTable[Geographic]("GEOGRAPHIC") {

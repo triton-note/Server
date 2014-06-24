@@ -1,43 +1,27 @@
 package models
 
-import play.Logger
-import dispatch._
-import Defaults._
-import play.api.libs.json._
-import play.api.libs.functional.syntax._
-import com.ning.http.multipart._
+import scala.{Left, Right}
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
+import scala.concurrent.duration.DurationInt
+import scala.util.control.Exception.allCatch
+
+import play.api.Logger
+import play.api.Play.current
+import play.api.libs.json.JsValue
+import play.api.libs.ws.{WS, WSResponse}
 
 object Facebook {
-  def fb = host("graph.facebook.com").secure
   case class AccessKey(token: String)
   case class ObjectId(id: String)
-  def part(file: Storage.S3File): FilePart = {
-    val source = new PartSource {
-      def createInputStream = file.read
-      def getFileName = file.name
-      def getLength = file.length
-    }
-    new FilePart(file.name, source)
+  object fb {
+    val host = "https://graph.facebook.com"
+    val client = WS.client
+    def /(path: String) = client url "${host}/${path}"
   }
   object parse {
-    import com.ning.http.client.Response
-    def JSON(res: Response): JsValue = {
-      val text = as.String(res)
-      Logger.debug(f"Parsing json: $text")
-      Json parse text
-    }
-    def ObjectID(res: Response): ObjectId = {
-      ObjectId((JSON(res) \ "id").as[String])
-    }
-    def NameID(res: Response): List[(String, String)] = {
-      implicit val jsonNameReader = {
-        (
-          (__ \ "id").read[String] ~
-          (__ \ "name").read[String]
-        ) tupled
-      }
-      (JSON(res) \ "data").as[List[(String, String)]]
-    }
+    def JSON(res: WSResponse) = allCatch opt res.json
+    def ObjectID(res: WSResponse) = allCatch opt ObjectId((res.json \ "id").as[String])
   }
   object User {
     /**
@@ -45,10 +29,10 @@ object Facebook {
      * The attributes is specified by fields.
      */
     def obtain(fields: String*)(implicit accesskey: AccessKey): Future[Option[JsValue]] = {
-      val req = (fb / "me").GET <<? Map(
+      (fb / "me").withQueryString(
         "fields" -> fields.mkString(","),
-        "access_token" -> accesskey.token)
-      Http(req OK parse.JSON).option
+        "access_token" -> accesskey.token
+      ).get().map(parse.JSON)
     }
     /**
      * Find UserAlias by given accessKey.
@@ -106,50 +90,14 @@ object Facebook {
       })
     }
   }
-  object Publish {
-    def findAlbum(name: String)(implicit accessKey: AccessKey): Future[Option[ObjectId]] = {
-      def find = {
-        val req = (fb / "me" / "albums").GET << Map(
-          "access_token" -> accessKey.token)
-        Http(req OK parse.NameID).option
-      }
-      for {
-        opt <- find
-      } yield {
-        val list = for {
-          albums <- opt.toList
-          (albumId, albumName) <- albums
-          if (albumName == name)
-        } yield ObjectId(albumId)
-        list.headOption
-      }
-    }
-    def getAlbumOrCreate(name: String, message: Option[String] = None)(implicit accessKey: AccessKey): Future[Option[ObjectId]] = {
-      for {
-        found <- findAlbum(name)
-        id <- found match {
-          case None    => makeAlbum(name, message)
-          case Some(_) => Future(found)
-        }
-      } yield id
-    }
-    def makeAlbum(name: String, message: Option[String] = None)(implicit accessKey: AccessKey): Future[Option[ObjectId]] = {
-      val mes = message.map("message" -> _).toMap
-      val req = (fb / "me" / "album").POST << mes << Map(
-        "access_token" -> accessKey.token,
-        "name" -> name
-      )
-      Http(req OK parse.ObjectID).option
-    }
-    def addPhoto(albumId: ObjectId)(file: Storage.S3File, message: Option[String] = None)(implicit accessKey: AccessKey): Future[Option[ObjectId]] = {
-      val req = {
-        val r = (fb / albumId.id / "photo").POST addBodyPart part(file)
-        message match {
-          case None    => r
-          case Some(m) => r addBodyPart new StringPart("message", m)
-        }
-      }
-      Http(req OK parse.ObjectID).option
+  object Fishing {
+    def publish(photo: List[Storage.S3File], message: Option[String])(implicit accessKey: AccessKey): Future[Option[ObjectId]] = {
+      (fb / "me/triton-note:fish").withQueryString(
+        "access_token" -> accessKey.token
+      ).post(Map(
+          "image" -> photo.map(_.generateURL(24 hours).toString),
+          "message" -> message.toSeq
+        )).map(parse.ObjectID)
     }
   }
 }

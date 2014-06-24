@@ -1,19 +1,23 @@
 package models.db
 
 import java.util.Date
-import scala.util.control.Exception._
-import scalaz._
-import Scalaz._
-import play.api.Logger
-import com.amazonaws.services.dynamodbv2.model._
+
 import scala.annotation.tailrec
-import scala.concurrent.duration.FiniteDuration
+import scala.collection.JavaConversions.{asScalaBuffer, mapAsJavaMap, mapAsScalaMap}
+import scala.concurrent.duration._
+import scala.util.control.Exception.allCatch
+
+import scalaz.Scalaz._
+
+import play.api.Logger
+
+import com.amazonaws.services.dynamodbv2.model.{AttributeValue, ComparisonOperator, Condition, ExpectedAttributeValue, QueryRequest}
 
 case class VolatileToken(id: String,
-                         createdAt: Date,
-                         lastModifiedAt: Option[Date],
-                         expiration: Date,
-                         extra: Option[String]) {
+  createdAt: Date,
+  lastModifiedAt: Option[Date],
+  expiration: Date,
+  extra: Option[String]) {
   /**
    * Reload form DB
    */
@@ -25,11 +29,15 @@ case class VolatileToken(id: String,
   /**
    * Change properties (like a copy) and update Database
    */
-  def update(extra: Option[String] = this.extra, expiration: Date = this.expiration): Option[VolatileToken] = VolatileTokens.update(id,
-    VolatileTokens.extra(extra),
-    VolatileTokens.expiration(expiration)
-  )
-  def setExtra(xml: scala.xml.NodeSeq) = update(extra = Some(xml.toString))
+  def update(extra: Option[String] = this.extra, expiration: Date = this.expiration): Option[VolatileToken] = {
+    VolatileTokens.update(id, Map(
+      VolatileTokens.extra(extra),
+      VolatileTokens.expiration(expiration)
+    ))(for {
+      (n, v) <- Map(VolatileTokens.extra(extra))
+    } yield n -> new ExpectedAttributeValue(v).withComparisonOperator(ComparisonOperator.EQ))
+  }
+  def setExtra(text: String) = update(extra = Some(text))
   def removeExtra = update(extra = None)
   def changeExpiration(theNext: Date) = update(expiration = theNext)
 }
@@ -76,7 +84,7 @@ object VolatileTokens extends AnyIDTable[VolatileToken]("VOLATILE_TOKEN") {
       try {
         Option(service.AWS.DynamoDB.client.query(q))
       } catch {
-        case ex: Exception => 
+        case ex: Exception =>
           Logger.error(f"Failed to query to '$tableName'", ex)
           None
       }
