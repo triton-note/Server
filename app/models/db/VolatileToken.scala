@@ -3,15 +3,16 @@ package models.db
 import java.util.Date
 
 import scala.annotation.tailrec
-import scala.collection.JavaConversions.{asScalaBuffer, mapAsJavaMap, mapAsScalaMap}
+import scala.collection.JavaConversions._
 import scala.concurrent.duration._
-import scala.util.control.Exception.allCatch
 
 import scalaz.Scalaz._
 
 import play.api.Logger
 
-import com.amazonaws.services.dynamodbv2.model.{AttributeValue, ComparisonOperator, Condition, ExpectedAttributeValue, QueryRequest}
+import org.fathens.play.util.Exception.allCatch
+
+import com.amazonaws.services.dynamodbv2.model._
 
 case class VolatileToken(id: String,
   createdAt: Date,
@@ -46,7 +47,7 @@ object VolatileTokens extends AnyIDTable[VolatileToken]("VOLATILE_TOKEN") {
   val extra = Column[Option[String]]("EXTRA", (_.extra), (_.getS.some), attrString)
   // All columns
   val columns = List(expiration, extra)
-  def fromMap(implicit map: Map[String, AttributeValue]): Option[VolatileToken] = Option apply VolatileToken(
+  def fromMap(implicit map: Map[String, AttributeValue]): Option[VolatileToken] = allCatch opt VolatileToken(
     id.build,
     createdAt.build,
     lastModifiedAt.build,

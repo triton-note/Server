@@ -3,12 +3,12 @@ package models
 import java.io.{BufferedInputStream, FileInputStream}
 import java.util.Date
 
-import scala.annotation.implicitNotFound
 import scala.concurrent.duration._
-import scala.util.control.Exception.allCatch
 
 import play.api.Logger
-import play.api.libs.json._
+import play.api.libs.json.{Format, Json, Writes, __}
+
+import org.fathens.play.util.Exception.allCatch
 
 import com.amazonaws.services.s3.model.ObjectMetadata
 

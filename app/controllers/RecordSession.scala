@@ -3,14 +3,14 @@ package controllers
 import scala.annotation.migration
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
-import scala.concurrent.duration.DurationInt
+import scala.concurrent.duration._
 
-import play.api.libs.functional.syntax.{ functionalCanBuildApplicative, toFunctionalBuilderOps }
-import play.api.libs.json.{ Json, __ }
-import play.api.mvc.{ Action, Controller }
+import play.api.libs.functional.syntax._
+import play.api.libs.json._
+import play.api.mvc.{Action, Controller}
 
 import models.Record
-import models.db.{ CatchReports, FishSizes, Photos }
+import models.db.{CatchReports, FishSizes, Photos}
 
 object RecordSession extends Controller {
 

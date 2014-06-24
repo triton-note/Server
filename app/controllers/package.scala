@@ -1,6 +1,6 @@
-import scala.util.control.Exception.allCatch
-
 import play.api.libs.json._
+
+import org.fathens.play.util.Exception.allCatch
 
 import models.db.{Users, VolatileToken, VolatileTokens}
 

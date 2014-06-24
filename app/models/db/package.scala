@@ -2,7 +2,7 @@ package models
 
 import java.util.Date
 
-import scala.annotation.{ migration, tailrec }
+import scala.annotation.tailrec
 import scala.collection.JavaConversions._
 
 import scalaz.Scalaz._
@@ -81,7 +81,8 @@ package db {
       })
       for {
         result <- Option(client query q).toSet
-        item <- result.getItems
+        if { Logger.debug(f"Found ${tableName} ${result}"); true }
+        item <- Option(result.getItems).toSet.flatten
         o <- fromMap(item.toMap)
       } yield o
     }
@@ -128,7 +129,7 @@ package db {
         true
       } catch {
         case ex: Exception =>
-          Logger error f"Failed to delete ${tableName}: ${ex.getMessage}"
+          Logger error (f"Failed to delete ${tableName}", ex)
           false
       }
     }
@@ -140,14 +141,14 @@ package db {
       Logger debug f"Getting ${tableName} by ${key}"
       try {
         for {
-          _ <- true option true
-          result = client.getItem(tableName, key, true)
-          item = result.getItem
+          result <- Option(client.getItem(tableName, key, true))
+          if { Logger.debug(f"Get ${tableName} ${result}"); true }
+          item <- Option(result.getItem)
           o <- fromMap(item.toMap)
         } yield o
       } catch {
         case ex: Exception =>
-          Logger error f"Failed to get ${tableName}: ${ex.getMessage}"
+          Logger error (f"Failed to get ${tableName}", ex)
           None
       }
     }
@@ -168,13 +169,13 @@ package db {
         }
         for {
           result <- Option(client updateItem request)
+          if { Logger.debug(f"Updated ${tableName} ${result}"); true }
           item <- Option(result.getAttributes)
-          if item.nonEmpty
           o <- fromMap(item.toMap)
         } yield o
       } catch {
         case ex: Exception =>
-          Logger error f"Failed to update ${tableName}: ${ex.getMessage}"
+          Logger error (f"Failed to update ${tableName}", ex)
           None
       }
     }
@@ -196,11 +197,13 @@ package db {
       try {
         for {
           result <- Option(client.putItem(tableName, map))
-          o <- fromMap(map)
+          if { Logger.debug(f"Put ${tableName} ${result}"); true }
+          item <- Option(result.getAttributes)
+          o <- fromMap(item.toMap)
         } yield o
       } catch {
         case ex: Exception =>
-          Logger error f"Failed to put ${tableName}: ${ex.getMessage}"
+          Logger error (f"Failed to put ${tableName}", ex)
           None
       }
     }
@@ -236,11 +239,13 @@ package db {
       try {
         for {
           result <- Option(client.putItem(tableName, map))
-          o <- fromMap(map)
+          if { Logger.debug(f"Put ${tableName} ${result}"); true }
+          item <- Option(result.getAttributes)
+          o <- fromMap(item.toMap)
         } yield o
       } catch {
         case ex: Exception =>
-          Logger error f"Failed to put ${tableName}: ${ex.getMessage}"
+          Logger error (f"Failed to put ${tableName}", ex)
           None
       }
     }

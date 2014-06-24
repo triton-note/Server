@@ -6,8 +6,8 @@ import scala.concurrent.Future
 
 import scalaz.Scalaz._
 
-import play.api.libs.functional.syntax.{functionalCanBuildApplicative, toFunctionalBuilderOps}
-import play.api.libs.json.{Json, __}
+import play.api.libs.functional.syntax._
+import play.api.libs.json._
 import play.api.mvc.{Action, Controller, Result}
 
 import models.{GeoInfo, Record, Settings, Storage}

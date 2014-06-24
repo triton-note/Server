@@ -2,11 +2,11 @@ package models.db
 
 import java.util.Date
 
-import scala.util.control.Exception.allCatch
-
 import scalaz.Scalaz._
 
-import com.amazonaws.services.dynamodbv2.model.AttributeValue
+import org.fathens.play.util.Exception.allCatch
+
+import com.amazonaws.services.dynamodbv2.model._
 
 case class FishSize(id: Long,
   createdAt: Date,

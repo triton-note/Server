@@ -5,11 +5,10 @@ import java.util.Date
 import javax.imageio.ImageIO
 
 import scala.concurrent.duration._
-import scala.util.control.Exception.allCatch
 
-import play.api.libs.json.{Format, Json, Writes, __}
+import org.fathens.play.util.Exception.allCatch
 
-import com.amazonaws.services.dynamodbv2.model.AttributeValue
+import com.amazonaws.services.dynamodbv2.model._
 
 import models.Storage
 

@@ -2,13 +2,11 @@ package models.db
 
 import java.util.Date
 
-import scala.util.control.Exception.allCatch
-
 import scalaz.Scalaz._
 
-import play.api.libs.json.{Format, Json, Writes, __}
+import org.fathens.play.util.Exception.allCatch
 
-import com.amazonaws.services.dynamodbv2.model.AttributeValue
+import com.amazonaws.services.dynamodbv2.model._
 
 case class User(id: String,
   createdAt: Date,

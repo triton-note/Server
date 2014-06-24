@@ -4,12 +4,13 @@ import scala.{Left, Right}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
-import scala.util.control.Exception.allCatch
 
 import play.api.Logger
 import play.api.Play.current
-import play.api.libs.json.JsValue
+import play.api.libs.json._
 import play.api.libs.ws.{WS, WSResponse}
+
+import org.fathens.play.util.Exception.allCatch
 
 object Facebook {
   case class AccessKey(token: String)
