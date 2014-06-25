@@ -44,7 +44,7 @@ case class VolatileToken(id: String,
 }
 object VolatileTokens extends AnyIDTable[VolatileToken]("VOLATILE_TOKEN") {
   val expiration = Column[Date]("EXPIRATION", (_.expiration), (_.getDate), attrDate)
-  val extra = Column[Option[String]]("EXTRA", (_.extra), (_.getS.some), attrString)
+  val extra = Column[Option[String]]("EXTRA", (_.extra), (_.getS.opt), attrString)
   // All columns
   val columns = List(expiration, extra)
   def fromMap(implicit map: Map[String, AttributeValue]): Option[VolatileToken] = allCatch opt VolatileToken(
@@ -77,24 +77,11 @@ object VolatileTokens extends AnyIDTable[VolatileToken]("VOLATILE_TOKEN") {
    * @return number of deleted
    */
   def deleteExpired: Int = {
-    import scala.collection.JavaConversions._
-    def query = {
-      val q = new QueryRequest(tableName).withKeyConditions(Map(
-        expiration.name -> new Condition().withComparisonOperator(ComparisonOperator.LE).withAttributeValueList(expiration toAttr currentTimestamp)
-      ))
-      try {
-        Option(service.AWS.DynamoDB.client.query(q))
-      } catch {
-        case ex: Exception =>
-          Logger.error(f"Failed to query to '$tableName'", ex)
-          None
+    val expired = scan {
+      Map(expiration(currentTimestamp)).map {
+        case (n, v) => n -> new Condition().withComparisonOperator(ComparisonOperator.LE).withAttributeValueList(v)
       }
     }
-    val expired = for {
-      result <- query.toSet
-      item <- result.getItems
-      o <- fromMap(item.toMap)
-    } yield o
-    expired.map(_.delete).filter(_ == true).size
+    expired.toList.map(_.delete).filter(_ == true).size
   }
 }

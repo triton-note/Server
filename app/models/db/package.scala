@@ -21,6 +21,9 @@ package object db {
     def format(date: Date) = com.amazonaws.util.DateUtils.formatISO8601Date(date)
     def parse(s: String) = com.amazonaws.util.DateUtils.parseISO8601Date(s)
   }
+  implicit class NullOption[A](a: A) {
+    def opt: Option[A] = Option(a)
+  }
 }
 package db {
   trait TableRoot[T] {
@@ -28,9 +31,10 @@ package db {
      * Extension for AttribueValue
      */
     implicit class AttributeValueOpt(av: AttributeValue) {
+      def isEmpty: Boolean = new AttributeValue == av
       def getDouble: Double = av.getN.toDouble
       def getLong: Long = av.getN.toLong
-      def getDate: Date = av.getS.some.map(dateFormat.parse).orNull
+      def getDate: Date = Option(av.getS).map(dateFormat.parse).orNull
       def get[O <: TimestampedTable.ObjType[Long]](t: AutoIDTable[O]): Option[O] = t.get(av.getLong)
       def get[O <: TimestampedTable.ObjType[String]](t: AnyIDTable[O]): Option[O] = t.get(av.getS)
     }
@@ -57,7 +61,7 @@ package db {
      */
     case class Column[A](name: String, getProp: T => A, valueOf: AttributeValue => A, toAttr: A => AttributeValue) {
       def apply(a: A): (String, AttributeValue) = name -> toAttr(a)
-      def build(implicit map: Map[String, AttributeValue]): A = valueOf(map(name))
+      def build(implicit map: Map[String, AttributeValue]): A = valueOf(map.getOrElse(name, new AttributeValue))
     }
     /**
      * All columns
@@ -103,7 +107,7 @@ package db {
     /**
      * Column 'LAST_MODIFIED_AT'
      */
-    val lastModifiedAt = Column[Option[Date]]("LAST_MODIFIED_AT", (_.lastModifiedAt), (_.getDate.some), attrDate)
+    val lastModifiedAt = Column[Option[Date]]("LAST_MODIFIED_AT", (_.lastModifiedAt), (_.getDate.opt), attrDate)
     /**
      * Columns at this class
      */
@@ -179,6 +183,36 @@ package db {
           None
       }
     }
+    def putNew(attributes: Map[String, AttributeValue]): Option[T] = {
+      val map = (attributes - createdAt.name - lastModifiedAt.name + createdAt(currentTimestamp)).filter(!_._2.isEmpty)
+      Logger debug f"Putting ${tableName} by ${map}"
+      try {
+        for {
+          result <- Option(client.putItem(tableName, map))
+          if { Logger.debug(f"Result of putting ${tableName}: ${result}"); true }
+          o <- fromMap(map)
+        } yield o
+      } catch {
+        case ex: Exception =>
+          Logger error (f"Failed to put ${tableName}", ex)
+          None
+      }
+    }
+    def scan(conditions: Map[String, Condition]): Set[T] = {
+      val request = new ScanRequest().withTableName(tableName).withAttributesToGet(id.name).withScanFilter(conditions)
+      try {
+        for {
+          result <- Option(client scan request).toSet
+          if { Logger.debug(f"Result of scaning ${tableName}: ${result}"); true }
+          item <- result.getItems
+          o <- get(id build item.toMap)
+        } yield o
+      } catch {
+        case ex: Exception =>
+          Logger.error(f"Failed to delete items: ${ex.getMessage}", ex)
+          Set()
+      }
+    }
   }
   abstract class AnyIDTable[T <: TimestampedTable.ObjType[String]](val tableName: String) extends TimestampedTable[String, T] {
     /**
@@ -191,21 +225,7 @@ package db {
      * @return New item which has proper id.
      */
     def addNew(key: String, attributes: (String, AttributeValue)*): Option[T] = {
-      val map = (attributes.toMap - id.name - createdAt.name - lastModifiedAt.name) +
-        id(key) + createdAt(currentTimestamp)
-      Logger debug f"Putting ${tableName} by ${map}"
-      try {
-        for {
-          result <- Option(client.putItem(tableName, map))
-          if { Logger.debug(f"Put ${tableName} ${result}"); true }
-          item <- Option(result.getAttributes)
-          o <- fromMap(item.toMap)
-        } yield o
-      } catch {
-        case ex: Exception =>
-          Logger error (f"Failed to put ${tableName}", ex)
-          None
-      }
+      putNew(attributes.toMap - id.name + id(key))
     }
   }
   abstract class AutoIDTable[T <: TimestampedTable.ObjType[Long]](val tableName: String) extends TimestampedTable[Long, T] {
@@ -233,21 +253,7 @@ package db {
      * @return New item which has proper id.
      */
     def addNew(attributes: (String, AttributeValue)*): Option[T] = {
-      val map = (attributes.toMap - id.name - createdAt.name - lastModifiedAt.name) +
-        id(generateID) + createdAt(currentTimestamp)
-      Logger debug f"Putting ${tableName} by ${map}"
-      try {
-        for {
-          result <- Option(client.putItem(tableName, map))
-          if { Logger.debug(f"Put ${tableName} ${result}"); true }
-          item <- Option(result.getAttributes)
-          o <- fromMap(item.toMap)
-        } yield o
-      } catch {
-        case ex: Exception =>
-          Logger error (f"Failed to put ${tableName}", ex)
-          None
-      }
+      putNew(attributes.toMap - id.name + id(generateID))
     }
   }
 }

@@ -1,9 +1,9 @@
 package models.db
 
 import java.util.Date
-import scala.util.control.Exception._
-import scalaz._
-import Scalaz._
+
+import scala.util.control.Exception.allCatch
+
 import com.amazonaws.services.dynamodbv2.model._
 
 case class Geographic(id: String,

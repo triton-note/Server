@@ -30,10 +30,10 @@ object FishSizes extends AutoIDTable[FishSize]("FISH_SIZE") {
   val photo = Column[Option[Photo]]("PHOTO", (_.photo), (_.get(Photos)), attrObjLongID)
   val name = Column[String]("NAME", (_.name), (_.getS), attrString)
   val count = Column[Long]("COUNT", (_.count), (_.getLong), attrLong)
-  val weight = Column[Option[Double]]("WEIGHT", (_.weight.map(_._1)), (_.getDouble.some), attrDouble)
-  val weightUnit = Column[Option[String]]("WEIGHT_UNIT", (_.weight.map(_._2)), (_.getS.some), attrString)
-  val length = Column[Option[Double]]("LENGTH", (_.length.map(_._1)), (_.getDouble.some), attrDouble)
-  val lengthUnit = Column[Option[String]]("LENGTH_UNIT", (_.length.map(_._2)), (_.getS.some), attrString)
+  val weight = Column[Option[Double]]("WEIGHT", (_.weight.map(_._1)), (_.getDouble.opt), attrDouble)
+  val weightUnit = Column[Option[String]]("WEIGHT_UNIT", (_.weight.map(_._2)), (_.getS.opt), attrString)
+  val length = Column[Option[Double]]("LENGTH", (_.length.map(_._1)), (_.getDouble.opt), attrDouble)
+  val lengthUnit = Column[Option[String]]("LENGTH_UNIT", (_.length.map(_._2)), (_.getS.opt), attrString)
   // All columns
   val columns = List(photo, name, weight, length)
   def fromMap(implicit map: Map[String, AttributeValue]): Option[FishSize] = allCatch opt FishSize(

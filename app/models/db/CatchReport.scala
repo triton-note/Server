@@ -1,10 +1,12 @@
 package models.db
 
 import java.util.Date
-import scala.util.control.Exception._
-import scalaz._
-import Scalaz._
+
+import scala.math.BigDecimal.double2bigDecimal
+import scala.util.control.Exception.allCatch
+
 import com.amazonaws.services.dynamodbv2.model._
+
 import models.GeoInfo
 
 case class CatchReport(id: Long,
@@ -45,7 +47,7 @@ case class CatchReport(id: Long,
 object CatchReports extends AutoIDTable[CatchReport]("CATCH_REPORT") {
   val user = Column[Option[User]]("USER", (_.user), (_.get(Users)), attrObjStringID)
   val timestamp = Column[Date]("TIMESTAMP", (_.timestamp), (_.getDate), attrDate)
-  val location = Column[String]("LATITUDE", (_.location), (_.getS), attrString)
+  val location = Column[String]("LOCATION", (_.location), (_.getS), attrString)
   val latitude = Column[Double]("LATITUDE", (_.latitude), (_.getDouble), attrDouble)
   val longitude = Column[Double]("LONGITUDE", (_.longitude), (_.getDouble), attrDouble)
   // All columns
