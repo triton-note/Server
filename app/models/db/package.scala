@@ -41,9 +41,9 @@ package db {
       def get[O <: TimestampedTable.ObjType[String]](t: AnyIDTable[O]): Option[O] = getString.flatMap(t.get)
     }
     // for String
-    implicit def attrString(s: String) = new AttributeValue().withS(s)
-    implicit def attrString(s: Option[String]) = new AttributeValue().withS(s.orNull)
-    implicit def attrString(ss: Set[String]) = new AttributeValue().withSS(ss)
+    implicit def attrString(s: String) = new AttributeValue().withS(if (s != null && s.length > 0) s else null )
+    implicit def attrString(s: Option[String]) = new AttributeValue().withS(s.flatMap(v => if (v != null && v.length > 0) Some(v) else None).orNull)
+    implicit def attrString(ss: Set[String]) = new AttributeValue().withSS(ss.filter(s => s != null && s.length > 0))
     // for Double
     implicit def attrDouble(n: Double) = new AttributeValue().withN(numberFormat(n))
     implicit def attrDouble(n: Option[Double]) = new AttributeValue().withN(n.map(numberFormat).orNull)
@@ -57,7 +57,7 @@ package db {
     implicit def attrDate(date: Option[Date]) = new AttributeValue().withS(date.map(dateFormat.format).orNull)
     // for ArrangedTableObj
     implicit def attrObjLongID(o: Option[TimestampedTable.ObjType[Long]]) = new AttributeValue().withN(o.map(_.id).map(numberFormat).orNull)
-    implicit def attrObjStringID(o: Option[TimestampedTable.ObjType[String]]) = new AttributeValue().withN(o.map(_.id).orNull)
+    implicit def attrObjStringID(o: Option[TimestampedTable.ObjType[String]]) = new AttributeValue().withS(o.map(_.id).orNull)
     /**
      * Representation of column.
      */
