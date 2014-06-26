@@ -7,13 +7,13 @@ import scala.concurrent.Future
 import scalaz.Scalaz._
 
 import play.api.Logger
-import play.api.libs.functional.syntax.{functionalCanBuildApplicative, toFunctionalBuilderOps}
-import play.api.libs.json.{Json, __}
-import play.api.mvc.{Action, Controller, Result}
+import play.api.libs.functional.syntax.{ functionalCanBuildApplicative, toFunctionalBuilderOps }
+import play.api.libs.json.{ Json, __ }
+import play.api.mvc.{ Action, Controller, Result }
 
-import models.{GeoInfo, Record, Settings, Storage}
-import models.Facebook.{AccessKey, Fishing}
-import models.db.{CatchReports, FishSizes, Images, Photos, User, VolatileToken, VolatileTokens}
+import models.{ GeoInfo, Record, Settings, Storage }
+import models.Facebook.{ AccessKey, Fishing }
+import models.db.{ CatchReports, FishSizes, Images, Photos, User, VolatileToken, VolatileTokens }
 import service.InferenceCatches
 
 object CatchesSession extends Controller {
@@ -57,8 +57,13 @@ object CatchesSession extends Controller {
         mayCommit(session) {
           _.copy(imageId = Some(image.id))
         } { value =>
-          value.record.isEmpty option Ok(
-            Json toJson InferenceCatches.infer(image.file, value.geoinfo))
+          value.record.isEmpty option Ok {
+            val (location, fishes) = InferenceCatches.infer(image.file, value.geoinfo)
+            Json.obj(
+              "location" -> location,
+              "fishes" -> fishes
+            )
+          }
         }
     }
   }
@@ -67,6 +72,7 @@ object CatchesSession extends Controller {
     (__ \ "publishing").readNullable[SessionValue.Publishing]
   ).tupled)) { implicit request =>
     val (record, publishing) = request.body
+    Logger debug f"Sumit $record with publishing $publishing"
     mayCommit(session) {
       _.copy(record = Some(record), publishing = publishing)
     } { _.imageId.isEmpty option Ok }
@@ -77,10 +83,10 @@ object CatchesSession extends Controller {
         value <- vt.json[SessionValue]
         given <- value.record
         image <- value.imageId.flatMap(Images.get)
-        report <- CatchReports.addNew(user, given.geoinfo, given.location, given.date)
+        report <- CatchReports.addNew(user, given.location.geoinfo, given.location.name, given.dateAt)
         photo <- Photos.addNew(report, image)
         _ <- report.addComment(given.comment)
-        if given.catches.map { fish =>
+        if given.fishes.map { fish =>
           FishSizes.addNew(photo, fish.name, fish.count, fish.weight.map(_.tupled), fish.length.map(_.tupled)).isDefined
         }.forall(_ == true)
       } yield {
@@ -109,7 +115,7 @@ object CatchesSession extends Controller {
   }
   def publish(way: String, token: String)(record: Record, image: Storage.S3File): Future[Result] = {
     def mkMessage = {
-      val catches = record.catches.map { fish =>
+      val catches = record.fishes.map { fish =>
         val size = List(
           fish.length.map { v => f"${v.value} ${v.unit}" },
           fish.weight.map { v => f"${v.value} ${v.unit}" }
@@ -131,7 +137,7 @@ object CatchesSession extends Controller {
           case Some(id) => Ok
           case None     => InternalServerError(f"Failed to publish to $way")
         })
-      case _ => Future(NotImplemented)
+      case _ => Future(NotImplemented(f"No way for Publishing '${way}'"))
     }
   }
 }
