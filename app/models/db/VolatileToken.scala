@@ -35,7 +35,7 @@ case class VolatileToken(id: String,
       VolatileTokens.extra(extra),
       VolatileTokens.expiration(expiration)
     ))(for {
-      (n, v) <- Map(VolatileTokens.extra(extra))
+      (n, v) <- Map(VolatileTokens.extra(this.extra))
     } yield n -> new ExpectedAttributeValue(v).withComparisonOperator(ComparisonOperator.EQ))
   }
   def setExtra(text: String) = update(extra = Some(text))

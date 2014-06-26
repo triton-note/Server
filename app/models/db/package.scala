@@ -188,7 +188,7 @@ package db {
         val request = {
           val u = for {
             (n, v) <- attributes.toMap - id.name - createdAt.name + lastModifiedAt(Option(currentTimestamp))
-          } yield n -> new AttributeValueUpdate().withAction(AttributeAction.ADD).withValue(v)
+          } yield n -> new AttributeValueUpdate(v, AttributeAction.PUT)
           new UpdateItemRequest(tableName, key, u, "ALL_NEW").withExpected(expected)
         }
         for {
