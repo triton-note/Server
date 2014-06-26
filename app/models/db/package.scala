@@ -68,7 +68,7 @@ package db {
     /**
      * All columns
      */
-    def allColumns: List[Column[_]]
+    val allColumns: List[Column[_]]
     /**
      * Mapping to Object from AttributeValues
      * return None if failure.
@@ -92,6 +92,24 @@ package db {
         o <- fromMap(item.toMap)
       } yield o
     }
+    def scan[A](conditions: Map[String, Condition], names: String*)(convert: Map[String, AttributeValue] => Option[A]): Set[A] = {
+      val request = new ScanRequest().withTableName(tableName).withAttributesToGet(names).withScanFilter(conditions)
+      try {
+        for {
+          result <- Option(client scan request).toSet
+          if { Logger.debug(f"Result of scaning ${tableName}: ${result}"); true }
+          item <- result.getItems
+          o <- convert(item.toMap)
+        } yield o
+      } catch {
+        case ex: Exception =>
+          Logger.error(f"Failed to scan items: ${ex.getMessage}", ex)
+          Set()
+      }
+    }
+    def scan(conditions: Map[String, Condition]): Set[T] = {
+      scan(conditions, allColumns.map(_.name): _*)(fromMap(_))
+    }
   }
   object TimestampedTable {
     type ObjType[K] = {
@@ -113,7 +131,7 @@ package db {
     /**
      * Columns at this class
      */
-    val superColumns = List(id, createdAt, lastModifiedAt)
+    lazy val superColumns = List(id, createdAt, lastModifiedAt)
     /**
      * Other columns of which is defined in subclass.
      */
@@ -121,7 +139,7 @@ package db {
     /**
      * All columns
      */
-    def allColumns: List[Column[_]] = superColumns ::: columns
+    lazy val allColumns: List[Column[_]] = superColumns ::: columns
     /**
      * Delete item.
      *
@@ -198,21 +216,6 @@ package db {
         case ex: Exception =>
           Logger error (f"Failed to put ${tableName}", ex)
           None
-      }
-    }
-    def scan(conditions: Map[String, Condition]): Set[T] = {
-      val request = new ScanRequest().withTableName(tableName).withAttributesToGet(id.name).withScanFilter(conditions)
-      try {
-        for {
-          result <- Option(client scan request).toSet
-          if { Logger.debug(f"Result of scaning ${tableName}: ${result}"); true }
-          item <- result.getItems
-          o <- get(id build item.toMap)
-        } yield o
-      } catch {
-        case ex: Exception =>
-          Logger.error(f"Failed to delete items: ${ex.getMessage}", ex)
-          Set()
       }
     }
   }
