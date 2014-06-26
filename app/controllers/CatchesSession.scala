@@ -6,8 +6,9 @@ import scala.concurrent.Future
 
 import scalaz.Scalaz._
 
-import play.api.libs.functional.syntax._
-import play.api.libs.json._
+import play.api.Logger
+import play.api.libs.functional.syntax.{functionalCanBuildApplicative, toFunctionalBuilderOps}
+import play.api.libs.json.{Json, __}
 import play.api.mvc.{Action, Controller, Result}
 
 import models.{GeoInfo, Record, Settings, Storage}
@@ -36,6 +37,7 @@ object CatchesSession extends Controller {
     (__ \ "geoinfo").readNullable[GeoInfo])
   ) { implicit request =>
     val geoinfo = request.body
+    Logger debug f"Starting session by ${ticket} on ${geoinfo}"
     Future {
       ticket.asTokenOfUser[TicketValue] match {
         case None => BadRequest("Ticket Expired")
@@ -46,9 +48,10 @@ object CatchesSession extends Controller {
       }
     }
   }
-  def photo(session: String) = Action.async(parse.temporaryFile) { implicit request =>
-    val file = request.body.file
-    Images.addNew(file) match {
+  def photo(session: String) = Action.async(parse.multipartFormData) { implicit request =>
+    val file = request.body.files.headOption.map(_.ref.file)
+    Logger debug f"Saving photo: $file in ${request.body.files}"
+    file.flatMap(Images.addNew) match {
       case None => Future(InternalServerError("Failed to save photo"))
       case Some(image) =>
         mayCommit(session) {

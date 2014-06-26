@@ -91,7 +91,8 @@ object Images extends AutoIDTable[Image]("IMAGE") {
    */
   def addNew(imageFile: java.io.File): Option[Image] = {
     for {
-      bi <- allCatch opt ImageIO.read(imageFile)
+      biOpt <- allCatch opt ImageIO.read(imageFile)
+      bi <- Option(biOpt)
       image <- addNew(imageFile.length, bi.getWidth, bi.getHeight)
     } yield {
       image.file write imageFile
