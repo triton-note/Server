@@ -43,8 +43,8 @@ case class VolatileToken(id: String,
   def changeExpiration(theNext: Date) = update(expiration = theNext)
 }
 object VolatileTokens extends AnyIDTable[VolatileToken]("VOLATILE_TOKEN") {
-  val expiration = Column[Date]("EXPIRATION", (_.expiration), (_.getDate), attrDate)
-  val extra = Column[Option[String]]("EXTRA", (_.extra), (_.getS.opt), attrString)
+  val expiration = Column[Date]("EXPIRATION", (_.expiration), (_.getDate.get), attrDate)
+  val extra = Column[Option[String]]("EXTRA", (_.extra), (_.getString), attrString)
   // All columns
   val columns = List(expiration, extra)
   def fromMap(implicit map: Map[String, AttributeValue]): Option[VolatileToken] = allCatch opt VolatileToken(

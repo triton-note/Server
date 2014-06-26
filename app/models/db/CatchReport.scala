@@ -46,10 +46,10 @@ case class CatchReport(id: Long,
 
 object CatchReports extends AutoIDTable[CatchReport]("CATCH_REPORT") {
   val user = Column[Option[User]]("USER", (_.user), (_.get(Users)), attrObjStringID)
-  val timestamp = Column[Date]("TIMESTAMP", (_.timestamp), (_.getDate), attrDate)
-  val location = Column[String]("LOCATION", (_.location), (_.getS), attrString)
-  val latitude = Column[Double]("LATITUDE", (_.latitude), (_.getDouble), attrDouble)
-  val longitude = Column[Double]("LONGITUDE", (_.longitude), (_.getDouble), attrDouble)
+  val timestamp = Column[Date]("TIMESTAMP", (_.timestamp), (_.getDate.get), attrDate)
+  val location = Column[String]("LOCATION", (_.location), (_.getString.get), attrString)
+  val latitude = Column[Double]("LATITUDE", (_.latitude), (_.getDouble.get), attrDouble)
+  val longitude = Column[Double]("LONGITUDE", (_.longitude), (_.getDouble.get), attrDouble)
   // All columns
   val columns = List(timestamp, latitude, longitude)
   def fromMap(implicit map: Map[String, AttributeValue]): Option[CatchReport] = allCatch opt CatchReport(

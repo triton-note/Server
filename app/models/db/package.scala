@@ -9,6 +9,8 @@ import scalaz.Scalaz._
 
 import play.api.Logger
 
+import org.fathens.play.util.Exception.allCatch
+
 import com.amazonaws.services.dynamodbv2.model._
 
 import service.AWS.DynamoDB.client
@@ -21,22 +23,22 @@ package object db {
     def format(date: Date) = com.amazonaws.util.DateUtils.formatISO8601Date(date)
     def parse(s: String) = com.amazonaws.util.DateUtils.parseISO8601Date(s)
   }
-  implicit class NullOption[A](a: A) {
-    def opt: Option[A] = Option(a)
-  }
 }
 package db {
   trait TableRoot[T] {
     /**
      * Extension for AttribueValue
      */
-    implicit class AttributeValueOpt(av: AttributeValue) {
+    implicit class AttributeValueExt(av: AttributeValue) {
       def isEmpty: Boolean = new AttributeValue == av
-      def getDouble: Double = av.getN.toDouble
-      def getLong: Long = av.getN.toLong
-      def getDate: Date = Option(av.getS).map(dateFormat.parse).orNull
-      def get[O <: TimestampedTable.ObjType[Long]](t: AutoIDTable[O]): Option[O] = t.get(av.getLong)
-      def get[O <: TimestampedTable.ObjType[String]](t: AnyIDTable[O]): Option[O] = t.get(av.getS)
+    }
+    class AttributeValueWrapper(av: AttributeValue) {
+      def getString: Option[String] = Option(av.getS)
+      def getDouble: Option[Double] = Option(av.getN).flatMap(allCatch opt _.toDouble)
+      def getLong: Option[Long] = Option(av.getN).flatMap(allCatch opt _.toLong)
+      def getDate: Option[Date] = getString.flatMap(allCatch opt dateFormat.parse(_))
+      def get[O <: TimestampedTable.ObjType[Long]](t: AutoIDTable[O]): Option[O] = getLong.flatMap(t.get)
+      def get[O <: TimestampedTable.ObjType[String]](t: AnyIDTable[O]): Option[O] = getString.flatMap(t.get)
     }
     // for String
     implicit def attrString(s: String) = new AttributeValue().withS(s)
@@ -59,14 +61,14 @@ package db {
     /**
      * Representation of column.
      */
-    case class Column[A](name: String, getProp: T => A, valueOf: AttributeValue => A, toAttr: A => AttributeValue) {
+    case class Column[A](name: String, getProp: T => A, valueOf: AttributeValueWrapper => A, toAttr: A => AttributeValue) {
       def apply(a: A): (String, AttributeValue) = name -> toAttr(a)
-      def build(implicit map: Map[String, AttributeValue]): A = valueOf(map.getOrElse(name, new AttributeValue))
+      def build(implicit map: Map[String, AttributeValue]): A = valueOf(new AttributeValueWrapper(map.getOrElse(name, new AttributeValue)))
     }
     /**
      * All columns
      */
-    val allColumns: List[Column[_]]
+    def allColumns: List[Column[_]]
     /**
      * Mapping to Object from AttributeValues
      * return None if failure.
@@ -103,11 +105,11 @@ package db {
     /**
      * Column 'CREATED_AT'
      */
-    val createdAt = Column[Date]("CREATED_AT", (_.createdAt), (_.getDate), attrDate)
+    val createdAt = Column[Date]("CREATED_AT", (_.createdAt), (_.getDate.get), attrDate)
     /**
      * Column 'LAST_MODIFIED_AT'
      */
-    val lastModifiedAt = Column[Option[Date]]("LAST_MODIFIED_AT", (_.lastModifiedAt), (_.getDate.opt), attrDate)
+    val lastModifiedAt = Column[Option[Date]]("LAST_MODIFIED_AT", (_.lastModifiedAt), (_.getDate), attrDate)
     /**
      * Columns at this class
      */
@@ -119,7 +121,7 @@ package db {
     /**
      * All columns
      */
-    lazy val allColumns: List[Column[_]] = superColumns ::: columns
+    def allColumns: List[Column[_]] = superColumns ::: columns
     /**
      * Delete item.
      *
@@ -218,7 +220,7 @@ package db {
     /**
      * Column 'ID'
      */
-    val id = Column[String]("ID", (_.id), (_.getS), attrString)
+    val id = Column[String]("ID", (_.id), (_.getString.get), attrString)
     /**
      * Add item.
      *
@@ -232,7 +234,7 @@ package db {
     /**
      * Column 'ID'
      */
-    val id = Column[Long]("ID", (_.id), (_.getLong), attrLong)
+    val id = Column[Long]("ID", (_.id), (_.getLong.get), attrLong)
     /**
      * Generating ID by random numbers.
      */
