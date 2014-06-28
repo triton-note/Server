@@ -1,10 +1,12 @@
 package models.db
 
 import java.util.Date
-import scala.util.control.Exception._
-import scalaz._
-import Scalaz._
+
+import scala.math.BigDecimal.double2bigDecimal
+import scala.util.control.Exception.allCatch
+
 import com.amazonaws.services.dynamodbv2.model._
+
 import models.GeoInfo
 
 case class CatchReport(id: Long,
@@ -12,6 +14,7 @@ case class CatchReport(id: Long,
                        lastModifiedAt: Option[Date],
                        user: Option[User],
                        timestamp: Date,
+                       location: String,
                        latitude: Double,
                        longitude: Double) {
   /**
@@ -30,7 +33,7 @@ case class CatchReport(id: Long,
   /**
    * All comments
    */
-  lazy val comments: List[Comment] = Comments.find(Comments.catchReport(Option(this))).toList.sortBy {
+  lazy val comments: List[Comment] = Comments.find(Map(Comments.catchReport(Option(this)))).toList.sortBy {
     a => a.lastModifiedAt getOrElse a.createdAt
   }
   /**
@@ -43,9 +46,10 @@ case class CatchReport(id: Long,
 
 object CatchReports extends AutoIDTable[CatchReport]("CATCH_REPORT") {
   val user = Column[Option[User]]("USER", (_.user), (_.get(Users)), attrObjStringID)
-  val timestamp = Column[Date]("TIMESTAMP", (_.timestamp), (_.getDate), attrDate)
-  val latitude = Column[Double]("LATITUDE", (_.latitude), (_.getDouble), attrDouble)
-  val longitude = Column[Double]("LONGITUDE", (_.longitude), (_.getDouble), attrDouble)
+  val timestamp = Column[Date]("TIMESTAMP", (_.timestamp), (_.getDate.get), attrDate)
+  val location = Column[String]("LOCATION", (_.location), (_.getString.get), attrString)
+  val latitude = Column[Double]("LATITUDE", (_.latitude), (_.getDouble.get), attrDouble)
+  val longitude = Column[Double]("LONGITUDE", (_.longitude), (_.getDouble.get), attrDouble)
   // All columns
   val columns = List(timestamp, latitude, longitude)
   def fromMap(implicit map: Map[String, AttributeValue]): Option[CatchReport] = allCatch opt CatchReport(
@@ -54,16 +58,18 @@ object CatchReports extends AutoIDTable[CatchReport]("CATCH_REPORT") {
     lastModifiedAt.build,
     user.build,
     timestamp.build,
+    location.build,
     latitude.build,
     longitude.build
   )
   /**
    * Add new
    */
-  def addNew(theUser: User, theGeoinfo: GeoInfo, theTimestamp: Date): Option[CatchReport] = addNew(
+  def addNew(theUser: User, theGeoinfo: GeoInfo, theLocation: String, theTimestamp: Date): Option[CatchReport] = addNew(
     user(Some(theUser)),
     timestamp(theTimestamp),
-    latitude(theGeoinfo.latitude),
-    longitude(theGeoinfo.longitude)
+    location(theLocation),
+    latitude(theGeoinfo.latitude.toDouble),
+    longitude(theGeoinfo.longitude.toDouble)
   )
 }

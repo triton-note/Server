@@ -1,18 +1,22 @@
 package models.db
 
 import java.util.Date
-import scala.util.control.Exception._
-import scalaz._
-import Scalaz._
-import com.amazonaws.services.dynamodbv2.model._
+
+import javax.imageio.ImageIO
+
 import scala.concurrent.duration._
+
+import org.fathens.play.util.Exception.allCatch
+
+import com.amazonaws.services.dynamodbv2.model._
+
 import models.Storage
 
 case class Photo(id: Long,
-                 createdAt: Date,
-                 lastModifiedAt: Option[Date],
-                 catchReport: Option[CatchReport],
-                 image: Option[Image]) {
+  createdAt: Date,
+  lastModifiedAt: Option[Date],
+  catchReport: Option[CatchReport],
+  image: Option[Image]) {
   /**
    * Reload from DB.
    * If there is no longer me, returns None.
@@ -45,13 +49,13 @@ object Photos extends AutoIDTable[Photo]("PHOTO") {
 }
 
 case class Image(id: Long,
-                 createdAt: Date,
-                 lastModifiedAt: Option[Date],
-                 kind: String,
-                 format: String,
-                 dataSize: Long,
-                 width: Long,
-                 height: Long) {
+  createdAt: Date,
+  lastModifiedAt: Option[Date],
+  kind: String,
+  format: String,
+  dataSize: Long,
+  width: Long,
+  height: Long) {
   /**
    * Reload from DB.
    * If there is no longer me, returns None.
@@ -65,11 +69,11 @@ case class Image(id: Long,
   def url(implicit limit: FiniteDuration = 1 minute) = file.generateURL(limit)
 }
 object Images extends AutoIDTable[Image]("IMAGE") {
-  val kind = Column[String]("KIND", (_.kind), (_.getS), attrString)
-  val format = Column[String]("FORMAT", (_.format), (_.getS), attrString)
-  val dataSize = Column[Long]("DATA_SIZE", (_.dataSize), (_.getLong), attrLong)
-  val width = Column[Long]("WIDTH", (_.width), (_.getLong), attrLong)
-  val height = Column[Long]("HEIGHT", (_.height), (_.getLong), attrLong)
+  val kind = Column[String]("KIND", (_.kind), (_.getString.get), attrString)
+  val format = Column[String]("FORMAT", (_.format), (_.getString.get), attrString)
+  val dataSize = Column[Long]("DATA_SIZE", (_.dataSize), (_.getLong.get), attrLong)
+  val width = Column[Long]("WIDTH", (_.width), (_.getLong.get), attrLong)
+  val height = Column[Long]("HEIGHT", (_.height), (_.getLong.get), attrLong)
   // All columns
   val columns = List(kind, format, dataSize, width, height)
   def fromMap(implicit map: Map[String, AttributeValue]): Option[Image] = allCatch opt Image(
@@ -85,8 +89,18 @@ object Images extends AutoIDTable[Image]("IMAGE") {
   /**
    * Add new image data
    */
+  def addNew(imageFile: java.io.File): Option[Image] = {
+    for {
+      biOpt <- allCatch opt ImageIO.read(imageFile)
+      bi <- Option(biOpt)
+      image <- addNew(imageFile.length, bi.getWidth, bi.getHeight)
+    } yield {
+      image.file write imageFile
+      image
+    }
+  }
   def addNew(theDataSize: Long, theWidth: Long, theHeight: Long,
-             theFormat: String = "JPEG", theKind: String = KIND_ORIGINAL): Option[Image] = addNew(
+    theFormat: String = "JPEG", theKind: String = KIND_ORIGINAL): Option[Image] = addNew(
     kind(theKind),
     format(theFormat),
     dataSize(theDataSize),
@@ -97,11 +111,11 @@ object Images extends AutoIDTable[Image]("IMAGE") {
 }
 
 case class ImageRelation(id: Long,
-                         createdAt: Date,
-                         lastModifiedAt: Option[Date],
-                         imageSrc: Option[Image],
-                         imageDst: Option[Image],
-                         relation: String) {
+  createdAt: Date,
+  lastModifiedAt: Option[Date],
+  imageSrc: Option[Image],
+  imageDst: Option[Image],
+  relation: String) {
   /**
    * Reload from DB.
    * If there is no longer me, returns None.
@@ -115,7 +129,7 @@ case class ImageRelation(id: Long,
 object ImageRelations extends AutoIDTable[ImageRelation]("IMAGE_RELATION") {
   val imageSrc = Column[Option[Image]]("IMAGE_SRC", (_.imageSrc), (_.get(Images)), attrObjLongID)
   val imageDst = Column[Option[Image]]("IMAGE_DST", (_.imageDst), (_.get(Images)), attrObjLongID)
-  val relation = Column[String]("RELATION", (_.relation), (_.getS), attrString)
+  val relation = Column[String]("RELATION", (_.relation), (_.getString.get), attrString)
   // All columns
   val columns = List(imageSrc, imageDst, relation)
   def fromMap(implicit map: Map[String, AttributeValue]): Option[ImageRelation] = allCatch opt ImageRelation(

@@ -1,26 +1,26 @@
 package models
 
+import scala.math.{BigDecimal, cos, pow, sin, sqrt}
+
+import play.api.libs.json._
+
 /**
  * Hold geographic location, latitude and longitude, in degrees.
  */
-case class GeoInfo(latitude: Double, longitude: Double) {
+case class GeoInfo(latitude: BigDecimal, longitude: BigDecimal) {
   import GeoInfo._
   object radian {
-    lazy val lat = latitude.toRadians
-    lazy val lng = longitude.toRadians
+    lazy val lat = latitude.toDouble.toRadians
+    lazy val lng = longitude.toDouble.toRadians
   }
   def distanceTo(o: GeoInfo) = hubeny.dictance(this, o)
 }
 object GeoInfo {
-  def apply(a: Option[Double], o: Option[Double]): Option[GeoInfo] = for {
-    la <- a
-    lo <- o
-  } yield apply(la, lo)
+  implicit val geoinfoFormat = Json.format[GeoInfo]
   /**
    * Estimation of distance by Hubeny's formula
    */
   object hubeny {
-    import math._
     /**
      * Calculate distance in meter
      */
