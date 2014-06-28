@@ -1,9 +1,9 @@
 package models.db
 
 import java.util.Date
-import scala.util.control.Exception._
-import scalaz._
-import Scalaz._
+
+import scala.util.control.Exception.allCatch
+
 import com.amazonaws.services.dynamodbv2.model._
 
 case class Comment(id: Long,
@@ -31,7 +31,7 @@ case class Comment(id: Long,
 object Comments extends AutoIDTable[Comment]("COMMENT") {
   val user = Column[Option[User]]("USER", (_.user), (_.get(Users)), attrObjStringID)
   val catchReport = Column[Option[CatchReport]]("CATCH_REPORT", (_.catchReport), (_.get(CatchReports)), attrObjLongID)
-  val text = Column[String]("TEXT", (_.text), (_.getS), attrString)
+  val text = Column[String]("TEXT", (_.text), (_.getString getOrElse ""), attrString)
   // All columns
   val columns = List(user, catchReport, text)
   def fromMap(implicit map: Map[String, AttributeValue]): Option[Comment] = allCatch opt Comment(

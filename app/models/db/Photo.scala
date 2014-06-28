@@ -69,11 +69,11 @@ case class Image(id: Long,
   def url(implicit limit: FiniteDuration = 1 minute) = file.generateURL(limit)
 }
 object Images extends AutoIDTable[Image]("IMAGE") {
-  val kind = Column[String]("KIND", (_.kind), (_.getS), attrString)
-  val format = Column[String]("FORMAT", (_.format), (_.getS), attrString)
-  val dataSize = Column[Long]("DATA_SIZE", (_.dataSize), (_.getLong), attrLong)
-  val width = Column[Long]("WIDTH", (_.width), (_.getLong), attrLong)
-  val height = Column[Long]("HEIGHT", (_.height), (_.getLong), attrLong)
+  val kind = Column[String]("KIND", (_.kind), (_.getString.get), attrString)
+  val format = Column[String]("FORMAT", (_.format), (_.getString.get), attrString)
+  val dataSize = Column[Long]("DATA_SIZE", (_.dataSize), (_.getLong.get), attrLong)
+  val width = Column[Long]("WIDTH", (_.width), (_.getLong.get), attrLong)
+  val height = Column[Long]("HEIGHT", (_.height), (_.getLong.get), attrLong)
   // All columns
   val columns = List(kind, format, dataSize, width, height)
   def fromMap(implicit map: Map[String, AttributeValue]): Option[Image] = allCatch opt Image(
@@ -91,7 +91,8 @@ object Images extends AutoIDTable[Image]("IMAGE") {
    */
   def addNew(imageFile: java.io.File): Option[Image] = {
     for {
-      bi <- allCatch opt ImageIO.read(imageFile)
+      biOpt <- allCatch opt ImageIO.read(imageFile)
+      bi <- Option(biOpt)
       image <- addNew(imageFile.length, bi.getWidth, bi.getHeight)
     } yield {
       image.file write imageFile
@@ -128,7 +129,7 @@ case class ImageRelation(id: Long,
 object ImageRelations extends AutoIDTable[ImageRelation]("IMAGE_RELATION") {
   val imageSrc = Column[Option[Image]]("IMAGE_SRC", (_.imageSrc), (_.get(Images)), attrObjLongID)
   val imageDst = Column[Option[Image]]("IMAGE_DST", (_.imageDst), (_.get(Images)), attrObjLongID)
-  val relation = Column[String]("RELATION", (_.relation), (_.getS), attrString)
+  val relation = Column[String]("RELATION", (_.relation), (_.getString.get), attrString)
   // All columns
   val columns = List(imageSrc, imageDst, relation)
   def fromMap(implicit map: Map[String, AttributeValue]): Option[ImageRelation] = allCatch opt ImageRelation(

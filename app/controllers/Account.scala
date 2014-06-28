@@ -20,6 +20,7 @@ object Account extends Controller {
     (__ \ "token").read[String]
   )) { implicit request =>
     val token = request.body
+    Logger info f"Authorizing ${way}(${token})"
     auth(way, token).map { u =>
       Logger debug f"Authorized user from $way: $u"
       u map { user =>

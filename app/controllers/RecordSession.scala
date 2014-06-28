@@ -7,10 +7,10 @@ import scala.concurrent.duration._
 
 import play.api.libs.functional.syntax._
 import play.api.libs.json._
-import play.api.mvc.{Action, Controller}
+import play.api.mvc.{ Action, Controller }
 
 import models.Record
-import models.db.{CatchReports, FishSizes, Photos}
+import models.db.{ CatchReports, FishSizes, Photos }
 
 object RecordSession extends Controller {
 
@@ -29,18 +29,17 @@ object RecordSession extends Controller {
             val photos = Photos.find(Map(
               Photos.catchReport(Some(report))
             ))
-            val catches = photos.flatMap { photo =>
+            val fishes = photos.flatMap { photo =>
               FishSizes.find(Map(
                 FishSizes.photo(Some(photo))
               ))
             }
             Record(comment,
               report.createdAt,
-              report.location,
-              report.geoinfo,
+              Record.Location(report.location, report.geoinfo),
               photos.headOption.flatMap(_.image).map(_.file.generateURL(1 hour).toString),
-              catches.toSeq.map { fish =>
-                Record.Catches(fish.name, fish.count.toInt, fish.weight.map(Record.ValueUnit.tupled), fish.length.map(Record.ValueUnit.tupled))
+              fishes.toSeq.map { fish =>
+                Record.Fishes(fish.name, fish.count.toInt, fish.weight.map(Record.ValueUnit.tupled), fish.length.map(Record.ValueUnit.tupled))
               })
           }
           Ok(Json toJson records)

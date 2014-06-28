@@ -9,6 +9,8 @@ import scalaz.Scalaz._
 
 import play.api.Logger
 
+import org.fathens.play.util.Exception.allCatch
+
 import com.amazonaws.services.dynamodbv2.model._
 
 import service.AWS.DynamoDB.client
@@ -27,17 +29,21 @@ package db {
     /**
      * Extension for AttribueValue
      */
-    implicit class AttributeValueOpt(av: AttributeValue) {
-      def getDouble: Double = av.getN.toDouble
-      def getLong: Long = av.getN.toLong
-      def getDate: Date = av.getS.some.map(dateFormat.parse).orNull
-      def get[O <: TimestampedTable.ObjType[Long]](t: AutoIDTable[O]): Option[O] = t.get(av.getLong)
-      def get[O <: TimestampedTable.ObjType[String]](t: AnyIDTable[O]): Option[O] = t.get(av.getS)
+    implicit class AttributeValueExt(av: AttributeValue) {
+      def isEmpty: Boolean = new AttributeValue == av
+    }
+    class AttributeValueWrapper(av: AttributeValue) {
+      def getString: Option[String] = Option(av.getS)
+      def getDouble: Option[Double] = Option(av.getN).flatMap(allCatch opt _.toDouble)
+      def getLong: Option[Long] = Option(av.getN).flatMap(allCatch opt _.toLong)
+      def getDate: Option[Date] = getString.flatMap(allCatch opt dateFormat.parse(_))
+      def get[O <: TimestampedTable.ObjType[Long]](t: AutoIDTable[O]): Option[O] = getLong.flatMap(t.get)
+      def get[O <: TimestampedTable.ObjType[String]](t: AnyIDTable[O]): Option[O] = getString.flatMap(t.get)
     }
     // for String
-    implicit def attrString(s: String) = new AttributeValue().withS(s)
-    implicit def attrString(s: Option[String]) = new AttributeValue().withS(s.orNull)
-    implicit def attrString(ss: Set[String]) = new AttributeValue().withSS(ss)
+    implicit def attrString(s: String) = new AttributeValue().withS(if (s != null && s.length > 0) s else null )
+    implicit def attrString(s: Option[String]) = new AttributeValue().withS(s.flatMap(v => if (v != null && v.length > 0) Some(v) else None).orNull)
+    implicit def attrString(ss: Set[String]) = new AttributeValue().withSS(ss.filter(s => s != null && s.length > 0))
     // for Double
     implicit def attrDouble(n: Double) = new AttributeValue().withN(numberFormat(n))
     implicit def attrDouble(n: Option[Double]) = new AttributeValue().withN(n.map(numberFormat).orNull)
@@ -51,13 +57,13 @@ package db {
     implicit def attrDate(date: Option[Date]) = new AttributeValue().withS(date.map(dateFormat.format).orNull)
     // for ArrangedTableObj
     implicit def attrObjLongID(o: Option[TimestampedTable.ObjType[Long]]) = new AttributeValue().withN(o.map(_.id).map(numberFormat).orNull)
-    implicit def attrObjStringID(o: Option[TimestampedTable.ObjType[String]]) = new AttributeValue().withN(o.map(_.id).orNull)
+    implicit def attrObjStringID(o: Option[TimestampedTable.ObjType[String]]) = new AttributeValue().withS(o.map(_.id).orNull)
     /**
      * Representation of column.
      */
-    case class Column[A](name: String, getProp: T => A, valueOf: AttributeValue => A, toAttr: A => AttributeValue) {
+    case class Column[A](name: String, getProp: T => A, valueOf: AttributeValueWrapper => A, toAttr: A => AttributeValue) {
       def apply(a: A): (String, AttributeValue) = name -> toAttr(a)
-      def build(implicit map: Map[String, AttributeValue]): A = valueOf(map(name))
+      def build(implicit map: Map[String, AttributeValue]): A = valueOf(new AttributeValueWrapper(map.getOrElse(name, new AttributeValue)))
     }
     /**
      * All columns
@@ -86,6 +92,24 @@ package db {
         o <- fromMap(item.toMap)
       } yield o
     }
+    def scan[A](conditions: Map[String, Condition], names: String*)(convert: Map[String, AttributeValue] => Option[A]): Set[A] = {
+      val request = new ScanRequest().withTableName(tableName).withAttributesToGet(names).withScanFilter(conditions)
+      try {
+        for {
+          result <- Option(client scan request).toSet
+          if { Logger.debug(f"Result of scaning ${tableName}: ${result}"); true }
+          item <- result.getItems
+          o <- convert(item.toMap)
+        } yield o
+      } catch {
+        case ex: Exception =>
+          Logger.error(f"Failed to scan items: ${ex.getMessage}", ex)
+          Set()
+      }
+    }
+    def scan(conditions: Map[String, Condition]): Set[T] = {
+      scan(conditions, allColumns.map(_.name): _*)(fromMap(_))
+    }
   }
   object TimestampedTable {
     type ObjType[K] = {
@@ -99,15 +123,15 @@ package db {
     /**
      * Column 'CREATED_AT'
      */
-    val createdAt = Column[Date]("CREATED_AT", (_.createdAt), (_.getDate), attrDate)
+    val createdAt = Column[Date]("CREATED_AT", (_.createdAt), (_.getDate.get), attrDate)
     /**
      * Column 'LAST_MODIFIED_AT'
      */
-    val lastModifiedAt = Column[Option[Date]]("LAST_MODIFIED_AT", (_.lastModifiedAt), (_.getDate.some), attrDate)
+    val lastModifiedAt = Column[Option[Date]]("LAST_MODIFIED_AT", (_.lastModifiedAt), (_.getDate), attrDate)
     /**
      * Columns at this class
      */
-    val superColumns = List(id, createdAt, lastModifiedAt)
+    lazy val superColumns = List(id, createdAt, lastModifiedAt)
     /**
      * Other columns of which is defined in subclass.
      */
@@ -164,7 +188,7 @@ package db {
         val request = {
           val u = for {
             (n, v) <- attributes.toMap - id.name - createdAt.name + lastModifiedAt(Option(currentTimestamp))
-          } yield n -> new AttributeValueUpdate().withAction(AttributeAction.ADD).withValue(v)
+          } yield n -> new AttributeValueUpdate(v, AttributeAction.PUT)
           new UpdateItemRequest(tableName, key, u, "ALL_NEW").withExpected(expected)
         }
         for {
@@ -179,27 +203,14 @@ package db {
           None
       }
     }
-  }
-  abstract class AnyIDTable[T <: TimestampedTable.ObjType[String]](val tableName: String) extends TimestampedTable[String, T] {
-    /**
-     * Column 'ID'
-     */
-    val id = Column[String]("ID", (_.id), (_.getS), attrString)
-    /**
-     * Add item.
-     *
-     * @return New item which has proper id.
-     */
-    def addNew(key: String, attributes: (String, AttributeValue)*): Option[T] = {
-      val map = (attributes.toMap - id.name - createdAt.name - lastModifiedAt.name) +
-        id(key) + createdAt(currentTimestamp)
+    def putNew(attributes: Map[String, AttributeValue]): Option[T] = {
+      val map = (attributes - createdAt.name - lastModifiedAt.name + createdAt(currentTimestamp)).filter(!_._2.isEmpty)
       Logger debug f"Putting ${tableName} by ${map}"
       try {
         for {
           result <- Option(client.putItem(tableName, map))
-          if { Logger.debug(f"Put ${tableName} ${result}"); true }
-          item <- Option(result.getAttributes)
-          o <- fromMap(item.toMap)
+          if { Logger.debug(f"Result of putting ${tableName}: ${result}"); true }
+          o <- fromMap(map)
         } yield o
       } catch {
         case ex: Exception =>
@@ -208,11 +219,25 @@ package db {
       }
     }
   }
+  abstract class AnyIDTable[T <: TimestampedTable.ObjType[String]](val tableName: String) extends TimestampedTable[String, T] {
+    /**
+     * Column 'ID'
+     */
+    val id = Column[String]("ID", (_.id), (_.getString.get), attrString)
+    /**
+     * Add item.
+     *
+     * @return New item which has proper id.
+     */
+    def addNew(key: String, attributes: (String, AttributeValue)*): Option[T] = {
+      putNew(attributes.toMap - id.name + id(key))
+    }
+  }
   abstract class AutoIDTable[T <: TimestampedTable.ObjType[Long]](val tableName: String) extends TimestampedTable[Long, T] {
     /**
      * Column 'ID'
      */
-    val id = Column[Long]("ID", (_.id), (_.getLong), attrLong)
+    val id = Column[Long]("ID", (_.id), (_.getLong.get), attrLong)
     /**
      * Generating ID by random numbers.
      */
@@ -233,21 +258,7 @@ package db {
      * @return New item which has proper id.
      */
     def addNew(attributes: (String, AttributeValue)*): Option[T] = {
-      val map = (attributes.toMap - id.name - createdAt.name - lastModifiedAt.name) +
-        id(generateID) + createdAt(currentTimestamp)
-      Logger debug f"Putting ${tableName} by ${map}"
-      try {
-        for {
-          result <- Option(client.putItem(tableName, map))
-          if { Logger.debug(f"Put ${tableName} ${result}"); true }
-          item <- Option(result.getAttributes)
-          o <- fromMap(item.toMap)
-        } yield o
-      } catch {
-        case ex: Exception =>
-          Logger error (f"Failed to put ${tableName}", ex)
-          None
-      }
+      putNew(attributes.toMap - id.name + id(generateID))
     }
   }
 }

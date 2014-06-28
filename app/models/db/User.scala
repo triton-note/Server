@@ -47,12 +47,12 @@ case class User(id: String,
   }
 }
 object Users extends AnyIDTable[User]("USER") {
-  val password = Column[Option[String]]("PASSWORD", (_.password), (_.getS.some), attrString)
-  val firstName = Column[String]("FIRST_NAME", (_.firstName), (_.getS), attrString)
-  val lastName = Column[String]("LAST_NAME", (_.lastName), (_.getS), attrString)
-  val avatarUrl = Column[Option[String]]("AVATAR_URL", (_.avatarUrl), (_.getS.some), attrString)
-  val lengthUnit = Column[String]("LENGTH_UNIT", (_.lengthUnit), (_.getS), attrString)
-  val weightUnit = Column[String]("WEIGHT_UNIT", (_.weightUnit), (_.getS), attrString)
+  val password = Column[Option[String]]("PASSWORD", (_.password), (_.getString), attrString)
+  val firstName = Column[String]("FIRST_NAME", (_.firstName), (_.getString.get), attrString)
+  val lastName = Column[String]("LAST_NAME", (_.lastName), (_.getString.get), attrString)
+  val avatarUrl = Column[Option[String]]("AVATAR_URL", (_.avatarUrl), (_.getString), attrString)
+  val lengthUnit = Column[String]("LENGTH_UNIT", (_.lengthUnit), (_.getString.get), attrString)
+  val weightUnit = Column[String]("WEIGHT_UNIT", (_.weightUnit), (_.getString.get), attrString)
   // All columns
   val columns = List(firstName, lastName, avatarUrl)
   def fromMap(implicit map: Map[String, AttributeValue]): Option[User] = allCatch opt User(
