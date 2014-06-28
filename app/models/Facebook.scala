@@ -1,6 +1,6 @@
 package models
 
-import scala.{Left, Right}
+import scala.{ Left, Right }
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
@@ -8,7 +8,8 @@ import scala.concurrent.duration.DurationInt
 import play.api.Logger
 import play.api.Play.current
 import play.api.libs.json._
-import play.api.libs.ws.{WS, WSResponse}
+import play.api.libs.ws.{ WS, WSResponse }
+import play.api.mvc.Codec.utf_8
 
 import org.fathens.play.util.Exception.allCatch
 
@@ -16,13 +17,21 @@ object Facebook {
   case class AccessKey(token: String)
   case class ObjectId(id: String)
   object fb {
-    val host = "https://graph.facebook.com"
+    lazy val host = System.getenv("FACEBOOK_HOST")
     val client = WS.client
     def /(path: String) = client url f"${host}/${path}"
   }
   object parse {
-    def JSON(res: WSResponse) = allCatch opt res.json
-    def ObjectID(res: WSResponse) = allCatch opt ObjectId((res.json \ "id").as[String])
+    def JSON(res: WSResponse) = res.status match {
+      case 200 => allCatch opt res.json
+      case _ =>
+        Logger error f"Status(${res.status}) ${res.body}"
+        None
+    }
+    def ObjectID(res: WSResponse) = for {
+      json <- JSON(res)
+      id <- (json \ "id").asOpt[String]
+    } yield ObjectId(id)
   }
   object User {
     /**
@@ -93,10 +102,10 @@ object Facebook {
   }
   object Fishing {
     def publish(photo: List[Storage.S3File], message: Option[String])(implicit accessKey: AccessKey): Future[Option[ObjectId]] = {
-      (fb / "me/triton-note:fish").withQueryString(
+      (fb / f"me/photos").withQueryString(
         "access_token" -> accessKey.token
       ).post(Map(
-          "image" -> photo.map(_.generateURL(24 hours).toString),
+          "url" -> photo.map(_.generateURL(1 hours).toString),
           "message" -> message.toSeq
         )).map(parse.ObjectID)
     }
