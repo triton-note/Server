@@ -7,13 +7,13 @@ import scala.concurrent.Future
 import scalaz.Scalaz._
 
 import play.api.Logger
-import play.api.libs.functional.syntax.{ functionalCanBuildApplicative, toFunctionalBuilderOps }
-import play.api.libs.json.{ Json, __ }
-import play.api.mvc.{ Action, Controller, Result }
+import play.api.libs.functional.syntax._
+import play.api.libs.json._
+import play.api.mvc.{Action, Controller, Result}
 
-import models.{ GeoInfo, Record, Settings, Storage }
-import models.Facebook.{ AccessKey, Fishing }
-import models.db.{ CatchReports, FishSizes, Images, Photos, User, VolatileToken, VolatileTokens }
+import models.{GeoInfo, Record, Settings}
+import models.Facebook.{AccessKey, Fishing}
+import models.db.{CatchReports, FishSizes, Image, Images, Photos, User, VolatileToken, VolatileTokens}
 import service.InferenceCatches
 
 object CatchesSession extends Controller {
@@ -92,7 +92,7 @@ object CatchesSession extends Controller {
       } yield {
         vt json value.copy(committed = Some(report.id)) match {
           case Some(vt) => value.publishing match {
-            case Some(SessionValue.Publishing(way, token)) => publish(way, token)(given, image.file)
+            case Some(SessionValue.Publishing(way, token)) => publish(way, token)(given, image)
             case None                                      => Future(Ok)
           }
           case None => Future(InternalServerError("Failed to update the session"))
@@ -113,7 +113,7 @@ object CatchesSession extends Controller {
     }
     retry(3)
   }
-  def publish(way: String, token: String)(record: Record, image: Storage.S3File): Future[Result] = {
+  def publish(way: String, token: String)(record: Record, image: Image): Future[Result] = {
     def mkMessage = {
       val catches = record.fishes.map { fish =>
         val size = List(

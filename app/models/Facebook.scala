@@ -1,17 +1,18 @@
 package models
 
-import scala.{ Left, Right }
+import scala.{Left, Right}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
-import scala.concurrent.duration.DurationInt
 
 import play.api.Logger
 import play.api.Play.current
 import play.api.libs.json._
-import play.api.libs.ws.{ WS, WSResponse }
+import play.api.libs.ws.{WS, WSResponse}
 import play.api.mvc.Codec.utf_8
 
 import org.fathens.play.util.Exception.allCatch
+
+import models.db.Image
 
 object Facebook {
   case class AccessKey(token: String)
@@ -101,11 +102,11 @@ object Facebook {
     }
   }
   object Fishing {
-    def publish(photo: List[Storage.S3File], message: Option[String])(implicit accessKey: AccessKey): Future[Option[ObjectId]] = {
+    def publish(photo: List[Image], message: Option[String])(implicit accessKey: AccessKey): Future[Option[ObjectId]] = {
       (fb / f"me/photos").withQueryString(
         "access_token" -> accessKey.token
       ).post(Map(
-          "url" -> photo.map(_.generateURL(1 hours).toString),
+          "url" -> photo.map(_.url.toString),
           "message" -> message.toSeq
         )).map(parse.ObjectID)
     }

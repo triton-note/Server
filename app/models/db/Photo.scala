@@ -68,7 +68,7 @@ case class Image(id: Long,
     Images.delete(id) && file.delete
   }
   lazy val file = Storage.file("photo", kind, id.toString)
-  def url(implicit limit: FiniteDuration = 1 minute) = file.generateURL(limit)
+  def url(implicit limit: FiniteDuration = 1 hour) = file.generateURL(limit)
 }
 object Images extends AutoIDTable[Image]("IMAGE") {
   val kind = Column[String]("KIND", (_.kind), (_.getString.get), attrString)
