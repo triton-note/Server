@@ -1,23 +1,25 @@
 package controllers
 
-import scala.annotation.migration
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
-import scala.concurrent.duration._
+import scala.concurrent.duration.DurationInt
 
-import play.api.libs.functional.syntax._
-import play.api.libs.json._
-import play.api.mvc.{ Action, Controller }
+import play.api.Logger
+import play.api.libs.functional.syntax.{functionalCanBuildApplicative, toFunctionalBuilderOps}
+import play.api.libs.json.{Json, __}
+import play.api.mvc.{Action, Controller}
 
 import models.Record
-import models.db.{ CatchReports, FishSizes, Photos }
+import models.db.{CatchReports, FishSizes, Photos}
 
 object RecordSession extends Controller {
 
   def load(ticket: String) = Action.async(parse.json((
     (__ \ "count").read[Int] and
-    (__ \ "offset").readNullable[Int]
+    (__ \ "offset").readNullable[Int].map(_ getOrElse 0)
   ).tupled)) { implicit request =>
+    val (count, offset) = request.body
+    Logger debug f"Loading records: offset(${offset}) count(${count})"
     Future {
       ticket.asTokenOfUser[TicketValue] match {
         case None => BadRequest("Ticket Expired")
