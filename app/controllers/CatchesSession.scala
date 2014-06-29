@@ -123,13 +123,9 @@ object CatchesSession extends Controller {
             case Nil  => ""
             case list => list.mkString("(", ",", ")")
           }
-        val count = fish.count match {
-          case c if c == 1 => ""
-          case c           => f" x ${c}"
-        }
-        f"${fish.name}${size}${count}"
+        f"${fish.name}${size} x ${fish.count}"
       }.mkString("\n")
-      catches + "\n\n" + record.comment
+      record.comment + "\n\n" + catches
     }
     way match {
       case "facebook" =>
