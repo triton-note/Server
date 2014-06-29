@@ -64,7 +64,9 @@ case class Image(id: Long,
   /**
    * Delete me
    */
-  def delete: Boolean = Images.delete(id)
+  def delete: Boolean = {
+    Images.delete(id) && file.delete
+  }
   lazy val file = Storage.file("photo", kind, id.toString)
   def url(implicit limit: FiniteDuration = 1 minute) = file.generateURL(limit)
 }
