@@ -9,11 +9,11 @@ import scalaz.Scalaz._
 import play.api.Logger
 import play.api.libs.functional.syntax._
 import play.api.libs.json._
-import play.api.mvc.{Action, Controller, Result}
+import play.api.mvc.{ Action, Controller, Result }
 
-import models.{GeoInfo, Record, Settings}
-import models.db.{CatchReports, FishSizes, Image, Images, Photos, User, VolatileToken, VolatileTokens}
-import service.Facebook.{AccessKey, Fishing}
+import models.{ GeoInfo, Report, Settings }
+import models.db.{ CatchReports, FishSizes, Image, Images, Photos, User, VolatileToken, VolatileTokens }
+import service.Facebook.{ AccessKey, Fishing }
 import service.InferenceCatches
 
 object CatchesSession extends Controller {
@@ -28,11 +28,12 @@ object CatchesSession extends Controller {
     userId: String,
     geoinfo: Option[GeoInfo],
     imageId: Option[Long] = None,
-    record: Option[Record] = None,
+    report: Option[Report] = None,
     committed: Option[Long] = None,
     publishing: Option[SessionValue.Publishing] = None) {
     override def toString = Json.toJson(this).toString
   }
+
   def start(ticket: String) = Action.async(parse.json(
     (__ \ "geoinfo").readNullable[GeoInfo])
   ) { implicit request =>
@@ -48,6 +49,7 @@ object CatchesSession extends Controller {
       }
     }
   }
+
   def photo(session: String) = Action.async(parse.multipartFormData) { implicit request =>
     val file = request.body.files.headOption.map(_.ref.file)
     Logger debug f"Saving photo: $file in ${request.body.files}"
@@ -57,7 +59,7 @@ object CatchesSession extends Controller {
         mayCommit(session) {
           _.copy(imageId = Some(image.id))
         } { value =>
-          value.record.isEmpty option Ok {
+          value.report.isEmpty option Ok {
             val (location, fishes) = InferenceCatches.infer(image.file, value.geoinfo)
             Json.obj(
               "location" -> location,
@@ -67,21 +69,23 @@ object CatchesSession extends Controller {
         }
     }
   }
+
   def submit(session: String) = Action.async(parse.json((
-    (__ \ "record").read[Record] and
+    (__ \ "report").read[Report] and
     (__ \ "publishing").readNullable[SessionValue.Publishing]
   ).tupled)) { implicit request =>
-    val (record, publishing) = request.body
-    Logger debug f"Sumit $record with publishing $publishing"
+    val (report, publishing) = request.body
+    Logger debug f"Sumit report with publishing $publishing"
     mayCommit(session) {
-      _.copy(record = Some(record), publishing = publishing)
+      _.copy(report = Some(report), publishing = publishing)
     } { _.imageId.isEmpty option Ok }
   }
+
   def mayCommit(token: String)(convert: SessionValue => SessionValue)(result: SessionValue => Option[Result]): Future[Result] = {
     def commit(vt: VolatileToken)(implicit user: User): Future[Result] = {
       val ok = for {
         value <- vt.json[SessionValue]
-        given <- value.record
+        given <- value.report
         image <- value.imageId.flatMap(Images.get)
         report <- CatchReports.addNew(user, given.location.geoinfo, given.location.name, given.dateAt)
         photo <- Photos.addNew(report, image)
@@ -113,9 +117,9 @@ object CatchesSession extends Controller {
     }
     retry(3)
   }
-  def publish(way: String, token: String)(record: Record, image: Image): Future[Result] = {
+  def publish(way: String, token: String)(report: Report, image: Image): Future[Result] = {
     def mkMessage = {
-      val catches = record.fishes.map { fish =>
+      val catches = report.fishes.map { fish =>
         val size = List(
           fish.length.map { v => f"${v.value} ${v.unit}" },
           fish.weight.map { v => f"${v.value} ${v.unit}" }
@@ -125,7 +129,7 @@ object CatchesSession extends Controller {
           }
         f"${fish.name}${size} x ${fish.count}"
       }.mkString("\n")
-      record.comment + "\n\n" + catches
+      report.comment + "\n\n" + catches
     }
     way match {
       case "facebook" =>

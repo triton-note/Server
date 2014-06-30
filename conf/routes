@@ -3,10 +3,10 @@ GET    /assets/*file             	controllers.Assets.at(path="/public", file)
 # Login
 POST   /login/:way	            	controllers.Account.login(way: String)
 
-# Record posting
-POST   /record/new-session/:ticket  controllers.CatchesSession.start(ticket: String)
-POST   /record/photo/:session    	controllers.CatchesSession.photo(session: String)
-POST   /record/submit/:session   	controllers.CatchesSession.submit(session: String)
+# Report posting
+POST   /report/new-session/:ticket  controllers.CatchesSession.start(ticket: String)
+POST   /report/photo/:session    	controllers.CatchesSession.photo(session: String)
+POST   /report/submit/:session   	controllers.CatchesSession.submit(session: String)
 
-# Record loading
-POST   /record/load/:ticket        	controllers.RecordSession.load(ticket: String)
+# Report loading
+POST   /report/load/:ticket        	controllers.RecordSession.load(ticket: String)

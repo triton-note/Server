@@ -2,14 +2,15 @@ package models
 
 import play.api.libs.json._
 
-case class Record(
+case class Report(
+  id: Option[Long],
   comment: String,
   dateAt: java.util.Date,
-  location: Record.Location,
+  location: Report.Location,
   photo: Option[String],
-  fishes: Seq[Record.Fishes]) {
+  fishes: Seq[Report.Fishes]) {
 }
-object Record {
+object Report {
   case class Location(name: String, geoinfo: GeoInfo)
   object Location {
     implicit val locationFormat = Json.format[Location]
@@ -30,5 +31,5 @@ object Record {
   object Fishes {
     implicit val catchesFormat = Json.format[Fishes]
   }
-  implicit val recordFormat = Json.format[Record]
+  implicit val reportFormat = Json.format[Report]
 }
