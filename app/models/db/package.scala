@@ -65,6 +65,7 @@ package db {
       def apply(a: A): (String, AttributeValue) = name -> toAttr(a)
       def build(implicit map: Map[String, AttributeValue]): A = valueOf(new AttributeValueWrapper(map.getOrElse(name, new AttributeValue)))
       def compare(a: A, co: ComparisonOperator = ComparisonOperator.EQ) = name -> new Condition().withComparisonOperator(co).withAttributeValueList(toAttr(a))
+      def diff(a: A, b: A) = a != b option apply(b)
     }
     /**
      * All columns

@@ -1,5 +1,6 @@
 package models.db
 
+import scala.collection.JavaConversions._
 import java.util.Date
 
 import javax.imageio.ImageIO
@@ -46,6 +47,11 @@ object Photos extends AutoIDTable[Photo]("PHOTO") {
     catchReport(Option(theCatchReport)),
     image(Option(theImage))
   )
+  def findByCatchReport(cr: CatchReport): List[Photo] = {
+    find(_.withIndexName("CATCH_REPORT-index").withKeyConditions(Map(
+      catchReport compare Option(cr)
+    ))).toList
+  }
 }
 
 case class Image(id: Long,

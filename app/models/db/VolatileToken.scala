@@ -81,6 +81,6 @@ object VolatileTokens extends AnyIDTable[VolatileToken]("VOLATILE_TOKEN") {
       _.withAttributesToGet(id.name).withScanFilter(Map(
         expiration.compare(currentTimestamp, ComparisonOperator.LE)
       )), map => Some(id build map))
-    expired.toList.map(delete).filter(_ == true).size
+    expired.par.toList.map(delete).filter(_ == true).size
   }
 }

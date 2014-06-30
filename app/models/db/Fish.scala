@@ -1,5 +1,6 @@
 package models.db
 
+import scala.collection.JavaConversions._
 import java.util.Date
 
 import scalaz.Scalaz._
@@ -59,5 +60,10 @@ object FishSizes extends AutoIDTable[FishSize]("FISH_SIZE") {
     length(theLength.map(_._1)),
     lengthUnit(theLength.map(_._2))
   )
+  def findByPhoto(thePhoto: Photo): List[FishSize] = {
+    find(_.withIndexName("PHOTO-CREATED_AT-index").withKeyConditions(Map(
+      photo compare Option(thePhoto)
+    ))).toList
+  }
 }
 
