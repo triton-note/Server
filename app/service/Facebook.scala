@@ -1,4 +1,4 @@
-package models
+package service
 
 import scala.{Left, Right}
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -12,7 +12,7 @@ import play.api.mvc.Codec.utf_8
 
 import org.fathens.play.util.Exception.allCatch
 
-import models.db.Image
+import models.db.{Image, User, Users}
 
 object Facebook {
   case class AccessKey(token: String)
@@ -51,14 +51,14 @@ object Facebook {
      * If UserAlias is not found, return email which is obtained by accessKey.
      * If UserAlias is found by email, return UserAlias.
      */
-    def find(implicit accesskey: AccessKey): Future[Option[Either[String, db.User]]] = {
+    def find(implicit accesskey: AccessKey): Future[Option[Either[String, User]]] = {
       obtain("email") map { opt =>
         for {
           json <- opt
           email <- (json \ "email").asOpt[String]
         } yield {
           Logger debug f"Getting UserAlias by email: $email"
-          db.Users.find(email) match {
+          Users.find(email) match {
             case Some(user) => Right(user)
             case None       => Left(email)
           }
@@ -69,7 +69,7 @@ object Facebook {
      * Create User by email.
      * The email is obtained by accessKey.
      */
-    def create(implicit accesskey: AccessKey): Future[Option[db.User]] = {
+    def create(implicit accesskey: AccessKey): Future[Option[User]] = {
       obtain("email", "first_name", "last_name", "picture") map { opt =>
         for {
           json <- opt
@@ -77,7 +77,7 @@ object Facebook {
           firstName <- (json \ "first_name").asOpt[String]
           lastName <- (json \ "last_name").asOpt[String]
           avatarUrl = (json \ "picture" \ "data" \ "url").asOpt[String]
-          user <- db.Users.addNew(email, None, firstName, lastName, avatarUrl)
+          user <- Users.addNew(email, None, firstName, lastName, avatarUrl)
         } yield {
           Logger.info(f"Creating alias '$email' of $user as facebook and email at once")
           user
@@ -89,7 +89,7 @@ object Facebook {
      * If UserAlias is not created yet, create it.
      * If accessKey is not valid, return None.
      */
-    def apply(accesskey: String): Future[Option[db.User]] = {
+    def apply(accesskey: String): Future[Option[User]] = {
       implicit val ak = AccessKey(accesskey)
       Logger.debug(f"Login as user with $ak")
       find flatMap (_ match {

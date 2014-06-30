@@ -1,15 +1,16 @@
 package controllers
 
-import scala.annotation.{ implicitNotFound, tailrec }
+import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 import play.api.Logger
 import play.api.libs.json._
-import play.api.mvc.{ Action, Controller }
+import play.api.mvc.{Action, Controller}
 
-import models.{ Facebook, Settings }
-import models.db.{ Users, VolatileTokens }
+import models.Settings
+import models.db.VolatileTokens
+import service.Facebook
 
 object Account extends Controller {
   def auth(way: String, token: String) = way match {

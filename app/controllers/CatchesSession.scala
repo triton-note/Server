@@ -12,8 +12,8 @@ import play.api.libs.json._
 import play.api.mvc.{Action, Controller, Result}
 
 import models.{GeoInfo, Record, Settings}
-import models.Facebook.{AccessKey, Fishing}
 import models.db.{CatchReports, FishSizes, Image, Images, Photos, User, VolatileToken, VolatileTokens}
+import service.Facebook.{AccessKey, Fishing}
 import service.InferenceCatches
 
 object CatchesSession extends Controller {
