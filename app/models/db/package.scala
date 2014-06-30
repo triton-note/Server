@@ -41,7 +41,7 @@ package db {
       def get[O <: TimestampedTable.ObjType[String]](t: AnyIDTable[O]): Option[O] = getString.flatMap(t.get)
     }
     // for String
-    implicit def attrString(s: String) = new AttributeValue().withS(if (s != null && s.length > 0) s else null )
+    implicit def attrString(s: String) = new AttributeValue().withS(if (s != null && s.length > 0) s else null)
     implicit def attrString(s: Option[String]) = new AttributeValue().withS(s.flatMap(v => if (v != null && v.length > 0) Some(v) else None).orNull)
     implicit def attrString(ss: Set[String]) = new AttributeValue().withSS(ss.filter(s => s != null && s.length > 0))
     // for Double
@@ -64,6 +64,7 @@ package db {
     case class Column[A](name: String, getProp: T => A, valueOf: AttributeValueWrapper => A, toAttr: A => AttributeValue) {
       def apply(a: A): (String, AttributeValue) = name -> toAttr(a)
       def build(implicit map: Map[String, AttributeValue]): A = valueOf(new AttributeValueWrapper(map.getOrElse(name, new AttributeValue)))
+      def compare(a: A, co: ComparisonOperator = ComparisonOperator.EQ) = name -> new Condition().withComparisonOperator(co).withAttributeValueList(toAttr(a))
     }
     /**
      * All columns
@@ -81,34 +82,13 @@ package db {
     /**
      * Find item by attributes given.
      */
-    def find(attributes: Map[String, AttributeValue]): Set[T] = {
-      val q = new QueryRequest(tableName).withKeyConditions(attributes map {
-        case (n, v) => n -> new Condition().withComparisonOperator(ComparisonOperator.EQ).withAttributeValueList(v)
-      })
+    def find[A](q: QueryRequest => QueryRequest, convert: Map[String, AttributeValue] => Option[A] = (map: Map[String, AttributeValue]) => fromMap(map)): Set[A] = {
       for {
-        result <- Option(client query q).toSet
+        result <- Option(client query q(new QueryRequest(tableName))).toSet
         if { Logger.debug(f"Found ${tableName} ${result}"); true }
         item <- Option(result.getItems).toSet.flatten
-        o <- fromMap(item.toMap)
+        o <- convert(item.toMap)
       } yield o
-    }
-    def scan[A](conditions: Map[String, Condition], names: String*)(convert: Map[String, AttributeValue] => Option[A]): Set[A] = {
-      val request = new ScanRequest().withTableName(tableName).withAttributesToGet(names).withScanFilter(conditions)
-      try {
-        for {
-          result <- Option(client scan request).toSet
-          if { Logger.debug(f"Result of scaning ${tableName}: ${result}"); true }
-          item <- result.getItems
-          o <- convert(item.toMap)
-        } yield o
-      } catch {
-        case ex: Exception =>
-          Logger.error(f"Failed to scan items: ${ex.getMessage}", ex)
-          Set()
-      }
-    }
-    def scan(conditions: Map[String, Condition]): Set[T] = {
-      scan(conditions, allColumns.map(_.name): _*)(fromMap(_))
     }
   }
   object TimestampedTable {

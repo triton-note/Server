@@ -2,6 +2,7 @@ package models.db
 
 import java.util.Date
 
+import scala.collection.JavaConversions._
 import scala.math.BigDecimal.double2bigDecimal
 import scala.util.control.Exception.allCatch
 
@@ -10,13 +11,13 @@ import com.amazonaws.services.dynamodbv2.model._
 import models.GeoInfo
 
 case class CatchReport(id: Long,
-                       createdAt: Date,
-                       lastModifiedAt: Option[Date],
-                       user: Option[User],
-                       timestamp: Date,
-                       location: String,
-                       latitude: Double,
-                       longitude: Double) {
+  createdAt: Date,
+  lastModifiedAt: Option[Date],
+  user: Option[User],
+  timestamp: Date,
+  location: String,
+  latitude: Double,
+  longitude: Double) {
   /**
    * Reload from DB.
    * If there is no longer me, returns None.
@@ -33,9 +34,10 @@ case class CatchReport(id: Long,
   /**
    * All comments
    */
-  lazy val comments: List[Comment] = Comments.find(Map(Comments.catchReport(Option(this)))).toList.sortBy {
-    a => a.lastModifiedAt getOrElse a.createdAt
-  }
+  lazy val comments: List[Comment] = Comments.find(
+    _.withIndexName("CATCH_REPORT-CREATED_AT-index").withKeyConditions(Map(
+      Comments.catchReport compare Some(this)
+    ))).toList
   /**
    * Add comment
    */
