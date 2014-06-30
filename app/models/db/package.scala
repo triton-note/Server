@@ -80,11 +80,22 @@ package db {
      */
     val tableName: String
     /**
-     * Find item by attributes given.
+     * Query item by attributes given.
      */
     def find[A](q: QueryRequest => QueryRequest, convert: Map[String, AttributeValue] => Option[A] = (map: Map[String, AttributeValue]) => fromMap(map)): Set[A] = {
       for {
         result <- Option(client query q(new QueryRequest(tableName))).toSet
+        if { Logger.debug(f"Found ${tableName} ${result}"); true }
+        item <- Option(result.getItems).toSet.flatten
+        o <- convert(item.toMap)
+      } yield o
+    }
+    /**
+     * Scan item by attributes given.
+     */
+    def scan[A](q: ScanRequest => ScanRequest, convert: Map[String, AttributeValue] => Option[A] = (map: Map[String, AttributeValue]) => fromMap(map)): Set[A] = {
+      for {
+        result <- Option(client scan q(new ScanRequest(tableName))).toSet
         if { Logger.debug(f"Found ${tableName} ${result}"); true }
         item <- Option(result.getItems).toSet.flatten
         o <- convert(item.toMap)

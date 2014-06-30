@@ -77,8 +77,8 @@ object VolatileTokens extends AnyIDTable[VolatileToken]("VOLATILE_TOKEN") {
    * @return number of deleted
    */
   def deleteExpired: Int = {
-    val expired = find(
-      _.withIndexName("EXPIRATION-index").withKeyConditions(Map(
+    val expired = scan(
+      _.withAttributesToGet(id.name).withScanFilter(Map(
         expiration.compare(currentTimestamp, ComparisonOperator.LE)
       )), map => Some(id build map))
     expired.toList.map(delete).filter(_ == true).size
