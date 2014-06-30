@@ -12,7 +12,7 @@ import play.api.mvc.{ Action, Controller }
 import models.Report
 import models.db.{ CatchReports, FishSizes, Photos }
 
-object RecordSession extends Controller {
+object ReportSync extends Controller {
 
   def load(ticket: String) = Action.async(parse.json((
     (__ \ "count").read[Int] and
@@ -26,8 +26,8 @@ object RecordSession extends Controller {
         case Some((vt, value, user)) =>
           val reports = CatchReports.find(
             _.withIndexName("USER-TIMESTAMP-index").withKeyConditions(Map(
-                CatchReports.user compare Some(user)
-              )).withScanIndexForward(false).withLimit(count).withExclusiveStartKey(
+              CatchReports.user compare Some(user)
+            )).withScanIndexForward(false).withLimit(count).withExclusiveStartKey(
               last match {
                 case Some(id) => Map(CatchReports id id)
                 case None     => null

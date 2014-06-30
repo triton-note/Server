@@ -9,4 +9,4 @@ POST   /report/photo/:session    	controllers.CatchesSession.photo(session: Stri
 POST   /report/submit/:session   	controllers.CatchesSession.submit(session: String)
 
 # Report loading
-POST   /report/load/:ticket        	controllers.RecordSession.load(ticket: String)
+POST   /report/load/:ticket        	controllers.ReportSync.load(ticket: String)
