@@ -90,9 +90,7 @@ object CatchesSession extends Controller {
         report <- CatchReports.addNew(user, given.location.geoinfo, given.location.name, given.dateAt)
         photo <- Photos.addNew(report, image)
         _ <- report.addComment(given.comment)
-        if given.fishes.map { fish =>
-          FishSizes.addNew(photo, fish.name, fish.count, fish.weight.map(_.tupled), fish.length.map(_.tupled)).isDefined
-        }.forall(_ == true)
+        if given.fishes.map(_ add photo).forall(_.isDefined)
       } yield {
         vt json value.copy(committed = Some(report.id)) match {
           case Some(vt) => value.publishing match {

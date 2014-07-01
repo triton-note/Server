@@ -85,15 +85,12 @@ object ReportSync extends Controller {
                   }
                   Photos.findByCatchReport(doneCR) match {
                     case thePhoto :: Nil =>
-                      implicit class FishSame(me: FishSize) {
-                        def same(o: Report.Fishes) = me.name == o.name && me.count == o.count && me.length == o.length.map(_.tupled) && me.weight == o.weight.map(_.tupled)
-                      }
                       def reduce(east: List[FishSize], west: List[Report.Fishes], left: List[FishSize] = Nil): (List[FishSize], List[Report.Fishes]) = west match {
                         case Nil => (left, west)
                         case _ => east match {
                           case Nil => (left, west)
                           case fish :: next =>
-                            val (wastWest, nextWest) = west.partition(fish.same)
+                            val (wastWest, nextWest) = west.partition(_ same fish)
                             reduce(next, nextWest, wastWest match {
                               case Nil => fish :: left
                               case _   => left
@@ -104,9 +101,7 @@ object ReportSync extends Controller {
                         case (dbFish, rpFish) =>
                           val dones = List(
                             dbFish.par.map(_.delete).filter(_ == true),
-                            rpFish.par.map { fish =>
-                              FishSizes.addNew(thePhoto, fish.name, fish.count, fish.weight.map(_.tupled), fish.length.map(_.tupled))
-                            }.flatten
+                            rpFish.par.map(_ add thePhoto).flatten
                           ).par.map(_.size)
                           Logger info f"Update ${FishSizes.tableName}: ${dones(0)} deleted, ${dones(1)} added"
                           Ok
