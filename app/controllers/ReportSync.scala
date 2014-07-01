@@ -7,10 +7,10 @@ import scala.concurrent.Future
 import play.api.Logger
 import play.api.libs.functional.syntax._
 import play.api.libs.json._
-import play.api.mvc.{Action, Controller}
+import play.api.mvc.{ Action, Controller }
 
 import models.Report
-import models.db.{CatchReports, Comments, FishSize, FishSizes, Photos}
+import models.db.{ CatchReports, Comments, FishSize, FishSizes, Photos }
 
 object ReportSync extends Controller {
 
@@ -121,17 +121,21 @@ object ReportSync extends Controller {
     val id = request.body
     Logger debug f"Deleting report: id=${id}"
     Future {
-      Ok
-    }
-  }
-
-  def add(ticket: String) = Action.async(parse.json((
-    (__ \ "report").read[Report]
-  ))) { implicit request =>
-    val report = request.body
-    Logger debug f"Adding ${report}"
-    Future {
-      Ok
+      CatchReports.get(id) match {
+        case None => BadRequest(f"Invalid id: ${id}")
+        case Some(cr) => Photos.findByCatchReport(cr) match {
+          case thePhoto :: Nil => thePhoto.image match {
+            case None => InternalServerError(f"Not Found image for ${thePhoto}")
+            case Some(theImage) =>
+              val fishes = FishSizes.findByPhoto(thePhoto)
+              val targets = cr :: thePhoto :: theImage :: (fishes: List[{ def delete: Boolean }])
+              Logger debug f"Deleting: ${targets}"
+              if (targets.par.map(_.delete).forall(_ == false)) InternalServerError("Failed to delete any items") else Ok
+          }
+          case Nil  => InternalServerError(f"Not Found photo for ${cr}")
+          case many => InternalServerError(f"Too Many photo for ${cr}: ${many}")
+        }
+      }
     }
   }
 }
