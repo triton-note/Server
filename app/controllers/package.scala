@@ -2,7 +2,8 @@ import play.api.libs.json._
 
 import org.fathens.play.util.Exception.allCatch
 
-import models.db.{Users, VolatileToken, VolatileTokens}
+import models.Report
+import models.db.{FishSize, FishSizes, Photo, Users, VolatileToken, VolatileTokens}
 
 package object controllers {
   object TicketValue {
@@ -37,5 +38,9 @@ package object controllers {
       value <- vt.json[T]
       user <- Users get value.userId
     } yield (vt, value, user)
+  }
+  implicit class FishDB(fish: Report.Fishes) {
+    def same(o: FishSize): Boolean = o.name == fish.name && o.count == fish.count && o.length == fish.length.map(_.tupled) && o.weight == fish.weight.map(_.tupled)
+    def add(photo: Photo): FishSize = FishSizes.addNew(photo, fish.name, fish.count, fish.weight.map(_.tupled), fish.length.map(_.tupled))
   }
 }

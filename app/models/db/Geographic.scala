@@ -44,7 +44,7 @@ object Geographics extends AnyIDTable[Geographic]("GEOGRAPHIC") {
   /**
    * Add new
    */
-  def addNew(name: String, theEquatorialRadius: Double, thePolarRadius: Double): Option[Geographic] = addNew(name,
+  def addNew(name: String, theEquatorialRadius: Double, thePolarRadius: Double): Geographic = addNew(name,
     equatorialRadius(theEquatorialRadius),
     polarRadius(thePolarRadius)
   )

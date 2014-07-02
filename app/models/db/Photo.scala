@@ -1,5 +1,6 @@
 package models.db
 
+import scala.collection.JavaConversions._
 import java.util.Date
 
 import javax.imageio.ImageIO
@@ -12,7 +13,7 @@ import com.amazonaws.services.dynamodbv2.model._
 
 import models.Storage
 
-case class Photo(id: Long,
+case class Photo(id: String,
   createdAt: Date,
   lastModifiedAt: Option[Date],
   catchReport: Option[CatchReport],
@@ -28,8 +29,8 @@ case class Photo(id: Long,
   def delete: Boolean = Photos.delete(id)
 }
 object Photos extends AutoIDTable[Photo]("PHOTO") {
-  val catchReport = Column[Option[CatchReport]]("CATCH_REPORT", (_.catchReport), (_.get(CatchReports)), attrObjLongID)
-  val image = Column[Option[Image]]("IMAGE", (_.image), (_.get(Images)), attrObjLongID)
+  val catchReport = Column[Option[CatchReport]]("CATCH_REPORT", (_.catchReport), (_.get(CatchReports)), attrObjID)
+  val image = Column[Option[Image]]("IMAGE", (_.image), (_.get(Images)), attrObjID)
   val columns = List(catchReport, image)
   def fromMap(implicit map: Map[String, AttributeValue]): Option[Photo] = allCatch opt Photo(
     id.build,
@@ -42,13 +43,18 @@ object Photos extends AutoIDTable[Photo]("PHOTO") {
    * Add new photo.
    * Brand new id will be generated and injected into new Photo instance.
    */
-  def addNew(theCatchReport: CatchReport, theImage: Image): Option[Photo] = addNew(
+  def addNew(theCatchReport: CatchReport, theImage: Image): Photo = addNew(
     catchReport(Option(theCatchReport)),
     image(Option(theImage))
   )
+  def findByCatchReport(cr: CatchReport): List[Photo] = {
+    find(_.withIndexName("CATCH_REPORT-index").withKeyConditions(Map(
+      catchReport compare Option(cr)
+    ))).toList
+  }
 }
 
-case class Image(id: Long,
+case class Image(id: String,
   createdAt: Date,
   lastModifiedAt: Option[Date],
   kind: String,
@@ -64,9 +70,11 @@ case class Image(id: Long,
   /**
    * Delete me
    */
-  def delete: Boolean = Images.delete(id)
+  def delete: Boolean = {
+    file.delete && Images.delete(id) 
+  }
   lazy val file = Storage.file("photo", kind, id.toString)
-  def url(implicit limit: FiniteDuration = 1 minute) = file.generateURL(limit)
+  def url(implicit limit: FiniteDuration = 1 hour) = file.generateURL(limit)
 }
 object Images extends AutoIDTable[Image]("IMAGE") {
   val kind = Column[String]("KIND", (_.kind), (_.getString.get), attrString)
@@ -93,14 +101,14 @@ object Images extends AutoIDTable[Image]("IMAGE") {
     for {
       biOpt <- allCatch opt ImageIO.read(imageFile)
       bi <- Option(biOpt)
-      image <- addNew(imageFile.length, bi.getWidth, bi.getHeight)
+      image = addNew(imageFile.length, bi.getWidth, bi.getHeight)
     } yield {
       image.file write imageFile
       image
     }
   }
   def addNew(theDataSize: Long, theWidth: Long, theHeight: Long,
-    theFormat: String = "JPEG", theKind: String = KIND_ORIGINAL): Option[Image] = addNew(
+    theFormat: String = "JPEG", theKind: String = KIND_ORIGINAL): Image = addNew(
     kind(theKind),
     format(theFormat),
     dataSize(theDataSize),
@@ -110,7 +118,7 @@ object Images extends AutoIDTable[Image]("IMAGE") {
   val KIND_ORIGINAL = "original"
 }
 
-case class ImageRelation(id: Long,
+case class ImageRelation(id: String,
   createdAt: Date,
   lastModifiedAt: Option[Date],
   imageSrc: Option[Image],
@@ -127,8 +135,8 @@ case class ImageRelation(id: Long,
   def delete: Boolean = ImageRelations.delete(id)
 }
 object ImageRelations extends AutoIDTable[ImageRelation]("IMAGE_RELATION") {
-  val imageSrc = Column[Option[Image]]("IMAGE_SRC", (_.imageSrc), (_.get(Images)), attrObjLongID)
-  val imageDst = Column[Option[Image]]("IMAGE_DST", (_.imageDst), (_.get(Images)), attrObjLongID)
+  val imageSrc = Column[Option[Image]]("IMAGE_SRC", (_.imageSrc), (_.get(Images)), attrObjID)
+  val imageDst = Column[Option[Image]]("IMAGE_DST", (_.imageDst), (_.get(Images)), attrObjID)
   val relation = Column[String]("RELATION", (_.relation), (_.getString.get), attrString)
   // All columns
   val columns = List(imageSrc, imageDst, relation)
@@ -143,7 +151,7 @@ object ImageRelations extends AutoIDTable[ImageRelation]("IMAGE_RELATION") {
   /**
    * Add new relation
    */
-  def addNew(theImageSrc: Image, theImageDst: Image, theRelation: String): Option[ImageRelation] = addNew(
+  def addNew(theImageSrc: Image, theImageDst: Image, theRelation: String): ImageRelation = addNew(
     imageSrc(Option(theImageSrc)),
     imageDst(Option(theImageDst)),
     relation(theRelation)

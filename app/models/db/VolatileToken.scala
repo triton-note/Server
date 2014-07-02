@@ -42,7 +42,7 @@ case class VolatileToken(id: String,
   def removeExtra = update(extra = None)
   def changeExpiration(theNext: Date) = update(expiration = theNext)
 }
-object VolatileTokens extends AnyIDTable[VolatileToken]("VOLATILE_TOKEN") {
+object VolatileTokens extends AutoIDTable[VolatileToken]("VOLATILE_TOKEN") {
   val expiration = Column[Date]("EXPIRATION", (_.expiration), (_.getDate.get), attrDate)
   val extra = Column[Option[String]]("EXTRA", (_.extra), (_.getString), attrString)
   // All columns
@@ -57,31 +57,19 @@ object VolatileTokens extends AnyIDTable[VolatileToken]("VOLATILE_TOKEN") {
   /**
    * Add new token
    */
-  def addNew(theToken: String, willExpired: FiniteDuration, theExtra: Option[String] = None): Option[VolatileToken] = addNew(theToken,
+  def addNew(willExpired: FiniteDuration, theExtra: Option[String] = None): VolatileToken = addNew(
     expiration(new Date(currentTimestamp.getTime + willExpired.toMillis)),
     extra(theExtra)
   )
-  /**
-   * Create new token and save to database
-   */
-  @tailrec
-  def createNew(willExpired: FiniteDuration, extra: Option[String] = None): VolatileToken = {
-    val token = play.api.libs.Codecs.sha1(System.currentTimeMillis.toString)
-    addNew(token, willExpired, extra) match {
-      case None    => createNew(willExpired, extra)
-      case Some(a) => a
-    }
-  }
   /**
    * Delete expired tokens
    * @return number of deleted
    */
   def deleteExpired: Int = {
     val expired = scan(
-      Map(expiration(currentTimestamp)).map {
-        case (n, v) => n -> new Condition().withComparisonOperator(ComparisonOperator.LE).withAttributeValueList(v)
-      }, id.name
-    )(map => Some(id build map))
-    expired.toList.map(delete).filter(_ == true).size
+      _.withAttributesToGet(id.name).withScanFilter(Map(
+        expiration.compare(currentTimestamp, ComparisonOperator.LE)
+      )), map => Some(id build map))
+    expired.par.toList.map(delete).filter(_ == true).size
   }
 }
