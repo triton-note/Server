@@ -84,23 +84,35 @@ package db {
      * Query item by attributes given.
      */
     def find[A](q: QueryRequest => QueryRequest, convert: Map[String, AttributeValue] => Option[A] = (map: Map[String, AttributeValue]) => fromMap(map)): Set[A] = {
-      for {
-        result <- Option(client query q(new QueryRequest(tableName))).toSet
-        if { Logger.debug(f"Found ${tableName} ${result}"); true }
-        item <- Option(result.getItems).toSet.flatten
-        o <- convert(item.toMap)
-      } yield o
+      try {
+        for {
+          result <- Option(client query q(new QueryRequest(tableName))).toSet
+          if { Logger.debug(f"Found ${tableName} ${result}"); true }
+          item <- Option(result.getItems).toSet.flatten
+          o <- convert(item.toMap)
+        } yield o
+      } catch {
+        case ex: Exception =>
+          Logger.error(f"Failed to query to ${tableName}: ${ex.getMessage}", ex)
+          Set()
+      }
     }
     /**
      * Scan item by attributes given.
      */
     def scan[A](q: ScanRequest => ScanRequest, convert: Map[String, AttributeValue] => Option[A] = (map: Map[String, AttributeValue]) => fromMap(map)): Set[A] = {
-      for {
-        result <- Option(client scan q(new ScanRequest(tableName))).toSet
-        if { Logger.debug(f"Found ${tableName} ${result}"); true }
-        item <- Option(result.getItems).toSet.flatten
-        o <- convert(item.toMap)
-      } yield o
+      try {
+        for {
+          result <- Option(client scan q(new ScanRequest(tableName))).toSet
+          if { Logger.debug(f"Found ${tableName} ${result}"); true }
+          item <- Option(result.getItems).toSet.flatten
+          o <- convert(item.toMap)
+        } yield o
+      } catch {
+        case ex: Exception =>
+          Logger.error(f"Failed to scan to ${tableName}: ${ex.getMessage}", ex)
+          Set()
+      }
     }
   }
   object TimestampedTable {
