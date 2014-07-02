@@ -27,9 +27,9 @@ object CatchesSession extends Controller {
   case class SessionValue(
     userId: String,
     geoinfo: Option[GeoInfo],
-    imageId: Option[Long] = None,
+    imageId: Option[String] = None,
     report: Option[Report] = None,
-    committed: Option[Long] = None,
+    committed: Option[String] = None,
     publishing: Option[SessionValue.Publishing] = None) {
     override def toString = Json.toJson(this).toString
   }

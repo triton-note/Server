@@ -16,7 +16,7 @@ object ReportSync extends Controller {
 
   def load(ticket: String) = Action.async(parse.json((
     (__ \ "count").read[Int] and
-    (__ \ "last").readNullable[Long]
+    (__ \ "last").readNullable[String]
   ).tupled)) { implicit request =>
     val (count, last) = request.body
     Logger debug f"Loading reports: count(${count}) from ${last}"
@@ -116,7 +116,7 @@ object ReportSync extends Controller {
   }
 
   def remove(ticket: String) = Action.async(parse.json((
-    (__ \ "id").read[Long]
+    (__ \ "id").read[String]
   ))) { implicit request =>
     val id = request.body
     Logger debug f"Deleting report: id=${id}"

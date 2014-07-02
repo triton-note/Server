@@ -37,8 +37,7 @@ package db {
       def getDouble: Option[Double] = Option(av.getN).flatMap(allCatch opt _.toDouble)
       def getLong: Option[Long] = Option(av.getN).flatMap(allCatch opt _.toLong)
       def getDate: Option[Date] = getString.flatMap(allCatch opt dateFormat.parse(_))
-      def get[O <: TimestampedTable.ObjType[Long]](t: AutoIDTable[O]): Option[O] = getLong.flatMap(t.get)
-      def get[O <: TimestampedTable.ObjType[String]](t: AnyIDTable[O]): Option[O] = getString.flatMap(t.get)
+      def get[O <: TimestampedTable.ObjType](t: TimestampedTable[O]): Option[O] = getString.flatMap(t.get)
     }
     // for String
     implicit def attrString(s: String) = new AttributeValue().withS(if (s != null && s.length > 0) s else null)
@@ -56,8 +55,7 @@ package db {
     implicit def attrDate(date: Date) = new AttributeValue().withS(dateFormat format date)
     implicit def attrDate(date: Option[Date]) = new AttributeValue().withS(date.map(dateFormat.format).orNull)
     // for ArrangedTableObj
-    implicit def attrObjLongID(o: Option[TimestampedTable.ObjType[Long]]) = new AttributeValue().withN(o.map(_.id).map(numberFormat).orNull)
-    implicit def attrObjStringID(o: Option[TimestampedTable.ObjType[String]]) = new AttributeValue().withS(o.map(_.id).orNull)
+    implicit def attrObjID(o: Option[TimestampedTable.ObjType]) = new AttributeValue().withS(o.map(_.id).orNull)
     /**
      * Representation of column.
      */
@@ -116,14 +114,17 @@ package db {
     }
   }
   object TimestampedTable {
-    type ObjType[K] = {
-      val id: K
+    type ObjType = {
+      val id: String
       val createdAt: Date
       val lastModifiedAt: Option[Date]
     }
   }
-  trait TimestampedTable[K, T <: TimestampedTable.ObjType[K]] extends TableRoot[T] {
-    val id: Column[K]
+  trait TimestampedTable[T <: TimestampedTable.ObjType] extends TableRoot[T] {
+    /**
+     * Column 'ID'
+     */
+    val id = Column[String]("ID", (_.id), (_.getString.get), attrString)
     /**
      * Column 'CREATED_AT'
      */
@@ -149,7 +150,7 @@ package db {
      *
      * @return true if successfully done
      */
-    def delete(i: K): Boolean = {
+    def delete(i: String): Boolean = {
       val key = Map(id(i))
       Logger debug f"Deleting ${tableName} by ${key}"
       try {
@@ -164,7 +165,7 @@ package db {
     /**
      * Get(Find) item by id
      */
-    def get(i: K): Option[T] = {
+    def get(i: String): Option[T] = {
       val key = Map(id(i))
       Logger debug f"Getting ${tableName} by ${key}"
       try {
@@ -185,7 +186,7 @@ package db {
      *
      * @return updated item
      */
-    def update(i: K, attributes: Map[String, AttributeValue])(implicit expected: Map[String, ExpectedAttributeValue] = Map()): Option[T] = {
+    def update(i: String, attributes: Map[String, AttributeValue])(implicit expected: Map[String, ExpectedAttributeValue] = Map()): Option[T] = {
       val key = Map(id(i))
       Logger debug f"Updating ${tableName} by ${key}"
       try {
@@ -223,11 +224,7 @@ package db {
       }
     }
   }
-  abstract class AnyIDTable[T <: TimestampedTable.ObjType[String]](val tableName: String) extends TimestampedTable[String, T] {
-    /**
-     * Column 'ID'
-     */
-    val id = Column[String]("ID", (_.id), (_.getString.get), attrString)
+  abstract class AnyIDTable[T <: TimestampedTable.ObjType](val tableName: String) extends TimestampedTable[T] {
     /**
      * Add item.
      *
@@ -237,24 +234,17 @@ package db {
       putNew(attributes.toMap - id.name + id(key))
     }
   }
-  abstract class AutoIDTable[T <: TimestampedTable.ObjType[Long]](val tableName: String) extends TimestampedTable[Long, T] {
-    /**
-     * Column 'ID'
-     */
-    val id = Column[Long]("ID", (_.id), (_.getLong.get), attrLong)
+  abstract class AutoIDTable[T <: TimestampedTable.ObjType](val tableName: String) extends TimestampedTable[T] {
     /**
      * Generating ID by random numbers.
      */
-    def generateID: Long = {
-      @tailrec
-      def gen: Long = {
-        val i = new Date().getTime + scala.util.Random.nextLong
-        get(i) match {
-          case None    => i
-          case Some(_) => gen
-        }
+    @tailrec
+    final def generateID: String = {
+      val token = play.api.libs.Codecs.sha1(System.currentTimeMillis.toString)
+      get(token) match {
+        case None    => token
+        case Some(_) => generateID
       }
-      gen
     }
     /**
      * Add item.

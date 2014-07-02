@@ -3,7 +3,7 @@ package models
 import play.api.libs.json._
 
 case class Report(
-  id: Option[Long],
+  id: Option[String],
   comment: String,
   dateAt: java.util.Date,
   location: Report.Location,

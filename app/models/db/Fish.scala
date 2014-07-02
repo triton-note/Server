@@ -9,7 +9,7 @@ import org.fathens.play.util.Exception.allCatch
 
 import com.amazonaws.services.dynamodbv2.model._
 
-case class FishSize(id: Long,
+case class FishSize(id: String,
   createdAt: Date,
   lastModifiedAt: Option[Date],
   photo: Option[Photo],
@@ -28,7 +28,7 @@ case class FishSize(id: Long,
   def delete: Boolean = FishSizes.delete(id)
 }
 object FishSizes extends AutoIDTable[FishSize]("FISH_SIZE") {
-  val photo = Column[Option[Photo]]("PHOTO", (_.photo), (_.get(Photos)), attrObjLongID)
+  val photo = Column[Option[Photo]]("PHOTO", (_.photo), (_.get(Photos)), attrObjID)
   val name = Column[String]("NAME", (_.name), (_.getString.get), attrString)
   val count = Column[Long]("COUNT", (_.count), (_.getLong.get), attrLong)
   val weight = Column[Option[Double]]("WEIGHT", (_.weight.map(_._1)), (_.getDouble), attrDouble)
