@@ -51,7 +51,7 @@ object FishSizes extends AutoIDTable[FishSize]("FISH_SIZE") {
    * Add new fish size
    */
   def addNew(thePhoto: Photo, theName: String, theCount: Long,
-    theWeight: Option[(Double, String)] = None, theLength: Option[(Double, String)] = None): Option[FishSize] = addNew(
+    theWeight: Option[(Double, String)] = None, theLength: Option[(Double, String)] = None): FishSize = addNew(
     photo(Option(thePhoto)),
     name(theName),
     count(theCount),

@@ -43,7 +43,7 @@ object Photos extends AutoIDTable[Photo]("PHOTO") {
    * Add new photo.
    * Brand new id will be generated and injected into new Photo instance.
    */
-  def addNew(theCatchReport: CatchReport, theImage: Image): Option[Photo] = addNew(
+  def addNew(theCatchReport: CatchReport, theImage: Image): Photo = addNew(
     catchReport(Option(theCatchReport)),
     image(Option(theImage))
   )
@@ -101,14 +101,14 @@ object Images extends AutoIDTable[Image]("IMAGE") {
     for {
       biOpt <- allCatch opt ImageIO.read(imageFile)
       bi <- Option(biOpt)
-      image <- addNew(imageFile.length, bi.getWidth, bi.getHeight)
+      image = addNew(imageFile.length, bi.getWidth, bi.getHeight)
     } yield {
       image.file write imageFile
       image
     }
   }
   def addNew(theDataSize: Long, theWidth: Long, theHeight: Long,
-    theFormat: String = "JPEG", theKind: String = KIND_ORIGINAL): Option[Image] = addNew(
+    theFormat: String = "JPEG", theKind: String = KIND_ORIGINAL): Image = addNew(
     kind(theKind),
     format(theFormat),
     dataSize(theDataSize),
@@ -151,7 +151,7 @@ object ImageRelations extends AutoIDTable[ImageRelation]("IMAGE_RELATION") {
   /**
    * Add new relation
    */
-  def addNew(theImageSrc: Image, theImageDst: Image, theRelation: String): Option[ImageRelation] = addNew(
+  def addNew(theImageSrc: Image, theImageDst: Image, theRelation: String): ImageRelation = addNew(
     imageSrc(Option(theImageSrc)),
     imageDst(Option(theImageDst)),
     relation(theRelation)

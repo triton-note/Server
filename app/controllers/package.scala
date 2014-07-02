@@ -41,6 +41,6 @@ package object controllers {
   }
   implicit class FishDB(fish: Report.Fishes) {
     def same(o: FishSize): Boolean = o.name == fish.name && o.count == fish.count && o.length == fish.length.map(_.tupled) && o.weight == fish.weight.map(_.tupled)
-    def add(photo: Photo): Option[FishSize] = FishSizes.addNew(photo, fish.name, fish.count, fish.weight.map(_.tupled), fish.length.map(_.tupled))
+    def add(photo: Photo): FishSize = FishSizes.addNew(photo, fish.name, fish.count, fish.weight.map(_.tupled), fish.length.map(_.tupled))
   }
 }

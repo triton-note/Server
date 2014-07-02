@@ -44,7 +44,7 @@ object CatchesSession extends Controller {
         case None => BadRequest("Ticket Expired")
         case Some((vt, _, user)) =>
           val value = SessionValue(user.id, geoinfo)
-          val session = VolatileTokens.createNew(Settings.Session.timeoutUpload, Option(value.toString))
+          val session = VolatileTokens.addNew(Settings.Session.timeoutUpload, Option(value.toString))
           Ok(session.id)
       }
     }
@@ -87,11 +87,11 @@ object CatchesSession extends Controller {
         value <- vt.json[SessionValue]
         given <- value.report
         image <- value.imageId.flatMap(Images.get)
-        report <- CatchReports.addNew(user, given.location.geoinfo, given.location.name, given.dateAt)
-        photo <- Photos.addNew(report, image)
-        _ <- report.addComment(given.comment)
-        if given.fishes.map(_ add photo).forall(_.isDefined)
       } yield {
+        val report = CatchReports.addNew(user, given.location.geoinfo, given.location.name, given.dateAt)
+        val photo = Photos.addNew(report, image)
+        val comment = report.addComment(given.comment)
+        val photos = given.fishes.map(_ add photo)
         vt json value.copy(committed = Some(report.id)) match {
           case Some(vt) => value.publishing match {
             case Some(SessionValue.Publishing(way, token)) => publish(way, token)(given, image)

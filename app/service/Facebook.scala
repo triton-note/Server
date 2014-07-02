@@ -77,7 +77,7 @@ object Facebook {
           firstName <- (json \ "first_name").asOpt[String]
           lastName <- (json \ "last_name").asOpt[String]
           avatarUrl = (json \ "picture" \ "data" \ "url").asOpt[String]
-          user <- Users.addNew(email, None, firstName, lastName, avatarUrl)
+          user = Users.addNew(email, None, firstName, lastName, avatarUrl)
         } yield {
           Logger.info(f"Creating alias '$email' of $user as facebook and email at once")
           user

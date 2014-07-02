@@ -101,7 +101,7 @@ object ReportSync extends Controller {
                         case (dbFish, rpFish) =>
                           val dones = List(
                             dbFish.par.map(_.delete).filter(_ == true),
-                            rpFish.par.map(_ add thePhoto).flatten
+                            rpFish.par.map(_ add thePhoto)
                           ).par.map(_.size)
                           Logger info f"Update ${FishSizes.tableName}: ${dones(0)} deleted, ${dones(1)} added"
                           Ok

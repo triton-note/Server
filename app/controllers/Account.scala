@@ -26,7 +26,7 @@ object Account extends Controller {
       Logger debug f"Authorized user from $way: $u"
       u map { user =>
         val value = TicketValue(user.id, way, token)
-        val ticket = VolatileTokens.createNew(Settings.Session.timeoutTicket, Option(value.toString))
+        val ticket = VolatileTokens.addNew(Settings.Session.timeoutTicket, Option(value.toString))
         Ok(ticket.id)
       } getOrElse Unauthorized
     }

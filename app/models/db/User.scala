@@ -75,7 +75,7 @@ object Users extends AnyIDTable[User]("USER") {
     theLastName: String,
     theAvatarUrl: Option[String] = None,
     theLengthUnit: String = "cm",
-    theWeightUnit: String = "Kg"): Option[User] = addNew(theEmail,
+    theWeightUnit: String = "Kg"): User = addNew(theEmail,
     password(unhashedPassword.map(hash)),
     firstName(theFirstName),
     lastName(theLastName),

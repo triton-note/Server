@@ -45,7 +45,7 @@ object Comments extends AutoIDTable[Comment]("COMMENT") {
   /**
    * Add new comment
    */
-  def addNew(theUser: User, theCatchReport: CatchReport, theText: String): Option[Comment] = addNew(
+  def addNew(theUser: User, theCatchReport: CatchReport, theText: String): Comment = addNew(
     user(Option(theUser)),
     catchReport(Option(theCatchReport)),
     text(theText)

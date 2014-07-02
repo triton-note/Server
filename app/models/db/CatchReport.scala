@@ -41,7 +41,7 @@ case class CatchReport(id: String,
   /**
    * Add comment
    */
-  def addComment(text: String)(implicit user: User): Option[Comment] = {
+  def addComment(text: String)(implicit user: User): Comment = {
     Comments.addNew(user, this, text)
   }
 }
@@ -67,7 +67,7 @@ object CatchReports extends AutoIDTable[CatchReport]("CATCH_REPORT") {
   /**
    * Add new
    */
-  def addNew(theUser: User, theGeoinfo: GeoInfo, theLocation: String, theTimestamp: Date): Option[CatchReport] = addNew(
+  def addNew(theUser: User, theGeoinfo: GeoInfo, theLocation: String, theTimestamp: Date): CatchReport = addNew(
     user(Some(theUser)),
     timestamp(theTimestamp),
     location(theLocation),

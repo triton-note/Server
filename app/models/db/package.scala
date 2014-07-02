@@ -208,20 +208,12 @@ package db {
           None
       }
     }
-    def putNew(attributes: Map[String, AttributeValue]): Option[T] = {
+    def putNew(attributes: Map[String, AttributeValue]): T = {
       val map = (attributes - createdAt.name - lastModifiedAt.name + createdAt(currentTimestamp)).filter(!_._2.isEmpty)
       Logger debug f"Putting ${tableName} by ${map}"
-      try {
-        for {
-          result <- Option(client.putItem(tableName, map))
-          if { Logger.debug(f"Result of putting ${tableName}: ${result}"); true }
-          o <- fromMap(map)
-        } yield o
-      } catch {
-        case ex: Exception =>
-          Logger error (f"Failed to put ${tableName}", ex)
-          None
-      }
+      val result = client.putItem(tableName, map)
+      Logger debug f"Result of putting ${tableName}: ${result}"
+      fromMap(map).get
     }
   }
   abstract class AnyIDTable[T <: TimestampedTable.ObjType](val tableName: String) extends TimestampedTable[T] {
@@ -230,7 +222,7 @@ package db {
      *
      * @return New item which has proper id.
      */
-    def addNew(key: String, attributes: (String, AttributeValue)*): Option[T] = {
+    def addNew(key: String, attributes: (String, AttributeValue)*): T = {
       putNew(attributes.toMap - id.name + id(key))
     }
   }
@@ -251,7 +243,7 @@ package db {
      *
      * @return New item which has proper id.
      */
-    def addNew(attributes: (String, AttributeValue)*): Option[T] = {
+    def addNew(attributes: (String, AttributeValue)*): T = {
       putNew(attributes.toMap - id.name + id(generateID))
     }
   }
