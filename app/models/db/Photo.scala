@@ -1,10 +1,8 @@
 package models.db
 
-import scala.collection.JavaConversions._
-import java.util.Date
-
 import javax.imageio.ImageIO
 
+import scala.collection.JavaConversions._
 import scala.concurrent.duration._
 
 import org.fathens.play.util.Exception.allCatch
@@ -13,24 +11,17 @@ import com.amazonaws.services.dynamodbv2.model._
 
 import models.Storage
 
-case class Photo(id: String,
-  createdAt: Date,
-  lastModifiedAt: Option[Date],
-  catchReport: Option[CatchReport],
-  image: Option[Image]) extends TimestampedTable.ObjType[Photo] {
+case class Photo(MAP: Map[String, AttributeValue]) extends TimestampedTable.ObjType[Photo] {
   val TABLE = Photo
+  
+  lazy val catchReport: Option[CatchReport] = build(_.catchReport)
+  lazy val image: Option[Image] = build(_.image)
 }
 object Photo extends AutoIDTable[Photo]("PHOTO") {
   val catchReport = Column[Option[CatchReport]]("CATCH_REPORT", (_.catchReport), (_.get(CatchReport)), attrObjID)
   val image = Column[Option[Image]]("IMAGE", (_.image), (_.get(Image)), attrObjID)
+  // All columns
   val columns = List(catchReport, image)
-  def fromMap(implicit map: Map[String, AttributeValue]): Option[Photo] = allCatch opt Photo(
-    id.build,
-    createdAt.build,
-    lastModifiedAt.build,
-    catchReport.build,
-    image.build
-  )
   /**
    * Add new photo.
    * Brand new id will be generated and injected into new Photo instance.
@@ -46,15 +37,15 @@ object Photo extends AutoIDTable[Photo]("PHOTO") {
   }
 }
 
-case class Image(id: String,
-  createdAt: Date,
-  lastModifiedAt: Option[Date],
-  kind: String,
-  format: String,
-  dataSize: Long,
-  width: Long,
-  height: Long) extends TimestampedTable.ObjType[Image] {
+case class Image(MAP: Map[String, AttributeValue]) extends TimestampedTable.ObjType[Image] {
   val TABLE = Image
+  
+  lazy val kind: String = build(_.kind)
+  lazy val format: String = build(_.format)
+  lazy val dataSize: Long = build(_.dataSize)
+  lazy val width: Long = build(_.width)
+  lazy val height: Long = build(_.height)
+  
   override def delete: Boolean = file.delete && super.delete
   /**
    * Reference to Image file
@@ -70,16 +61,6 @@ object Image extends AutoIDTable[Image]("IMAGE") {
   val height = Column[Long]("HEIGHT", (_.height), (_.getLong.get), attrLong)
   // All columns
   val columns = List(kind, format, dataSize, width, height)
-  def fromMap(implicit map: Map[String, AttributeValue]): Option[Image] = allCatch opt Image(
-    id.build,
-    createdAt.build,
-    lastModifiedAt.build,
-    kind.build,
-    format.build,
-    dataSize.build,
-    width.build,
-    height.build
-  )
   /**
    * Add new image data
    */
@@ -104,13 +85,12 @@ object Image extends AutoIDTable[Image]("IMAGE") {
   val KIND_ORIGINAL = "original"
 }
 
-case class ImageRelation(id: String,
-  createdAt: Date,
-  lastModifiedAt: Option[Date],
-  imageSrc: Option[Image],
-  imageDst: Option[Image],
-  relation: String) extends TimestampedTable.ObjType[ImageRelation] {
+case class ImageRelation(MAP: Map[String, AttributeValue]) extends TimestampedTable.ObjType[ImageRelation] {
   val TABLE = ImageRelation
+  
+  lazy val imageSrc: Option[Image] = build(_.imageSrc)
+  lazy val imageDst: Option[Image] = build(_.imageDst)
+  lazy val relation: String = build(_.relation)
 }
 object ImageRelation extends AutoIDTable[ImageRelation]("IMAGE_RELATION") {
   val imageSrc = Column[Option[Image]]("IMAGE_SRC", (_.imageSrc), (_.get(Image)), attrObjID)
@@ -118,14 +98,6 @@ object ImageRelation extends AutoIDTable[ImageRelation]("IMAGE_RELATION") {
   val relation = Column[String]("RELATION", (_.relation), (_.getString.get), attrString)
   // All columns
   val columns = List(imageSrc, imageDst, relation)
-  def fromMap(implicit map: Map[String, AttributeValue]): Option[ImageRelation] = allCatch opt ImageRelation(
-    id.build,
-    createdAt.build,
-    lastModifiedAt.build,
-    imageSrc.build,
-    imageDst.build,
-    relation.build
-  )
   /**
    * Add new relation
    */

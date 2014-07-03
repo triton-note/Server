@@ -2,24 +2,16 @@ package models.db
 
 import java.util.Date
 
-import scala.annotation.tailrec
 import scala.collection.JavaConversions._
 import scala.concurrent.duration._
 
-import scalaz.Scalaz._
-
-import play.api.Logger
-
-import org.fathens.play.util.Exception.allCatch
-
 import com.amazonaws.services.dynamodbv2.model._
 
-case class VolatileToken(id: String,
-  createdAt: Date,
-  lastModifiedAt: Option[Date],
-  expiration: Date,
-  extra: Option[String]) extends TimestampedTable.ObjType[VolatileToken] {
+case class VolatileToken(MAP: Map[String, AttributeValue]) extends TimestampedTable.ObjType[VolatileToken] {
   val TABLE = VolatileToken
+
+  lazy val expiration: Date = build(_.expiration)
+  lazy val extra: Option[String] = build(_.extra)
   /**
    * Change properties (like a copy) and update Database
    */
@@ -40,13 +32,6 @@ object VolatileToken extends AutoIDTable[VolatileToken]("VOLATILE_TOKEN") {
   val extra = Column[Option[String]]("EXTRA", (_.extra), (_.getString), attrString)
   // All columns
   val columns = List(expiration, extra)
-  def fromMap(implicit map: Map[String, AttributeValue]): Option[VolatileToken] = allCatch opt VolatileToken(
-    id.build,
-    createdAt.build,
-    lastModifiedAt.build,
-    expiration.build,
-    extra.build
-  )
   /**
    * Add new token
    */
@@ -62,7 +47,7 @@ object VolatileToken extends AutoIDTable[VolatileToken]("VOLATILE_TOKEN") {
     val expired = scan(
       _.withAttributesToGet(id.name).withScanFilter(Map(
         expiration.compare(currentTimestamp, ComparisonOperator.LE)
-      )), map => Some(id build map))
+      )), id.build)
     expired.par.toList.map(delete).filter(_ == true).size
   }
 }

@@ -13,6 +13,7 @@ import org.fathens.play.util.Exception.allCatch
 
 import com.amazonaws.services.dynamodbv2.model._
 
+import models.db.TimestampedTable
 import service.AWS.DynamoDB.client
 
 package object db {
@@ -62,7 +63,7 @@ package db {
     case class Column[A](name: String, getProp: T => A, valueOf: AttributeValueWrapper => A, toAttr: A => AttributeValue) {
       def apply(a: A): (String, AttributeValue) = name -> toAttr(a)
       def extract(obj: T): (String, AttributeValue) = name -> toAttr(getProp(obj))
-      def build(implicit map: Map[String, AttributeValue]): A = valueOf(new AttributeValueWrapper(map.getOrElse(name, new AttributeValue)))
+      def build(map: Map[String, AttributeValue]): A = valueOf(new AttributeValueWrapper(map.getOrElse(name, new AttributeValue)))
       def compare(a: A, co: ComparisonOperator = ComparisonOperator.EQ) = name -> new Condition().withComparisonOperator(co).withAttributeValueList(toAttr(a))
       def diff(a: A, b: A) = a != b option apply(b)
     }
@@ -74,7 +75,7 @@ package db {
      * Mapping to Object from AttributeValues
      * @return None if failure.
      */
-    def fromMap(implicit map: Map[String, AttributeValue]): Option[T]
+    def apply(map: Map[String, AttributeValue]): T
     /**
      * Table name
      */
@@ -82,14 +83,13 @@ package db {
     /**
      * Query item by attributes given.
      */
-    def find[A](q: QueryRequest => QueryRequest, convert: Map[String, AttributeValue] => Option[A] = (map: Map[String, AttributeValue]) => fromMap(map)): Set[A] = {
+    def find[A](q: QueryRequest => QueryRequest, convert: Map[String, AttributeValue] => A = (map: Map[String, AttributeValue]) => apply(map)): Set[A] = {
       try {
         for {
           result <- Option(client query q(new QueryRequest(tableName))).toSet
           if { Logger.debug(f"Found ${tableName} ${result}"); true }
           item <- Option(result.getItems).toSet.flatten
-          o <- convert(item.toMap)
-        } yield o
+        } yield convert(item.toMap)
       } catch {
         case ex: Exception =>
           Logger.error(f"Failed to query to ${tableName}: ${ex.getMessage}", ex)
@@ -99,14 +99,13 @@ package db {
     /**
      * Scan item by attributes given.
      */
-    def scan[A](q: ScanRequest => ScanRequest, convert: Map[String, AttributeValue] => Option[A] = (map: Map[String, AttributeValue]) => fromMap(map)): Set[A] = {
+    def scan[A](q: ScanRequest => ScanRequest, convert: Map[String, AttributeValue] => A = (map: Map[String, AttributeValue]) => apply(map)): Set[A] = {
       try {
         for {
           result <- Option(client scan q(new ScanRequest(tableName))).toSet
           if { Logger.debug(f"Found ${tableName} ${result}"); true }
           item <- Option(result.getItems).toSet.flatten
-          o <- convert(item.toMap)
-        } yield o
+        } yield convert(item.toMap)
       } catch {
         case ex: Exception =>
           Logger.error(f"Failed to scan to ${tableName}: ${ex.getMessage}", ex)
@@ -116,10 +115,21 @@ package db {
   }
   object TimestampedTable {
     trait ObjType[T <: TimestampedTable.ObjType[T]] { self: T =>
-      val id: String
-      val createdAt: Date
-      val lastModifiedAt: Option[Date]
+      val MAP: Map[String, AttributeValue]
       val TABLE: TimestampedTable[T]
+      def build[A](f: TABLE.type => TABLE.Column[A]): A = f(TABLE) build MAP
+      /**
+       * ID
+       */
+      lazy val id: String = build(_.id)
+      /**
+       * CREATED_AT
+       */
+      lazy val createdAt: Date = build(_.createdAt)
+      /**
+       * LAST_MODIFIED_AT
+       */
+      lazy val lastModifiedAt: Option[Date] = build(_.lastModifiedAt)
       /**
        * Reload from DB.
        * If there is no longer me, returns None.
@@ -195,8 +205,7 @@ package db {
           result <- Option(client.getItem(tableName, key, true))
           if { Logger.debug(f"Get ${tableName} ${result}"); true }
           item <- Option(result.getItem)
-          o <- fromMap(item.toMap)
-        } yield o
+        } yield apply(item.toMap)
       } catch {
         case ex: Exception =>
           Logger error (f"Failed to get ${tableName}", ex)
@@ -222,8 +231,7 @@ package db {
           result <- Option(client updateItem request)
           if { Logger.debug(f"Updated ${tableName} ${result}"); true }
           item <- Option(result.getAttributes)
-          o <- fromMap(item.toMap)
-        } yield o
+        } yield apply(item.toMap)
       } catch {
         case ex: Exception =>
           Logger error (f"Failed to update ${tableName}", ex)
@@ -235,7 +243,7 @@ package db {
       Logger debug f"Putting ${tableName} by ${map}"
       val result = client.putItem(tableName, map)
       Logger debug f"Result of putting ${tableName}: ${result}"
-      fromMap(map).get
+      apply(map)
     }
   }
   abstract class AnyIDTable[T <: TimestampedTable.ObjType[T]](val tableName: String) extends TimestampedTable[T] {

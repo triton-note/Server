@@ -1,17 +1,12 @@
 package models.db
 
-import java.util.Date
-
-import scala.util.control.Exception.allCatch
-
 import com.amazonaws.services.dynamodbv2.model._
 
-case class Geographic(id: String,
-  createdAt: Date,
-  lastModifiedAt: Option[Date],
-  equatorialRadius: Double,
-  polarRadius: Double) extends TimestampedTable.ObjType[Geographic] {
+case class Geographic(MAP: Map[String, AttributeValue]) extends TimestampedTable.ObjType[Geographic] {
   val TABLE = Geographic
+
+  lazy val equatorialRadius: Double = build(_.equatorialRadius)
+  lazy val polarRadius: Double = build(_.polarRadius)
   /**
    * Change property (like a copy) and update Database
    */
@@ -26,13 +21,6 @@ object Geographic extends AnyIDTable[Geographic]("GEOGRAPHIC") {
   val polarRadius = Column[Double]("POLAR_RADIUS", (_.polarRadius), (_.getDouble.get), attrDouble) // in meter
   // All columns
   val columns = List(equatorialRadius, polarRadius)
-  def fromMap(implicit map: Map[String, AttributeValue]): Option[Geographic] = allCatch opt Geographic(
-    id.build,
-    createdAt.build,
-    lastModifiedAt.build,
-    equatorialRadius.build,
-    polarRadius.build
-  )
   /**
    * Add new
    */

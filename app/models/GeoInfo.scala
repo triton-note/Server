@@ -7,7 +7,7 @@ import play.api.libs.json._
 /**
  * Hold geographic location, latitude and longitude, in degrees.
  */
-case class GeoInfo(latitude: BigDecimal, longitude: BigDecimal) {
+case class GeoInfo(latitude: Double, longitude: Double) {
   import GeoInfo._
   object radian {
     lazy val lat = latitude.toDouble.toRadians

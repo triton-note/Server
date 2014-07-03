@@ -1,23 +1,18 @@
 package models.db
 
-import java.util.Date
-
 import scalaz.Scalaz._
-
-import org.fathens.play.util.Exception.allCatch
 
 import com.amazonaws.services.dynamodbv2.model._
 
-case class User(id: String,
-  createdAt: Date,
-  lastModifiedAt: Option[Date],
-  password: Option[String],
-  firstName: String,
-  lastName: String,
-  avatarUrl: Option[String],
-  lengthUnit: String,
-  weightUnit: String) extends TimestampedTable.ObjType[User] {
+case class User(MAP: Map[String, AttributeValue]) extends TimestampedTable.ObjType[User] {
   val TABLE = User
+  
+  lazy val password: Option[String] = build(_.password)
+  lazy val firstName: String = build(_.firstName)
+  lazy val lastName: String = build(_.lastName)
+  lazy val avatarUrl: Option[String] = build(_.avatarUrl)
+  lazy val lengthUnit: String = build(_.lengthUnit)
+  lazy val weightUnit: String = build(_.weightUnit)
   /**
    * Combination of firstName and lastName
    */
@@ -46,18 +41,7 @@ object User extends AnyIDTable[User]("USER") {
   val lengthUnit = Column[String]("LENGTH_UNIT", (_.lengthUnit), (_.getString.get), attrString)
   val weightUnit = Column[String]("WEIGHT_UNIT", (_.weightUnit), (_.getString.get), attrString)
   // All columns
-  val columns = List(firstName, lastName, avatarUrl)
-  def fromMap(implicit map: Map[String, AttributeValue]): Option[User] = allCatch opt User(
-    id.build,
-    createdAt.build,
-    lastModifiedAt.build,
-    password.build,
-    firstName.build,
-    lastName.build,
-    avatarUrl.build,
-    lengthUnit.build,
-    weightUnit.build
-  )
+  val columns = List(password, firstName, lastName, avatarUrl, lengthUnit, weightUnit)
   /**
    * Add new user
    */

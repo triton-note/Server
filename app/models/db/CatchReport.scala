@@ -3,26 +3,21 @@ package models.db
 import java.util.Date
 
 import scala.collection.JavaConversions._
-import scala.math.BigDecimal.double2bigDecimal
-import scala.util.control.Exception.allCatch
 
 import com.amazonaws.services.dynamodbv2.model._
 
 import models.GeoInfo
 
-case class CatchReport(id: String,
-  createdAt: Date,
-  lastModifiedAt: Option[Date],
-  user: Option[User],
-  timestamp: Date,
-  location: String,
-  latitude: Double,
-  longitude: Double) extends TimestampedTable.ObjType[CatchReport] {
+case class CatchReport(MAP: Map[String, AttributeValue]) extends TimestampedTable.ObjType[CatchReport] {
   val TABLE = CatchReport
+  
+  lazy val user: Option[User] = build(_.user)
+  lazy val timestamp: Date = build(_.timestamp)
+  lazy val location: String = build(_.location)
   /**
    * Point on map by latitude and longitude
    */
-  lazy val geoinfo = GeoInfo(latitude, longitude)
+  lazy val geoinfo: GeoInfo = GeoInfo(build(_.latitude), build(_.longitude))
   /**
    * All comments
    */
@@ -42,20 +37,10 @@ object CatchReport extends AutoIDTable[CatchReport]("CATCH_REPORT") {
   val user = Column[Option[User]]("USER", (_.user), (_.get(User)), attrObjID)
   val timestamp = Column[Date]("TIMESTAMP", (_.timestamp), (_.getDate.get), attrDate)
   val location = Column[String]("LOCATION", (_.location), (_.getString.get), attrString)
-  val latitude = Column[Double]("LATITUDE", (_.latitude), (_.getDouble.get), attrDouble)
-  val longitude = Column[Double]("LONGITUDE", (_.longitude), (_.getDouble.get), attrDouble)
+  val latitude = Column[Double]("LATITUDE", (_.geoinfo.latitude), (_.getDouble.get), attrDouble)
+  val longitude = Column[Double]("LONGITUDE", (_.geoinfo.longitude), (_.getDouble.get), attrDouble)
   // All columns
   val columns = List(user, timestamp, location, latitude, longitude)
-  def fromMap(implicit map: Map[String, AttributeValue]): Option[CatchReport] = allCatch opt CatchReport(
-    id.build,
-    createdAt.build,
-    lastModifiedAt.build,
-    user.build,
-    timestamp.build,
-    location.build,
-    latitude.build,
-    longitude.build
-  )
   /**
    * Add new
    */

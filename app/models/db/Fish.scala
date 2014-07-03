@@ -1,23 +1,17 @@
 package models.db
 
 import scala.collection.JavaConversions._
-import java.util.Date
-
-import scalaz.Scalaz._
-
-import org.fathens.play.util.Exception.allCatch
 
 import com.amazonaws.services.dynamodbv2.model._
 
-case class FishSize(id: String,
-  createdAt: Date,
-  lastModifiedAt: Option[Date],
-  photo: Option[Photo],
-  name: String,
-  count: Long,
-  weight: Option[(Double, String)],
-  length: Option[(Double, String)]) extends TimestampedTable.ObjType[FishSize] {
+case class FishSize(MAP: Map[String, AttributeValue]) extends TimestampedTable.ObjType[FishSize] {
   val TABLE = FishSize
+
+  lazy val photo: Option[Photo] = build(_.photo)
+  lazy val name: String = build(_.name)
+  lazy val count: Long = build(_.count)
+  lazy val weight: Option[(Double, String)] = for { value <- build(_.weight); unit <- build(_.weightUnit) } yield (value, unit)
+  lazy val length: Option[(Double, String)] = for { value <- build(_.length); unit <- build(_.lengthUnit) } yield (value, unit)
 }
 object FishSize extends AutoIDTable[FishSize]("FISH_SIZE") {
   val photo = Column[Option[Photo]]("PHOTO", (_.photo), (_.get(Photo)), attrObjID)
@@ -28,17 +22,7 @@ object FishSize extends AutoIDTable[FishSize]("FISH_SIZE") {
   val length = Column[Option[Double]]("LENGTH", (_.length.map(_._1)), (_.getDouble), attrDouble)
   val lengthUnit = Column[Option[String]]("LENGTH_UNIT", (_.length.map(_._2)), (_.getString), attrString)
   // All columns
-  val columns = List(photo, name, weight, length)
-  def fromMap(implicit map: Map[String, AttributeValue]): Option[FishSize] = allCatch opt FishSize(
-    id.build,
-    createdAt.build,
-    lastModifiedAt.build,
-    photo.build,
-    name.build,
-    count.build,
-    for { v <- weight.build; u <- weightUnit.build } yield (v, u),
-    for { v <- length.build; u <- lengthUnit.build } yield (v, u)
-  )
+  val columns = List(photo, name, count, weight, weightUnit, length, lengthUnit)
   /**
    * Add new fish size
    */
