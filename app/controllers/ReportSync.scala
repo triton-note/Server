@@ -28,8 +28,8 @@ object ReportSync extends Controller {
             _.withIndexName("USER-TIMESTAMP-index").withKeyConditions(Map(
               CatchReport.user compare Some(user)
             )).withScanIndexForward(false).withLimit(count).withExclusiveStartKey(
-              last match {
-                case Some(id) => Map(CatchReport id id)
+              last.flatMap(CatchReport.get) match {
+                case Some(c) => c.toMap(CatchReport.id, CatchReport.user, CatchReport.timestamp)
                 case None    => null
               })
           ).map { report =>
