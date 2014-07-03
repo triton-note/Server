@@ -18,31 +18,24 @@ case class VolatileToken(id: String,
   createdAt: Date,
   lastModifiedAt: Option[Date],
   expiration: Date,
-  extra: Option[String]) {
-  /**
-   * Reload form DB
-   */
-  def refresh: Option[VolatileToken] = VolatileTokens.get(id)
-  /**
-   * Delete me
-   */
-  def delete: Boolean = VolatileTokens.delete(id)
+  extra: Option[String]) extends TimestampedTable.ObjType[VolatileToken] {
+  val TABLE = VolatileToken
   /**
    * Change properties (like a copy) and update Database
    */
   def update(extra: Option[String] = this.extra, expiration: Date = this.expiration): Option[VolatileToken] = {
-    VolatileTokens.update(id, Map(
-      VolatileTokens.extra(extra),
-      VolatileTokens.expiration(expiration)
+    TABLE.update(id, Map(
+      TABLE.extra(extra),
+      TABLE.expiration(expiration)
     ))(for {
-      (n, v) <- Map(VolatileTokens.extra(this.extra))
+      (n, v) <- Map(TABLE.extra(this.extra))
     } yield n -> new ExpectedAttributeValue(v).withComparisonOperator(ComparisonOperator.EQ))
   }
   def setExtra(text: String) = update(extra = Some(text))
   def removeExtra = update(extra = None)
   def changeExpiration(theNext: Date) = update(expiration = theNext)
 }
-object VolatileTokens extends AutoIDTable[VolatileToken]("VOLATILE_TOKEN") {
+object VolatileToken extends AutoIDTable[VolatileToken]("VOLATILE_TOKEN") {
   val expiration = Column[Date]("EXPIRATION", (_.expiration), (_.getDate.get), attrDate)
   val extra = Column[Option[String]]("EXTRA", (_.extra), (_.getString), attrString)
   // All columns

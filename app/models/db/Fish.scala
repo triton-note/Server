@@ -16,19 +16,11 @@ case class FishSize(id: String,
   name: String,
   count: Long,
   weight: Option[(Double, String)],
-  length: Option[(Double, String)]) {
-  /**
-   * Reload from DB.
-   * If there is no longer me, returns None.
-   */
-  def refresh: Option[FishSize] = FishSizes.get(id)
-  /**
-   * Delete me
-   */
-  def delete: Boolean = FishSizes.delete(id)
+  length: Option[(Double, String)]) extends TimestampedTable.ObjType[FishSize] {
+  val TABLE = FishSize
 }
-object FishSizes extends AutoIDTable[FishSize]("FISH_SIZE") {
-  val photo = Column[Option[Photo]]("PHOTO", (_.photo), (_.get(Photos)), attrObjID)
+object FishSize extends AutoIDTable[FishSize]("FISH_SIZE") {
+  val photo = Column[Option[Photo]]("PHOTO", (_.photo), (_.get(Photo)), attrObjID)
   val name = Column[String]("NAME", (_.name), (_.getString.get), attrString)
   val count = Column[Long]("COUNT", (_.count), (_.getLong.get), attrLong)
   val weight = Column[Option[Double]]("WEIGHT", (_.weight.map(_._1)), (_.getDouble), attrDouble)

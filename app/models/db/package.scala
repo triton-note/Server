@@ -37,7 +37,7 @@ package db {
       def getDouble: Option[Double] = Option(av.getN).flatMap(allCatch opt _.toDouble)
       def getLong: Option[Long] = Option(av.getN).flatMap(allCatch opt _.toLong)
       def getDate: Option[Date] = getString.flatMap(allCatch opt dateFormat.parse(_))
-      def get[O <: TimestampedTable.ObjType](t: TimestampedTable[O]): Option[O] = getString.flatMap(t.get)
+      def get[O <: TimestampedTable.ObjType[O]](t: TimestampedTable[O]): Option[O] = getString.flatMap(t.get)
     }
     // for String
     implicit def attrString(s: String) = new AttributeValue().withS(if (s != null && s.length > 0) s else null)
@@ -55,12 +55,13 @@ package db {
     implicit def attrDate(date: Date) = new AttributeValue().withS(dateFormat format date)
     implicit def attrDate(date: Option[Date]) = new AttributeValue().withS(date.map(dateFormat.format).orNull)
     // for ArrangedTableObj
-    implicit def attrObjID(o: Option[TimestampedTable.ObjType]) = new AttributeValue().withS(o.map(_.id).orNull)
+    implicit def attrObjID(o: Option[TimestampedTable.ObjType[_]]) = new AttributeValue().withS(o.map(_.id).orNull)
     /**
      * Representation of column.
      */
     case class Column[A](name: String, getProp: T => A, valueOf: AttributeValueWrapper => A, toAttr: A => AttributeValue) {
       def apply(a: A): (String, AttributeValue) = name -> toAttr(a)
+      def extract(obj: T): (String, AttributeValue) = name -> toAttr(getProp(obj))
       def build(implicit map: Map[String, AttributeValue]): A = valueOf(new AttributeValueWrapper(map.getOrElse(name, new AttributeValue)))
       def compare(a: A, co: ComparisonOperator = ComparisonOperator.EQ) = name -> new Condition().withComparisonOperator(co).withAttributeValueList(toAttr(a))
       def diff(a: A, b: A) = a != b option apply(b)
@@ -71,7 +72,7 @@ package db {
     val allColumns: List[Column[_]]
     /**
      * Mapping to Object from AttributeValues
-     * return None if failure.
+     * @return None if failure.
      */
     def fromMap(implicit map: Map[String, AttributeValue]): Option[T]
     /**
@@ -114,13 +115,34 @@ package db {
     }
   }
   object TimestampedTable {
-    type ObjType = {
+    trait ObjType[T <: TimestampedTable.ObjType[T]] { self: T =>
       val id: String
       val createdAt: Date
       val lastModifiedAt: Option[Date]
+      val TABLE: TimestampedTable[T]
+      /**
+       * Reload from DB.
+       * If there is no longer me, returns None.
+       */
+      def refresh: Option[T] = TABLE.get(id)
+      /**
+       * Delete me
+       */
+      def delete: Boolean = TABLE.delete(id)
+      /**
+       * Extract attributes from Object
+       * @return Map of attributes
+       */
+      def toMap(needs: TABLE.Column[_]*): Map[String, AttributeValue] = {
+        val list = needs match {
+          case Nil => TABLE.allColumns
+          case _   => needs
+        }
+        list.map(_ extract this).toMap
+      }
     }
   }
-  trait TimestampedTable[T <: TimestampedTable.ObjType] extends TableRoot[T] {
+  trait TimestampedTable[T <: TimestampedTable.ObjType[T]] extends TableRoot[T] {
     /**
      * Column 'ID'
      */
@@ -216,7 +238,7 @@ package db {
       fromMap(map).get
     }
   }
-  abstract class AnyIDTable[T <: TimestampedTable.ObjType](val tableName: String) extends TimestampedTable[T] {
+  abstract class AnyIDTable[T <: TimestampedTable.ObjType[T]](val tableName: String) extends TimestampedTable[T] {
     /**
      * Add item.
      *
@@ -226,7 +248,7 @@ package db {
       putNew(attributes.toMap - id.name + id(key))
     }
   }
-  abstract class AutoIDTable[T <: TimestampedTable.ObjType](val tableName: String) extends TimestampedTable[T] {
+  abstract class AutoIDTable[T <: TimestampedTable.ObjType[T]](val tableName: String) extends TimestampedTable[T] {
     /**
      * Generating ID by random numbers.
      */

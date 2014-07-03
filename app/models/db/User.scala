@@ -16,16 +16,8 @@ case class User(id: String,
   lastName: String,
   avatarUrl: Option[String],
   lengthUnit: String,
-  weightUnit: String) {
-  /**
-   * Reload from DB.
-   * If there is no longer me, returns None.
-   */
-  def refresh: Option[User] = Users.get(id)
-  /**
-   * Delete me
-   */
-  def delete: Boolean = Users.delete(id)
+  weightUnit: String) extends TimestampedTable.ObjType[User] {
+  val TABLE = User
   /**
    * Combination of firstName and lastName
    */
@@ -38,15 +30,15 @@ case class User(id: String,
     lastName: String = this.lastName,
     avatarUrl: Option[String] = this.avatarUrl): Option[User] = {
     val map = List(
-      (password != this.password) option Users.password(password),
-      (firstName != this.firstName) option Users.firstName(firstName),
-      (lastName != this.lastName) option Users.lastName(lastName),
-      (avatarUrl != this.avatarUrl) option Users.avatarUrl(avatarUrl)
+      (password != this.password) option TABLE.password(password),
+      (firstName != this.firstName) option TABLE.firstName(firstName),
+      (lastName != this.lastName) option TABLE.lastName(lastName),
+      (avatarUrl != this.avatarUrl) option TABLE.avatarUrl(avatarUrl)
     ).flatten.toMap
-    Users.update(id, map)
+    TABLE.update(id, map)
   }
 }
-object Users extends AnyIDTable[User]("USER") {
+object User extends AnyIDTable[User]("USER") {
   val password = Column[Option[String]]("PASSWORD", (_.password), (_.getString), attrString)
   val firstName = Column[String]("FIRST_NAME", (_.firstName), (_.getString.get), attrString)
   val lastName = Column[String]("LAST_NAME", (_.lastName), (_.getString.get), attrString)

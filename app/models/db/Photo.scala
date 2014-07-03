@@ -17,20 +17,12 @@ case class Photo(id: String,
   createdAt: Date,
   lastModifiedAt: Option[Date],
   catchReport: Option[CatchReport],
-  image: Option[Image]) {
-  /**
-   * Reload from DB.
-   * If there is no longer me, returns None.
-   */
-  def refresh: Option[Photo] = Photos.get(id)
-  /**
-   * Delete me
-   */
-  def delete: Boolean = Photos.delete(id)
+  image: Option[Image]) extends TimestampedTable.ObjType[Photo] {
+  val TABLE = Photo
 }
-object Photos extends AutoIDTable[Photo]("PHOTO") {
-  val catchReport = Column[Option[CatchReport]]("CATCH_REPORT", (_.catchReport), (_.get(CatchReports)), attrObjID)
-  val image = Column[Option[Image]]("IMAGE", (_.image), (_.get(Images)), attrObjID)
+object Photo extends AutoIDTable[Photo]("PHOTO") {
+  val catchReport = Column[Option[CatchReport]]("CATCH_REPORT", (_.catchReport), (_.get(CatchReport)), attrObjID)
+  val image = Column[Option[Image]]("IMAGE", (_.image), (_.get(Image)), attrObjID)
   val columns = List(catchReport, image)
   def fromMap(implicit map: Map[String, AttributeValue]): Option[Photo] = allCatch opt Photo(
     id.build,
@@ -61,22 +53,16 @@ case class Image(id: String,
   format: String,
   dataSize: Long,
   width: Long,
-  height: Long) {
+  height: Long) extends TimestampedTable.ObjType[Image] {
+  val TABLE = Image
+  override def delete: Boolean = file.delete && super.delete
   /**
-   * Reload from DB.
-   * If there is no longer me, returns None.
+   * Reference to Image file
    */
-  def refresh: Option[Image] = Images.get(id)
-  /**
-   * Delete me
-   */
-  def delete: Boolean = {
-    file.delete && Images.delete(id) 
-  }
   lazy val file = Storage.file("photo", kind, id.toString)
   def url(implicit limit: FiniteDuration = 1 hour) = file.generateURL(limit)
 }
-object Images extends AutoIDTable[Image]("IMAGE") {
+object Image extends AutoIDTable[Image]("IMAGE") {
   val kind = Column[String]("KIND", (_.kind), (_.getString.get), attrString)
   val format = Column[String]("FORMAT", (_.format), (_.getString.get), attrString)
   val dataSize = Column[Long]("DATA_SIZE", (_.dataSize), (_.getLong.get), attrLong)
@@ -123,20 +109,12 @@ case class ImageRelation(id: String,
   lastModifiedAt: Option[Date],
   imageSrc: Option[Image],
   imageDst: Option[Image],
-  relation: String) {
-  /**
-   * Reload from DB.
-   * If there is no longer me, returns None.
-   */
-  def refresh: Option[ImageRelation] = ImageRelations.get(id)
-  /**
-   * Delete me
-   */
-  def delete: Boolean = ImageRelations.delete(id)
+  relation: String) extends TimestampedTable.ObjType[ImageRelation] {
+  val TABLE = ImageRelation
 }
-object ImageRelations extends AutoIDTable[ImageRelation]("IMAGE_RELATION") {
-  val imageSrc = Column[Option[Image]]("IMAGE_SRC", (_.imageSrc), (_.get(Images)), attrObjID)
-  val imageDst = Column[Option[Image]]("IMAGE_DST", (_.imageDst), (_.get(Images)), attrObjID)
+object ImageRelation extends AutoIDTable[ImageRelation]("IMAGE_RELATION") {
+  val imageSrc = Column[Option[Image]]("IMAGE_SRC", (_.imageSrc), (_.get(Image)), attrObjID)
+  val imageDst = Column[Option[Image]]("IMAGE_DST", (_.imageDst), (_.get(Image)), attrObjID)
   val relation = Column[String]("RELATION", (_.relation), (_.getString.get), attrString)
   // All columns
   val columns = List(imageSrc, imageDst, relation)

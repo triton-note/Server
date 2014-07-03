@@ -10,7 +10,7 @@ import play.api.libs.json._
 import play.api.mvc.{ Action, Controller }
 
 import models.Report
-import models.db.{ CatchReports, Comments, FishSize, FishSizes, Photos }
+import models.db.{ CatchReport, Comment, FishSize, Photo }
 
 object ReportSync extends Controller {
 
@@ -24,24 +24,24 @@ object ReportSync extends Controller {
       ticket.asTokenOfUser[TicketValue] match {
         case None => BadRequest("Ticket Expired")
         case Some((vt, value, user)) =>
-          val reports = CatchReports.find(
+          val reports = CatchReport.find(
             _.withIndexName("USER-TIMESTAMP-index").withKeyConditions(Map(
-              CatchReports.user compare Some(user)
+              CatchReport.user compare Some(user)
             )).withScanIndexForward(false).withLimit(count).withExclusiveStartKey(
               last match {
-                case Some(id) => Map(CatchReports id id)
-                case None     => null
+                case Some(id) => Map(CatchReport id id)
+                case None    => null
               })
           ).map { report =>
               val comment = report.comments.find(_.user == user).map(_.text) getOrElse ""
-              val photos = Photos.find(
+              val photos = Photo.find(
                 _.withIndexName("CATCH_REPORT-index").withKeyConditions(Map(
-                  Photos.catchReport compare Some(report)
+                  Photo.catchReport compare Some(report)
                 )))
               val fishes = photos.flatMap { photo =>
-                FishSizes.find(
+                FishSize.find(
                   _.withIndexName("PHOTO-CREATED_AT-index").withKeyConditions(Map(
-                    FishSizes.photo compare Some(photo)
+                    FishSize.photo compare Some(photo)
                   )))
               }
               Report(Some(report.id),
@@ -67,23 +67,23 @@ object ReportSync extends Controller {
       ticket.asTokenOfUser[TicketValue] match {
         case None => BadRequest("Ticket Expired")
         case Some((vt, value, user)) =>
-          report.id.flatMap(CatchReports.get) match {
+          report.id.flatMap(CatchReport.get) match {
             case None => BadRequest(f"Invalid id: ${report.id.orNull}")
             case Some(src) =>
-              CatchReports.update(src.id, List(
-                CatchReports.timestamp.diff(src.timestamp, report.dateAt),
-                CatchReports.location.diff(src.location, report.location.name),
-                CatchReports.latitude.diff(src.latitude, report.location.geoinfo.latitude.toDouble),
-                CatchReports.latitude.diff(src.longitude, report.location.geoinfo.longitude.toDouble)
+              CatchReport.update(src.id, List(
+                CatchReport.timestamp.diff(src.timestamp, report.dateAt),
+                CatchReport.location.diff(src.location, report.location.name),
+                CatchReport.latitude.diff(src.latitude, report.location.geoinfo.latitude.toDouble),
+                CatchReport.latitude.diff(src.longitude, report.location.geoinfo.longitude.toDouble)
               ).flatten.toMap) match {
                 case None => InternalServerError("Failed to update report")
                 case Some(doneCR) =>
                   doneCR.comments.find(_.user == user).headOption.flatMap { comment =>
-                    Comments.update(comment.id, List(
-                      Comments.text.diff(comment.text, report.comment)
+                    Comment.update(comment.id, List(
+                      Comment.text.diff(comment.text, report.comment)
                     ).flatten.toMap)
                   }
-                  Photos.findByCatchReport(doneCR) match {
+                  Photo.findByCatchReport(doneCR) match {
                     case thePhoto :: Nil =>
                       def reduce(east: List[FishSize], west: List[Report.Fishes], left: List[FishSize] = Nil): (List[FishSize], List[Report.Fishes]) = west match {
                         case Nil => (left, west)
@@ -97,13 +97,13 @@ object ReportSync extends Controller {
                             })
                         }
                       }
-                      reduce(FishSizes.findByPhoto(thePhoto), report.fishes.toList) match {
+                      reduce(FishSize.findByPhoto(thePhoto), report.fishes.toList) match {
                         case (dbFish, rpFish) =>
                           val dones = List(
                             dbFish.par.map(_.delete).filter(_ == true),
                             rpFish.par.map(_ add thePhoto)
                           ).par.map(_.size)
-                          Logger info f"Update ${FishSizes.tableName}: ${dones(0)} deleted, ${dones(1)} added"
+                          Logger info f"Update ${FishSize.tableName}: ${dones(0)} deleted, ${dones(1)} added"
                           Ok
                       }
                     case Nil  => InternalServerError(f"Not Found photo for ${doneCR}")
@@ -121,13 +121,13 @@ object ReportSync extends Controller {
     val id = request.body
     Logger debug f"Deleting report: id=${id}"
     Future {
-      CatchReports.get(id) match {
+      CatchReport.get(id) match {
         case None => BadRequest(f"Invalid id: ${id}")
-        case Some(cr) => Photos.findByCatchReport(cr) match {
+        case Some(cr) => Photo.findByCatchReport(cr) match {
           case thePhoto :: Nil => thePhoto.image match {
             case None => InternalServerError(f"Not Found image for ${thePhoto}")
             case Some(theImage) =>
-              val fishes = FishSizes.findByPhoto(thePhoto)
+              val fishes = FishSize.findByPhoto(thePhoto)
               val targets = cr :: thePhoto :: theImage :: (fishes: List[{ def delete: Boolean }])
               Logger debug f"Deleting: ${targets}"
               if (targets.par.map(_.delete).forall(_ == false)) InternalServerError("Failed to delete any items") else Ok
