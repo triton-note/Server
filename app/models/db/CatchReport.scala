@@ -21,10 +21,8 @@ case class CatchReport(MAP: Map[String, AttributeValue]) extends TimestampedTabl
   /**
    * All comments
    */
-  lazy val comments: List[Comment] = Comment.find(
-    _.withIndexName("CATCH_REPORT-CREATED_AT-index").withKeyConditions(Map(
-      Comment.catchReport compare Some(this)
-    ))).toList
+  lazy val comments: List[Comment] = Comment.findBy(this)
+  def comments(theUser: User): List[Comment] = comments.filter(_.user == Option(theUser))
   /**
    * Add comment
    */
