@@ -30,7 +30,7 @@ object ReportSync extends Controller {
             val fishes = photos.flatMap(FishSize.findByPhoto)
             Report(Some(report.id),
               comment,
-              report.createdAt,
+              report.timestamp,
               Report.Location(report.location, report.geoinfo),
               photos.headOption.flatMap(_.image).map(_.url.toString),
               fishes.toSeq.map { fish =>
