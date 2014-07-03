@@ -25,7 +25,7 @@ object ReportSync extends Controller {
         case None => BadRequest("Ticket Expired")
         case Some((vt, value, user)) =>
           val reports = CatchReport.findByUser(user, count, last).map { report =>
-            val comment = report.comments.find(_.user == user).map(_.text) getOrElse ""
+            val comment = report.comments.find(_.user == Some(user)).map(_.text) getOrElse ""
             val photos = Photo.findByCatchReport(report)
             val fishes = photos.flatMap(FishSize.findByPhoto)
             Report(Some(report.id),
