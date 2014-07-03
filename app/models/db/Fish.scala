@@ -36,7 +36,12 @@ object FishSize extends AutoIDTable[FishSize]("FISH_SIZE") {
     length(theLength.map(_._1)),
     lengthUnit(theLength.map(_._2))
   )
-  def findByPhoto(thePhoto: Photo): List[FishSize] = {
+  def findBy(theName: String): List[FishSize] = {
+    find(_.withIndexName("NAME-CREATED_AT-index").withKeyConditions(Map(
+      name compare theName
+    ))).toList
+  }
+  def findBy(thePhoto: Photo): List[FishSize] = {
     find(_.withIndexName("PHOTO-CREATED_AT-index").withKeyConditions(Map(
       photo compare Option(thePhoto)
     ))).toList

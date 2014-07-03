@@ -24,10 +24,10 @@ object ReportSync extends Controller {
       ticket.asTokenOfUser[TicketValue] match {
         case None => BadRequest("Ticket Expired")
         case Some((vt, value, user)) =>
-          val reports = CatchReport.findByUser(user, count, last).map { report =>
+          val reports = CatchReport.findBy(user, count, last).map { report =>
             val comment = report.comments.find(_.user == Some(user)).map(_.text) getOrElse ""
-            val photos = Photo.findByCatchReport(report)
-            val fishes = photos.flatMap(FishSize.findByPhoto)
+            val photos = Photo.findBy(report)
+            val fishes = photos.flatMap(FishSize.findBy)
             Report(Some(report.id),
               comment,
               report.timestamp,
@@ -67,7 +67,7 @@ object ReportSync extends Controller {
                       Comment.text.diff(comment.text, report.comment)
                     ).flatten.toMap)
                   }
-                  Photo.findByCatchReport(doneCR) match {
+                  Photo.findBy(doneCR) match {
                     case thePhoto :: Nil =>
                       def reduce(east: List[FishSize], west: List[Report.Fishes], left: List[FishSize] = Nil): (List[FishSize], List[Report.Fishes]) = west match {
                         case Nil => (left, west)
@@ -81,7 +81,7 @@ object ReportSync extends Controller {
                             })
                         }
                       }
-                      reduce(FishSize.findByPhoto(thePhoto), report.fishes.toList) match {
+                      reduce(FishSize.findBy(thePhoto), report.fishes.toList) match {
                         case (dbFish, rpFish) =>
                           val dones = List(
                             dbFish.par.map(_.delete).filter(_ == true),
@@ -107,11 +107,11 @@ object ReportSync extends Controller {
     Future {
       CatchReport.get(id) match {
         case None => BadRequest(f"Invalid id: ${id}")
-        case Some(cr) => Photo.findByCatchReport(cr) match {
+        case Some(cr) => Photo.findBy(cr) match {
           case thePhoto :: Nil => thePhoto.image match {
             case None => InternalServerError(f"Not Found image for ${thePhoto}")
             case Some(theImage) =>
-              val fishes = FishSize.findByPhoto(thePhoto)
+              val fishes = FishSize.findBy(thePhoto)
               val targets = cr :: thePhoto :: theImage :: (fishes: List[{ def delete: Boolean }])
               Logger debug f"Deleting: ${targets}"
               if (targets.par.map(_.delete).forall(_ == false)) InternalServerError("Failed to delete any items") else Ok

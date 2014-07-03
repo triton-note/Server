@@ -51,13 +51,23 @@ object CatchReport extends AutoIDTable[CatchReport]("CATCH_REPORT") {
     latitude(theGeoinfo.latitude.toDouble),
     longitude(theGeoinfo.longitude.toDouble)
   )
-  def findByUser(theUser: User, count: Int, last: Option[String]): List[CatchReport] = {
+  def findBy(theUser: User, count: Int = 0, last: Option[String] = None): List[CatchReport] = {
     find(_.withIndexName("USER-TIMESTAMP-index").withKeyConditions(Map(
       user compare Option(theUser)
-    )).withScanIndexForward(false).withLimit(count).withExclusiveStartKey(
-      last.flatMap(get) match {
-        case Some(c) => c.toMap(id, user, timestamp)
-        case None    => null
-      })).toList
+    )).withScanIndexForward(false).withLimit(
+      count match {
+        case 0 => null
+        case _ => count
+      }).withExclusiveStartKey(
+        last.flatMap(get) match {
+          case Some(c) => c.toMap(id, user, timestamp)
+          case None    => null
+        })).toList
+  }
+  def findBy(theUser: User, theLocation: String): List[CatchReport] = {
+    find(_.withIndexName("USER-LOCATION-index").withKeyConditions(Map(
+      user compare Option(theUser),
+      location compare theLocation
+    ))).toList.sortBy(_.timestamp).reverse
   }
 }

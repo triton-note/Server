@@ -1,10 +1,12 @@
 package models.db
 
+import scala.collection.JavaConversions._
+
 import com.amazonaws.services.dynamodbv2.model._
 
 case class Comment(MAP: Map[String, AttributeValue]) extends TimestampedTable.ObjType[Comment] {
   val TABLE = Comment
-  
+
   lazy val user: Option[User] = build(_.user)
   lazy val catchReport: Option[CatchReport] = build(_.catchReport)
   lazy val text: String = build(_.text)
@@ -29,4 +31,14 @@ object Comment extends AutoIDTable[Comment]("COMMENT") {
     catchReport(Option(theCatchReport)),
     text(theText)
   )
+  def findBy(theUser: User): List[Comment] = {
+    find(_.withIndexName("USER-CREATED_AT-index").withKeyConditions(Map(
+      user compare Option(theUser)
+    ))).toList
+  }
+  def findBy(theCatchReport: CatchReport): List[Comment] = {
+    find(_.withIndexName("CATCH_REPORT-CREATED_AT-index").withKeyConditions(Map(
+      catchReport compare Option(theCatchReport)
+    ))).toList
+  }
 }
