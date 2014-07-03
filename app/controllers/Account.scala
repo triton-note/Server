@@ -1,15 +1,16 @@
 package controllers
 
-import scala.annotation.{ implicitNotFound, tailrec }
+import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 import play.api.Logger
 import play.api.libs.json._
-import play.api.mvc.{ Action, Controller }
+import play.api.mvc.{Action, Controller}
 
-import models.{ Facebook, Settings }
-import models.db.{ Users, VolatileTokens }
+import models.Settings
+import models.db.VolatileToken
+import service.Facebook
 
 object Account extends Controller {
   def auth(way: String, token: String) = way match {
@@ -25,7 +26,7 @@ object Account extends Controller {
       Logger debug f"Authorized user from $way: $u"
       u map { user =>
         val value = TicketValue(user.id, way, token)
-        val ticket = VolatileTokens.createNew(Settings.Session.timeoutTicket, Option(value.toString))
+        val ticket = VolatileToken.addNew(Settings.Session.timeoutTicket, Option(value.toString))
         Ok(ticket.id)
       } getOrElse Unauthorized
     }

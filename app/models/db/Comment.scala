@@ -1,51 +1,30 @@
 package models.db
 
-import java.util.Date
-
-import scala.util.control.Exception.allCatch
-
 import com.amazonaws.services.dynamodbv2.model._
 
-case class Comment(id: Long,
-                   createdAt: Date,
-                   lastModifiedAt: Option[Date],
-                   user: Option[User],
-                   catchReport: Option[CatchReport],
-                   text: String) {
-  /**
-   * Reload from DB.
-   * If there is no longer me, returns None.
-   */
-  def refresh: Option[Comment] = Comments.get(id)
-  /**
-   * Delete me
-   */
-  def delete: Boolean = Comments.delete(id)
+case class Comment(MAP: Map[String, AttributeValue]) extends TimestampedTable.ObjType[Comment] {
+  val TABLE = Comment
+  
+  lazy val user: Option[User] = build(_.user)
+  lazy val catchReport: Option[CatchReport] = build(_.catchReport)
+  lazy val text: String = build(_.text)
   /**
    * Change text
    */
   def update(text: String): Option[Comment] = {
-    Comments.update(id, Map(Comments.text(text)))
+    TABLE.update(id, Map(TABLE.text(text)))
   }
 }
-object Comments extends AutoIDTable[Comment]("COMMENT") {
-  val user = Column[Option[User]]("USER", (_.user), (_.get(Users)), attrObjStringID)
-  val catchReport = Column[Option[CatchReport]]("CATCH_REPORT", (_.catchReport), (_.get(CatchReports)), attrObjLongID)
+object Comment extends AutoIDTable[Comment]("COMMENT") {
+  val user = Column[Option[User]]("USER", (_.user), (_.get(User)), attrObjID)
+  val catchReport = Column[Option[CatchReport]]("CATCH_REPORT", (_.catchReport), (_.get(CatchReport)), attrObjID)
   val text = Column[String]("TEXT", (_.text), (_.getString getOrElse ""), attrString)
   // All columns
   val columns = List(user, catchReport, text)
-  def fromMap(implicit map: Map[String, AttributeValue]): Option[Comment] = allCatch opt Comment(
-    id.build,
-    createdAt.build,
-    lastModifiedAt.build,
-    user.build,
-    catchReport.build,
-    text.build
-  )
   /**
    * Add new comment
    */
-  def addNew(theUser: User, theCatchReport: CatchReport, theText: String): Option[Comment] = addNew(
+  def addNew(theUser: User, theCatchReport: CatchReport, theText: String): Comment = addNew(
     user(Option(theUser)),
     catchReport(Option(theCatchReport)),
     text(theText)

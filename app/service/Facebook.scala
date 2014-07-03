@@ -1,17 +1,18 @@
-package models
+package service
 
-import scala.{ Left, Right }
+import scala.{Left, Right}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
-import scala.concurrent.duration.DurationInt
 
 import play.api.Logger
 import play.api.Play.current
 import play.api.libs.json._
-import play.api.libs.ws.{ WS, WSResponse }
+import play.api.libs.ws.{WS, WSResponse}
 import play.api.mvc.Codec.utf_8
 
 import org.fathens.play.util.Exception.allCatch
+
+import models.db.{Image, User => UserDB}
 
 object Facebook {
   case class AccessKey(token: String)
@@ -50,14 +51,14 @@ object Facebook {
      * If UserAlias is not found, return email which is obtained by accessKey.
      * If UserAlias is found by email, return UserAlias.
      */
-    def find(implicit accesskey: AccessKey): Future[Option[Either[String, db.User]]] = {
+    def find(implicit accesskey: AccessKey): Future[Option[Either[String, UserDB]]] = {
       obtain("email") map { opt =>
         for {
           json <- opt
           email <- (json \ "email").asOpt[String]
         } yield {
           Logger debug f"Getting UserAlias by email: $email"
-          db.Users.find(email) match {
+          UserDB.find(email) match {
             case Some(user) => Right(user)
             case None       => Left(email)
           }
@@ -68,7 +69,7 @@ object Facebook {
      * Create User by email.
      * The email is obtained by accessKey.
      */
-    def create(implicit accesskey: AccessKey): Future[Option[db.User]] = {
+    def create(implicit accesskey: AccessKey): Future[Option[UserDB]] = {
       obtain("email", "first_name", "last_name", "picture") map { opt =>
         for {
           json <- opt
@@ -76,7 +77,7 @@ object Facebook {
           firstName <- (json \ "first_name").asOpt[String]
           lastName <- (json \ "last_name").asOpt[String]
           avatarUrl = (json \ "picture" \ "data" \ "url").asOpt[String]
-          user <- db.Users.addNew(email, None, firstName, lastName, avatarUrl)
+          user = UserDB.addNew(email, None, firstName, lastName, avatarUrl)
         } yield {
           Logger.info(f"Creating alias '$email' of $user as facebook and email at once")
           user
@@ -88,7 +89,7 @@ object Facebook {
      * If UserAlias is not created yet, create it.
      * If accessKey is not valid, return None.
      */
-    def apply(accesskey: String): Future[Option[db.User]] = {
+    def apply(accesskey: String): Future[Option[UserDB]] = {
       implicit val ak = AccessKey(accesskey)
       Logger.debug(f"Login as user with $ak")
       find flatMap (_ match {
@@ -101,11 +102,11 @@ object Facebook {
     }
   }
   object Fishing {
-    def publish(photo: List[Storage.S3File], message: Option[String])(implicit accessKey: AccessKey): Future[Option[ObjectId]] = {
+    def publish(photo: List[Image], message: Option[String])(implicit accessKey: AccessKey): Future[Option[ObjectId]] = {
       (fb / f"me/photos").withQueryString(
         "access_token" -> accessKey.token
       ).post(Map(
-          "url" -> photo.map(_.generateURL(1 hours).toString),
+          "url" -> photo.map(_.url.toString),
           "message" -> message.toSeq
         )).map(parse.ObjectID)
     }

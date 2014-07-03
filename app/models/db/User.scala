@@ -1,31 +1,18 @@
 package models.db
 
-import java.util.Date
-
 import scalaz.Scalaz._
-
-import org.fathens.play.util.Exception.allCatch
 
 import com.amazonaws.services.dynamodbv2.model._
 
-case class User(id: String,
-  createdAt: Date,
-  lastModifiedAt: Option[Date],
-  password: Option[String],
-  firstName: String,
-  lastName: String,
-  avatarUrl: Option[String],
-  lengthUnit: String,
-  weightUnit: String) {
-  /**
-   * Reload from DB.
-   * If there is no longer me, returns None.
-   */
-  def refresh: Option[User] = Users.get(id)
-  /**
-   * Delete me
-   */
-  def delete: Boolean = Users.delete(id)
+case class User(MAP: Map[String, AttributeValue]) extends TimestampedTable.ObjType[User] {
+  val TABLE = User
+  
+  lazy val password: Option[String] = build(_.password)
+  lazy val firstName: String = build(_.firstName)
+  lazy val lastName: String = build(_.lastName)
+  lazy val avatarUrl: Option[String] = build(_.avatarUrl)
+  lazy val lengthUnit: String = build(_.lengthUnit)
+  lazy val weightUnit: String = build(_.weightUnit)
   /**
    * Combination of firstName and lastName
    */
@@ -38,15 +25,15 @@ case class User(id: String,
     lastName: String = this.lastName,
     avatarUrl: Option[String] = this.avatarUrl): Option[User] = {
     val map = List(
-      (password != this.password) option Users.password(password),
-      (firstName != this.firstName) option Users.firstName(firstName),
-      (lastName != this.lastName) option Users.lastName(lastName),
-      (avatarUrl != this.avatarUrl) option Users.avatarUrl(avatarUrl)
+      (password != this.password) option TABLE.password(password),
+      (firstName != this.firstName) option TABLE.firstName(firstName),
+      (lastName != this.lastName) option TABLE.lastName(lastName),
+      (avatarUrl != this.avatarUrl) option TABLE.avatarUrl(avatarUrl)
     ).flatten.toMap
-    Users.update(id, map)
+    TABLE.update(id, map)
   }
 }
-object Users extends AnyIDTable[User]("USER") {
+object User extends AnyIDTable[User]("USER") {
   val password = Column[Option[String]]("PASSWORD", (_.password), (_.getString), attrString)
   val firstName = Column[String]("FIRST_NAME", (_.firstName), (_.getString.get), attrString)
   val lastName = Column[String]("LAST_NAME", (_.lastName), (_.getString.get), attrString)
@@ -54,18 +41,7 @@ object Users extends AnyIDTable[User]("USER") {
   val lengthUnit = Column[String]("LENGTH_UNIT", (_.lengthUnit), (_.getString.get), attrString)
   val weightUnit = Column[String]("WEIGHT_UNIT", (_.weightUnit), (_.getString.get), attrString)
   // All columns
-  val columns = List(firstName, lastName, avatarUrl)
-  def fromMap(implicit map: Map[String, AttributeValue]): Option[User] = allCatch opt User(
-    id.build,
-    createdAt.build,
-    lastModifiedAt.build,
-    password.build,
-    firstName.build,
-    lastName.build,
-    avatarUrl.build,
-    lengthUnit.build,
-    weightUnit.build
-  )
+  val columns = List(password, firstName, lastName, avatarUrl, lengthUnit, weightUnit)
   /**
    * Add new user
    */
@@ -75,7 +51,7 @@ object Users extends AnyIDTable[User]("USER") {
     theLastName: String,
     theAvatarUrl: Option[String] = None,
     theLengthUnit: String = "cm",
-    theWeightUnit: String = "Kg"): Option[User] = addNew(theEmail,
+    theWeightUnit: String = "Kg"): User = addNew(theEmail,
     password(unhashedPassword.map(hash)),
     firstName(theFirstName),
     lastName(theLastName),
@@ -83,7 +59,7 @@ object Users extends AnyIDTable[User]("USER") {
     lengthUnit(theLengthUnit),
     weightUnit(theWeightUnit)
   )
-  def find(email: String): Option[User] = find(Map(id(email))).headOption
+  def find(email: String): Option[User] = get(email).headOption
   // Password hashing
   val hashingWay = "SHA-1"
   def hash(v: String): String = play.api.libs.Codecs.sha1(v)

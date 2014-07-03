@@ -7,13 +7,13 @@ import scala.concurrent.Future
 import scalaz.Scalaz._
 
 import play.api.Logger
-import play.api.libs.functional.syntax.{ functionalCanBuildApplicative, toFunctionalBuilderOps }
-import play.api.libs.json.{ Json, __ }
+import play.api.libs.functional.syntax._
+import play.api.libs.json._
 import play.api.mvc.{ Action, Controller, Result }
 
-import models.{ GeoInfo, Record, Settings, Storage }
-import models.Facebook.{ AccessKey, Fishing }
-import models.db.{ CatchReports, FishSizes, Images, Photos, User, VolatileToken, VolatileTokens }
+import models.{ GeoInfo, Report, Settings }
+import models.db.{ CatchReport, FishSize, Image, Photo, User, VolatileToken }
+import service.Facebook.{ AccessKey, Fishing }
 import service.InferenceCatches
 
 object CatchesSession extends Controller {
@@ -27,12 +27,13 @@ object CatchesSession extends Controller {
   case class SessionValue(
     userId: String,
     geoinfo: Option[GeoInfo],
-    imageId: Option[Long] = None,
-    record: Option[Record] = None,
-    committed: Option[Long] = None,
+    imageId: Option[String] = None,
+    report: Option[Report] = None,
+    committed: Option[String] = None,
     publishing: Option[SessionValue.Publishing] = None) {
     override def toString = Json.toJson(this).toString
   }
+
   def start(ticket: String) = Action.async(parse.json(
     (__ \ "geoinfo").readNullable[GeoInfo])
   ) { implicit request =>
@@ -43,21 +44,22 @@ object CatchesSession extends Controller {
         case None => BadRequest("Ticket Expired")
         case Some((vt, _, user)) =>
           val value = SessionValue(user.id, geoinfo)
-          val session = VolatileTokens.createNew(Settings.Session.timeoutUpload, Option(value.toString))
+          val session = VolatileToken.addNew(Settings.Session.timeoutUpload, Option(value.toString))
           Ok(session.id)
       }
     }
   }
+
   def photo(session: String) = Action.async(parse.multipartFormData) { implicit request =>
     val file = request.body.files.headOption.map(_.ref.file)
     Logger debug f"Saving photo: $file in ${request.body.files}"
-    file.flatMap(Images.addNew) match {
+    file.flatMap(Image.addNew) match {
       case None => Future(InternalServerError("Failed to save photo"))
       case Some(image) =>
         mayCommit(session) {
           _.copy(imageId = Some(image.id))
         } { value =>
-          value.record.isEmpty option Ok {
+          value.report.isEmpty option Ok {
             val (location, fishes) = InferenceCatches.infer(image.file, value.geoinfo)
             Json.obj(
               "location" -> location,
@@ -67,32 +69,32 @@ object CatchesSession extends Controller {
         }
     }
   }
+
   def submit(session: String) = Action.async(parse.json((
-    (__ \ "record").read[Record] and
+    (__ \ "report").read[Report] and
     (__ \ "publishing").readNullable[SessionValue.Publishing]
   ).tupled)) { implicit request =>
-    val (record, publishing) = request.body
-    Logger debug f"Sumit $record with publishing $publishing"
+    val (report, publishing) = request.body
+    Logger debug f"Sumit report with publishing $publishing"
     mayCommit(session) {
-      _.copy(record = Some(record), publishing = publishing)
+      _.copy(report = Some(report), publishing = publishing)
     } { _.imageId.isEmpty option Ok }
   }
+
   def mayCommit(token: String)(convert: SessionValue => SessionValue)(result: SessionValue => Option[Result]): Future[Result] = {
     def commit(vt: VolatileToken)(implicit user: User): Future[Result] = {
       val ok = for {
         value <- vt.json[SessionValue]
-        given <- value.record
-        image <- value.imageId.flatMap(Images.get)
-        report <- CatchReports.addNew(user, given.location.geoinfo, given.location.name, given.dateAt)
-        photo <- Photos.addNew(report, image)
-        _ <- report.addComment(given.comment)
-        if given.fishes.map { fish =>
-          FishSizes.addNew(photo, fish.name, fish.count, fish.weight.map(_.tupled), fish.length.map(_.tupled)).isDefined
-        }.forall(_ == true)
+        given <- value.report
+        image <- value.imageId.flatMap(Image.get)
       } yield {
+        val report = CatchReport.addNew(user, given.location.geoinfo, given.location.name, given.dateAt)
+        val photo = Photo.addNew(report, image)
+        val comment = report.addComment(given.comment)
+        val photos = given.fishes.map(_ add photo)
         vt json value.copy(committed = Some(report.id)) match {
           case Some(vt) => value.publishing match {
-            case Some(SessionValue.Publishing(way, token)) => publish(way, token)(given, image.file)
+            case Some(SessionValue.Publishing(way, token)) => publish(way, token)(given, image)
             case None                                      => Future(Ok)
           }
           case None => Future(InternalServerError("Failed to update the session"))
@@ -113,9 +115,9 @@ object CatchesSession extends Controller {
     }
     retry(3)
   }
-  def publish(way: String, token: String)(record: Record, image: Storage.S3File): Future[Result] = {
+  def publish(way: String, token: String)(report: Report, image: Image): Future[Result] = {
     def mkMessage = {
-      val catches = record.fishes.map { fish =>
+      val catches = report.fishes.map { fish =>
         val size = List(
           fish.length.map { v => f"${v.value} ${v.unit}" },
           fish.weight.map { v => f"${v.value} ${v.unit}" }
@@ -123,13 +125,9 @@ object CatchesSession extends Controller {
             case Nil  => ""
             case list => list.mkString("(", ",", ")")
           }
-        val count = fish.count match {
-          case c if c == 1 => ""
-          case c           => f" x ${c}"
-        }
-        f"${fish.name}${size}${count}"
+        f"${fish.name}${size} x ${fish.count}"
       }.mkString("\n")
-      catches + "\n\n" + record.comment
+      report.comment + "\n\n" + catches
     }
     way match {
       case "facebook" =>
