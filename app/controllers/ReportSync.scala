@@ -25,7 +25,7 @@ object ReportSync extends Controller {
         case None => BadRequest("Ticket Expired")
         case Some((vt, value, user)) =>
           val reports = CatchReport.findBy(user, count, last).map { report =>
-            val comment = report.comments.find(_.user == Some(user)).map(_.text) getOrElse ""
+            val comment = report.comments(user).headOption.map(_.text) getOrElse ""
             val photos = Photo.findBy(report)
             val fishes = photos.flatMap(FishSize.findBy)
             Report(Some(report.id),
@@ -62,7 +62,7 @@ object ReportSync extends Controller {
               ).flatten.toMap) match {
                 case None => InternalServerError("Failed to update report")
                 case Some(doneCR) =>
-                  doneCR.comments.find(_.user == user).headOption.flatMap { comment =>
+                  doneCR.comments(user).headOption.flatMap { comment =>
                     Comment.update(comment.id, List(
                       Comment.text.diff(comment.text, report.comment)
                     ).flatten.toMap)
