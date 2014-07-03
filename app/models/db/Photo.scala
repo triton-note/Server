@@ -13,7 +13,7 @@ import models.Storage
 
 case class Photo(MAP: Map[String, AttributeValue]) extends TimestampedTable.ObjType[Photo] {
   val TABLE = Photo
-  
+
   lazy val catchReport: Option[CatchReport] = build(_.catchReport)
   lazy val image: Option[Image] = build(_.image)
 }
@@ -39,13 +39,13 @@ object Photo extends AutoIDTable[Photo]("PHOTO") {
 
 case class Image(MAP: Map[String, AttributeValue]) extends TimestampedTable.ObjType[Image] {
   val TABLE = Image
-  
+
   lazy val kind: String = build(_.kind)
   lazy val format: String = build(_.format)
   lazy val dataSize: Long = build(_.dataSize)
   lazy val width: Long = build(_.width)
   lazy val height: Long = build(_.height)
-  
+
   override def delete: Boolean = file.delete && super.delete
   /**
    * Reference to Image file
@@ -87,7 +87,7 @@ object Image extends AutoIDTable[Image]("IMAGE") {
 
 case class ImageRelation(MAP: Map[String, AttributeValue]) extends TimestampedTable.ObjType[ImageRelation] {
   val TABLE = ImageRelation
-  
+
   lazy val imageSrc: Option[Image] = build(_.imageSrc)
   lazy val imageDst: Option[Image] = build(_.imageDst)
   lazy val relation: String = build(_.relation)

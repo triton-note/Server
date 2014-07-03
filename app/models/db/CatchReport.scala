@@ -10,7 +10,7 @@ import models.GeoInfo
 
 case class CatchReport(MAP: Map[String, AttributeValue]) extends TimestampedTable.ObjType[CatchReport] {
   val TABLE = CatchReport
-  
+
   lazy val user: Option[User] = build(_.user)
   lazy val timestamp: Date = build(_.timestamp)
   lazy val location: String = build(_.location)
@@ -51,4 +51,13 @@ object CatchReport extends AutoIDTable[CatchReport]("CATCH_REPORT") {
     latitude(theGeoinfo.latitude.toDouble),
     longitude(theGeoinfo.longitude.toDouble)
   )
+  def findByUser(theUser: User, count: Int, last: Option[String]): List[CatchReport] = {
+    find(_.withIndexName("USER-TIMESTAMP-index").withKeyConditions(Map(
+      user compare Option(theUser)
+    )).withScanIndexForward(false).withLimit(count).withExclusiveStartKey(
+      last.flatMap(get) match {
+        case Some(c) => c.toMap(id, user, timestamp)
+        case None    => null
+      })).toList
+  }
 }
