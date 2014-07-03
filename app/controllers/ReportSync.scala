@@ -24,35 +24,19 @@ object ReportSync extends Controller {
       ticket.asTokenOfUser[TicketValue] match {
         case None => BadRequest("Ticket Expired")
         case Some((vt, value, user)) =>
-          val reports = CatchReport.find(
-            _.withIndexName("USER-TIMESTAMP-index").withKeyConditions(Map(
-              CatchReport.user compare Some(user)
-            )).withScanIndexForward(false).withLimit(count).withExclusiveStartKey(
-              last.flatMap(CatchReport.get) match {
-                case Some(c) => c.toMap(CatchReport.id, CatchReport.user, CatchReport.timestamp)
-                case None    => null
+          val reports = CatchReport.findByUser(user, count, last).map { report =>
+            val comment = report.comments.find(_.user == user).map(_.text) getOrElse ""
+            val photos = Photo.findByCatchReport(report)
+            val fishes = photos.flatMap(FishSize.findByPhoto)
+            Report(Some(report.id),
+              comment,
+              report.createdAt,
+              Report.Location(report.location, report.geoinfo),
+              photos.headOption.flatMap(_.image).map(_.url.toString),
+              fishes.toSeq.map { fish =>
+                Report.Fishes(fish.name, fish.count.toInt, fish.weight.map(Report.ValueUnit.tupled), fish.length.map(Report.ValueUnit.tupled))
               })
-          ).map { report =>
-              val comment = report.comments.find(_.user == user).map(_.text) getOrElse ""
-              val photos = Photo.find(
-                _.withIndexName("CATCH_REPORT-index").withKeyConditions(Map(
-                  Photo.catchReport compare Some(report)
-                )))
-              val fishes = photos.flatMap { photo =>
-                FishSize.find(
-                  _.withIndexName("PHOTO-CREATED_AT-index").withKeyConditions(Map(
-                    FishSize.photo compare Some(photo)
-                  )))
-              }
-              Report(Some(report.id),
-                comment,
-                report.createdAt,
-                Report.Location(report.location, report.geoinfo),
-                photos.headOption.flatMap(_.image).map(_.url.toString),
-                fishes.toSeq.map { fish =>
-                  Report.Fishes(fish.name, fish.count.toInt, fish.weight.map(Report.ValueUnit.tupled), fish.length.map(Report.ValueUnit.tupled))
-                })
-            }
+          }
           Ok(Json toJson reports)
       }
     }
