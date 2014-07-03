@@ -59,7 +59,6 @@ object User extends AnyIDTable[User]("USER") {
     lengthUnit(theLengthUnit),
     weightUnit(theWeightUnit)
   )
-  def find(email: String): Option[User] = get(email).headOption
   // Password hashing
   val hashingWay = "SHA-1"
   def hash(v: String): String = play.api.libs.Codecs.sha1(v)

@@ -30,7 +30,7 @@ object Photo extends AutoIDTable[Photo]("PHOTO") {
     catchReport(Option(theCatchReport)),
     image(Option(theImage))
   )
-  def findByCatchReport(cr: CatchReport): List[Photo] = {
+  def findBy(cr: CatchReport): List[Photo] = {
     find(_.withIndexName("CATCH_REPORT-index").withKeyConditions(Map(
       catchReport compare Option(cr)
     ))).toList
@@ -82,6 +82,11 @@ object Image extends AutoIDTable[Image]("IMAGE") {
     width(theWidth),
     height(theHeight)
   )
+  def findBy(theKind: String): List[Image] = {
+    find(_.withIndexName("KIND-index").withKeyConditions(Map(
+      kind compare theKind
+    ))).toList
+  }
   val KIND_ORIGINAL = "original"
 }
 
@@ -106,4 +111,16 @@ object ImageRelation extends AutoIDTable[ImageRelation]("IMAGE_RELATION") {
     imageDst(Option(theImageDst)),
     relation(theRelation)
   )
+  def findBy(theSrc: Image, theRelation: String): List[ImageRelation] = {
+    find(_.withIndexName("IMAGE_SRC-RELATION-index").withKeyConditions(Map(
+      imageSrc compare Option(theSrc),
+      relation compare theRelation
+    ))).toList
+  }
+  def findBy(theSrc: Image, theDst: Image): List[ImageRelation] = {
+    find(_.withIndexName("IMAGE_SRC-IMAGE_DST-index").withKeyConditions(Map(
+      imageSrc compare Option(theSrc),
+      imageDst compare Option(theDst)
+    ))).toList
+  }
 }

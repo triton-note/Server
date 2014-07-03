@@ -58,7 +58,7 @@ object Facebook {
           email <- (json \ "email").asOpt[String]
         } yield {
           Logger debug f"Getting UserAlias by email: $email"
-          UserDB.find(email) match {
+          UserDB.get(email) match {
             case Some(user) => Right(user)
             case None       => Left(email)
           }
