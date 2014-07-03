@@ -12,7 +12,7 @@ import play.api.libs.json._
 import play.api.mvc.{ Action, Controller, Result }
 
 import models.{ GeoInfo, Report, Settings }
-import models.db.{ CatchReports, FishSizes, Image, Images, Photos, User, VolatileToken, VolatileTokens }
+import models.db.{ CatchReport, FishSize, Image, Photo, User, VolatileToken }
 import service.Facebook.{ AccessKey, Fishing }
 import service.InferenceCatches
 
@@ -44,7 +44,7 @@ object CatchesSession extends Controller {
         case None => BadRequest("Ticket Expired")
         case Some((vt, _, user)) =>
           val value = SessionValue(user.id, geoinfo)
-          val session = VolatileTokens.addNew(Settings.Session.timeoutUpload, Option(value.toString))
+          val session = VolatileToken.addNew(Settings.Session.timeoutUpload, Option(value.toString))
           Ok(session.id)
       }
     }
@@ -53,7 +53,7 @@ object CatchesSession extends Controller {
   def photo(session: String) = Action.async(parse.multipartFormData) { implicit request =>
     val file = request.body.files.headOption.map(_.ref.file)
     Logger debug f"Saving photo: $file in ${request.body.files}"
-    file.flatMap(Images.addNew) match {
+    file.flatMap(Image.addNew) match {
       case None => Future(InternalServerError("Failed to save photo"))
       case Some(image) =>
         mayCommit(session) {
@@ -86,10 +86,10 @@ object CatchesSession extends Controller {
       val ok = for {
         value <- vt.json[SessionValue]
         given <- value.report
-        image <- value.imageId.flatMap(Images.get)
+        image <- value.imageId.flatMap(Image.get)
       } yield {
-        val report = CatchReports.addNew(user, given.location.geoinfo, given.location.name, given.dateAt)
-        val photo = Photos.addNew(report, image)
+        val report = CatchReport.addNew(user, given.location.geoinfo, given.location.name, given.dateAt)
+        val photo = Photo.addNew(report, image)
         val comment = report.addComment(given.comment)
         val photos = given.fishes.map(_ add photo)
         vt json value.copy(committed = Some(report.id)) match {

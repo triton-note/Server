@@ -2,58 +2,36 @@ package models.db
 
 import java.util.Date
 
-import scala.annotation.tailrec
 import scala.collection.JavaConversions._
 import scala.concurrent.duration._
 
-import scalaz.Scalaz._
-
-import play.api.Logger
-
-import org.fathens.play.util.Exception.allCatch
-
 import com.amazonaws.services.dynamodbv2.model._
 
-case class VolatileToken(id: String,
-  createdAt: Date,
-  lastModifiedAt: Option[Date],
-  expiration: Date,
-  extra: Option[String]) {
-  /**
-   * Reload form DB
-   */
-  def refresh: Option[VolatileToken] = VolatileTokens.get(id)
-  /**
-   * Delete me
-   */
-  def delete: Boolean = VolatileTokens.delete(id)
+case class VolatileToken(MAP: Map[String, AttributeValue]) extends TimestampedTable.ObjType[VolatileToken] {
+  val TABLE = VolatileToken
+
+  lazy val expiration: Date = build(_.expiration)
+  lazy val extra: Option[String] = build(_.extra)
   /**
    * Change properties (like a copy) and update Database
    */
   def update(extra: Option[String] = this.extra, expiration: Date = this.expiration): Option[VolatileToken] = {
-    VolatileTokens.update(id, Map(
-      VolatileTokens.extra(extra),
-      VolatileTokens.expiration(expiration)
+    TABLE.update(id, Map(
+      TABLE.extra(extra),
+      TABLE.expiration(expiration)
     ))(for {
-      (n, v) <- Map(VolatileTokens.extra(this.extra))
+      (n, v) <- Map(TABLE.extra(this.extra))
     } yield n -> new ExpectedAttributeValue(v).withComparisonOperator(ComparisonOperator.EQ))
   }
   def setExtra(text: String) = update(extra = Some(text))
   def removeExtra = update(extra = None)
   def changeExpiration(theNext: Date) = update(expiration = theNext)
 }
-object VolatileTokens extends AutoIDTable[VolatileToken]("VOLATILE_TOKEN") {
+object VolatileToken extends AutoIDTable[VolatileToken]("VOLATILE_TOKEN") {
   val expiration = Column[Date]("EXPIRATION", (_.expiration), (_.getDate.get), attrDate)
   val extra = Column[Option[String]]("EXTRA", (_.extra), (_.getString), attrString)
   // All columns
   val columns = List(expiration, extra)
-  def fromMap(implicit map: Map[String, AttributeValue]): Option[VolatileToken] = allCatch opt VolatileToken(
-    id.build,
-    createdAt.build,
-    lastModifiedAt.build,
-    expiration.build,
-    extra.build
-  )
   /**
    * Add new token
    */
@@ -69,7 +47,7 @@ object VolatileTokens extends AutoIDTable[VolatileToken]("VOLATILE_TOKEN") {
     val expired = scan(
       _.withAttributesToGet(id.name).withScanFilter(Map(
         expiration.compare(currentTimestamp, ComparisonOperator.LE)
-      )), map => Some(id build map))
+      )), id.build)
     expired.par.toList.map(delete).filter(_ == true).size
   }
 }

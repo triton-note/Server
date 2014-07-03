@@ -9,7 +9,7 @@ import play.api.libs.json._
 import play.api.mvc.{Action, Controller}
 
 import models.Settings
-import models.db.VolatileTokens
+import models.db.VolatileToken
 import service.Facebook
 
 object Account extends Controller {
@@ -26,7 +26,7 @@ object Account extends Controller {
       Logger debug f"Authorized user from $way: $u"
       u map { user =>
         val value = TicketValue(user.id, way, token)
-        val ticket = VolatileTokens.addNew(Settings.Session.timeoutTicket, Option(value.toString))
+        val ticket = VolatileToken.addNew(Settings.Session.timeoutTicket, Option(value.toString))
         Ok(ticket.id)
       } getOrElse Unauthorized
     }

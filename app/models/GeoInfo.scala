@@ -7,7 +7,7 @@ import play.api.libs.json._
 /**
  * Hold geographic location, latitude and longitude, in degrees.
  */
-case class GeoInfo(latitude: BigDecimal, longitude: BigDecimal) {
+case class GeoInfo(latitude: Double, longitude: Double) {
   import GeoInfo._
   object radian {
     lazy val lat = latitude.toDouble.toRadians
@@ -26,7 +26,7 @@ object GeoInfo {
      */
     def dictance(g1: GeoInfo, g2: GeoInfo): Double = {
       val (a, b) = {
-        val g = db.Geographics.get
+        val g = db.Geographic.get
         (g.equatorialRadius, g.polarRadius)
       }
       val (x1, y1) = (g1.radian.lng, g1.radian.lat)
