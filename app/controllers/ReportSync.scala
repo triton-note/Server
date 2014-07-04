@@ -58,7 +58,7 @@ object ReportSync extends Controller {
                 CatchReport.timestamp.diff(src.timestamp, report.dateAt),
                 CatchReport.location.diff(src.location, report.location.name),
                 CatchReport.latitude.diff(src.geoinfo.latitude, report.location.geoinfo.latitude.toDouble),
-                CatchReport.latitude.diff(src.geoinfo.longitude, report.location.geoinfo.longitude.toDouble)
+                CatchReport.longitude.diff(src.geoinfo.longitude, report.location.geoinfo.longitude.toDouble)
               ).flatten.toMap) match {
                 case None => InternalServerError("Failed to update report")
                 case Some(doneCR) =>
