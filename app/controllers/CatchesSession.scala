@@ -62,6 +62,7 @@ object CatchesSession extends Controller {
           value.report.isEmpty option Ok {
             val (location, fishes) = InferenceCatches.infer(image.file, value.geoinfo)
             Json.obj(
+              "url" -> image.url.toString,
               "location" -> location,
               "fishes" -> fishes
             )
