@@ -24,18 +24,19 @@ object ReportSync extends Controller {
       ticket.asTokenOfUser[TicketValue] match {
         case None => BadRequest("Ticket Expired")
         case Some((vt, value, user)) =>
-          val reports = CatchReport.findBy(user, count, last).map { report =>
+          val reports = CatchReport.findBy(user, count, last).flatMap { report =>
             val comment = report.comments(user).headOption.map(_.text) getOrElse ""
-            val photos = Photo.findBy(report)
-            val fishes = photos.flatMap(FishSize.findBy)
-            Report(Some(report.id),
-              comment,
-              report.timestamp,
-              Report.Location(report.location, report.geoinfo),
-              photos.headOption.flatMap(_.image).map(_.url.toString),
-              fishes.toSeq.map { fish =>
-                Report.Fishes(fish.name, fish.count.toInt, fish.weight.map(Report.ValueUnit.tupled), fish.length.map(Report.ValueUnit.tupled))
-              })
+            Photo.findBy(report).headOption.map { photo =>
+              val fishes = FishSize findBy photo
+              Report(Some(report.id),
+                comment,
+                report.timestamp,
+                Report.Location(report.location, report.geoinfo),
+                photo.group.map(_.asURL),
+                fishes.toSeq.map { fish =>
+                  Report.Fishes(fish.name, fish.count.toInt, fish.weight.map(Report.ValueUnit.tupled), fish.length.map(Report.ValueUnit.tupled))
+                })
+            }
           }
           Ok(Json toJson reports)
       }
