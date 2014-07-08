@@ -6,7 +6,7 @@ import com.amazonaws.services.dynamodbv2.model._
 
 case class User(MAP: Map[String, AttributeValue]) extends TimestampedTable.ObjType[User] {
   val TABLE = User
-  
+
   lazy val password: Option[String] = build(_.password)
   lazy val firstName: String = build(_.firstName)
   lazy val lastName: String = build(_.lastName)
@@ -23,12 +23,16 @@ case class User(MAP: Map[String, AttributeValue]) extends TimestampedTable.ObjTy
   def update(password: Option[String] = this.password,
     firstName: String = this.firstName,
     lastName: String = this.lastName,
-    avatarUrl: Option[String] = this.avatarUrl): Option[User] = {
+    avatarUrl: Option[String] = this.avatarUrl,
+    lengthUnit: String = this.lengthUnit,
+    weightUnit: String = this.weightUnit): Option[User] = {
     val map = List(
-      (password != this.password) option TABLE.password(password),
-      (firstName != this.firstName) option TABLE.firstName(firstName),
-      (lastName != this.lastName) option TABLE.lastName(lastName),
-      (avatarUrl != this.avatarUrl) option TABLE.avatarUrl(avatarUrl)
+      diff(_.password, password),
+      diff(_.firstName, firstName),
+      diff(_.lastName, lastName),
+      diff(_.avatarUrl, avatarUrl),
+      diff(_.lengthUnit, lengthUnit),
+      diff(_.weightUnit, weightUnit)
     ).flatten.toMap
     TABLE.update(id, map)
   }
