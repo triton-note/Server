@@ -13,4 +13,8 @@ object Settings {
   object Storage {
     def retryLimit: Int = 5
   }
+  object Image {
+    def sizeMainview = 800
+    def sizeThumbnail = 200
+  }
 }
