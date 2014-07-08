@@ -7,7 +7,7 @@ case class Report(
   comment: String,
   dateAt: java.util.Date,
   location: Report.Location,
-  photo: Option[String],
+  photo: Option[Report.Photo],
   fishes: Seq[Report.Fishes]) {
 }
 object Report {
@@ -21,6 +21,13 @@ object Report {
   object ValueUnit {
     implicit val valueunitFormat = Json.format[ValueUnit]
     def tupled(t: (Double, String)) = ValueUnit(t._1, t._2)
+  }
+  case class Photo(
+    original: String,
+    mainview: String,
+    thumbnail: String)
+  object Photo {
+    implicit val photoFormat = Json.format[Photo]
   }
   case class Fishes(
     name: String,

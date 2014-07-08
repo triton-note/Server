@@ -1,9 +1,13 @@
+import java.io.{ ByteArrayInputStream, ByteArrayOutputStream }
+
 import play.api.libs.json._
 
 import org.fathens.play.util.Exception.allCatch
 
+import com.sksamuel.scrimage.{ Format, Image => ScrImage }
+
 import models.Report
-import models.db.{FishSize, Photo, User, VolatileToken}
+import models.db.{ FishSize, Image, ImageRelation, Photo, User, VolatileToken }
 
 package object controllers {
   object TicketValue {
@@ -14,6 +18,12 @@ package object controllers {
     way: String,
     token: String) {
     override def toString = Json.toJson(this).toString
+  }
+  case class Photos(
+    original: Image,
+    mainview: Image,
+    thumbnail: Image) {
+    def asURL = Report.Photo(original.url.toString, mainview.url.toString, thumbnail.url.toString)
   }
   /**
    * Token に紐付けして保存してある情報を JSON と読み書きする
@@ -42,5 +52,42 @@ package object controllers {
   implicit class FishDB(fish: Report.Fishes) {
     def same(o: FishSize): Boolean = o.name == fish.name && o.count == fish.count && o.length == fish.length.map(_.tupled) && o.weight == fish.weight.map(_.tupled)
     def add(photo: Photo): FishSize = FishSize.addNew(photo, fish.name, fish.count, fish.weight.map(_.tupled), fish.length.map(_.tupled))
+  }
+  implicit class PhotoFile(file: java.io.File) {
+    def asPhoto: Option[Photos] = {
+      def original(image: ScrImage) = {
+        val dst = Image.addNew(image.width, image.height)
+        dst.file write file
+        dst
+      }
+      def resize(src: Image, image: ScrImage, max: Int, relation: ImageRelation.Relation.Value) = {
+        val (w, h) = if (image.width > image.height)
+          (max, image.height * max / image.width)
+        else (image.width * max / image.height, max)
+        val scaled = image.scaleTo(w, h)
+        val dst = Image.addNew(scaled.width, scaled.height, Image.Kind.REDUCED)
+        val out = new ByteArrayOutputStream()
+        scaled.writer(Format.JPEG).write(out)
+        dst.file.slurp(new ByteArrayInputStream(out.toByteArray))
+        ImageRelation.addNew(src, dst, relation)
+        dst
+      }
+      for {
+        io <- allCatch opt ScrImage(file)
+        i <- Option(io)
+        o <- allCatch opt original(i)
+        m <- allCatch opt resize(o, i, 800, ImageRelation.Relation.MAIN_VIEW)
+        t <- allCatch opt resize(o, i, 200, ImageRelation.Relation.THUMBNAIL)
+      } yield Photos(o, m, t)
+    }
+  }
+  implicit class PhotoGroup(photo: Photo) {
+    def group: Option[Photos] = {
+      for {
+        o <- photo.image
+        m <- ImageRelation.findBy(o, ImageRelation.Relation.MAIN_VIEW).flatMap(_.imageDst).headOption
+        t <- ImageRelation.findBy(o, ImageRelation.Relation.THUMBNAIL).flatMap(_.imageDst).headOption
+      } yield Photos(o, m, t)
+    }
   }
 }
