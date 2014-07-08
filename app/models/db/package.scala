@@ -55,6 +55,8 @@ package db {
     // for Date
     implicit def attrDate(date: Date) = new AttributeValue().withS(dateFormat format date)
     implicit def attrDate(date: Option[Date]) = new AttributeValue().withS(date.map(dateFormat.format).orNull)
+    // for Enumeration
+    implicit def attrEnum(e: Enumeration)(v: e.Value) = new AttributeValue().withS(v.toString)
     // for ArrangedTableObj
     implicit def attrObjID(o: Option[TimestampedTable.ObjType[_]]) = new AttributeValue().withS(o.map(_.id).orNull)
     /**
