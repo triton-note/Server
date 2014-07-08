@@ -67,7 +67,6 @@ package db {
       def extract(obj: T): (String, AttributeValue) = name -> toAttr(getProp(obj))
       def build(map: Map[String, AttributeValue]): A = valueOf(new AttributeValueWrapper(map.getOrElse(name, new AttributeValue)))
       def compare(a: A, co: ComparisonOperator = ComparisonOperator.EQ) = name -> new Condition().withComparisonOperator(co).withAttributeValueList(toAttr(a))
-      def diff(a: A, b: A) = a != b option apply(b)
     }
     /**
      * All columns
@@ -120,6 +119,10 @@ package db {
       val MAP: Map[String, AttributeValue]
       val TABLE: TimestampedTable[T]
       def build[A](f: TABLE.type => TABLE.Column[A]): A = f(TABLE) build MAP
+      def diff[A](f: TABLE.type => TABLE.Column[A], b: A): Option[(String, AttributeValue)] = {
+        val column = f(TABLE)
+        column.getProp(this) != b option column(b)
+      }
       /**
        * ID
        */
