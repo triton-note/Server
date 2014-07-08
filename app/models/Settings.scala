@@ -10,7 +10,7 @@ object Settings {
   object Pulish {
     def timer: FiniteDuration = 3 minutes
   }
-  object Strage {
+  object Storage {
     def retryLimit: Int = 5
   }
 }
