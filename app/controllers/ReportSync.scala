@@ -70,16 +70,11 @@ object ReportSync extends Controller {
                   }
                   Photo.findBy(doneCR) match {
                     case thePhoto :: Nil =>
-                      def reduce(east: List[FishSize], west: List[Report.Fishes], left: List[FishSize] = Nil): (List[FishSize], List[Report.Fishes]) = west match {
-                        case Nil => (left, west)
-                        case _ => east match {
-                          case Nil => (left, west)
-                          case fish :: next =>
-                            val (wastWest, nextWest) = west.partition(_ same fish)
-                            reduce(next, nextWest, wastWest match {
-                              case Nil => fish :: left
-                              case _   => left
-                            })
+                      def reduce(left: List[FishSize], adding: List[Report.Fishes], deleting: List[FishSize] = Nil): (List[FishSize], List[Report.Fishes]) = left match {
+                        case Nil => (deleting, adding)
+                        case fish :: next => adding.partition(_ same fish) match {
+                          case (Nil, nextAdding) => reduce(next, nextAdding, fish :: deleting)
+                          case (_, nextAdding)   => reduce(next, nextAdding, deleting)
                         }
                       }
                       reduce(FishSize.findBy(thePhoto), report.fishes.toList) match {
