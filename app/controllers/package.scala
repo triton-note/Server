@@ -21,9 +21,9 @@ package object controllers {
   }
   case class Photos(
     original: Image,
-    mainView: Image,
+    mainview: Image,
     thumbnail: Image) {
-    def asURL = Report.Photo(original.url.toString, mainView.url.toString, thumbnail.url.toString)
+    def asURL = Report.Photo(original.url.toString, mainview.url.toString, thumbnail.url.toString)
   }
   /**
    * Token に紐付けして保存してある情報を JSON と読み書きする

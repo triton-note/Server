@@ -24,7 +24,7 @@ object Report {
   }
   case class Photo(
     original: String,
-    reduced: String,
+    mainview: String,
     thumbnail: String)
   object Photo {
     implicit val photoFormat = Json.format[Photo]
