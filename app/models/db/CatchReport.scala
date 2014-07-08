@@ -22,7 +22,7 @@ case class CatchReport(MAP: Map[String, AttributeValue]) extends TimestampedTabl
    * All comments
    */
   lazy val comments: List[Comment] = Comment.findBy(this)
-  def comments(theUser: User): List[Comment] = comments.filter(_.user == Option(theUser))
+  lazy val topComment: Option[Comment] = user.toList.flatMap(u => comments.filter(_.user == Some(u))).headOption
   /**
    * Add comment
    */
