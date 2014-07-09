@@ -55,6 +55,8 @@ package db {
     // for Date
     implicit def attrDate(date: Date) = new AttributeValue().withS(dateFormat format date)
     implicit def attrDate(date: Option[Date]) = new AttributeValue().withS(date.map(dateFormat.format).orNull)
+    // for Enumeration
+    implicit def attrEnum(e: Enumeration)(v: e.Value) = new AttributeValue().withS(v.toString)
     // for ArrangedTableObj
     implicit def attrObjID(o: Option[TimestampedTable.ObjType[_]]) = new AttributeValue().withS(o.map(_.id).orNull)
     /**
@@ -65,7 +67,6 @@ package db {
       def extract(obj: T): (String, AttributeValue) = name -> toAttr(getProp(obj))
       def build(map: Map[String, AttributeValue]): A = valueOf(new AttributeValueWrapper(map.getOrElse(name, new AttributeValue)))
       def compare(a: A, co: ComparisonOperator = ComparisonOperator.EQ) = name -> new Condition().withComparisonOperator(co).withAttributeValueList(toAttr(a))
-      def diff(a: A, b: A) = a != b option apply(b)
     }
     /**
      * All columns
@@ -118,6 +119,10 @@ package db {
       val MAP: Map[String, AttributeValue]
       val TABLE: TimestampedTable[T]
       def build[A](f: TABLE.type => TABLE.Column[A]): A = f(TABLE) build MAP
+      def diff[A](f: TABLE.type => TABLE.Column[A], b: A): Option[(String, AttributeValue)] = {
+        val column = f(TABLE)
+        column.getProp(this) != b option column(b)
+      }
       /**
        * ID
        */

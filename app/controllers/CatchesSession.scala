@@ -51,22 +51,28 @@ object CatchesSession extends Controller {
   }
 
   def photo(session: String) = Action.async(parse.multipartFormData) { implicit request =>
-    val file = request.body.files.headOption.map(_.ref.file)
-    Logger debug f"Saving photo: $file in ${request.body.files}"
-    file.flatMap(Image.addNew) match {
-      case None => Future(InternalServerError("Failed to save photo"))
-      case Some(image) =>
-        mayCommit(session) {
-          _.copy(imageId = Some(image.id))
-        } { value =>
-          value.report.isEmpty option Ok {
-            val (location, fishes) = InferenceCatches.infer(image.file, value.geoinfo)
-            Json.obj(
-              "location" -> location,
-              "fishes" -> fishes
-            )
-          }
+    val files = request.body.files
+    Logger debug f"Saving head of ${files}"
+    files.headOption.map(_.ref.file) match {
+      case None => Future(BadRequest("No uploaded files"))
+      case Some(file) => Future(file.asPhoto).flatMap {
+        _ match {
+          case None => Future(InternalServerError("Failed to save photo"))
+          case Some(photo) =>
+            mayCommit(session) {
+              _.copy(imageId = Some(photo.original.id))
+            } { value =>
+              value.report.isEmpty option Ok {
+                val (location, fishes) = InferenceCatches.infer(photo.original.file, value.geoinfo)
+                Json.obj(
+                  "url" -> photo.asURL,
+                  "location" -> location,
+                  "fishes" -> fishes
+                )
+              }
+            }
         }
+      }
     }
   }
 

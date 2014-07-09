@@ -24,18 +24,19 @@ object ReportSync extends Controller {
       ticket.asTokenOfUser[TicketValue] match {
         case None => BadRequest("Ticket Expired")
         case Some((vt, value, user)) =>
-          val reports = CatchReport.findBy(user, count, last).map { report =>
-            val comment = report.comments(user).headOption.map(_.text) getOrElse ""
-            val photos = Photo.findBy(report)
-            val fishes = photos.flatMap(FishSize.findBy)
-            Report(Some(report.id),
-              comment,
-              report.timestamp,
-              Report.Location(report.location, report.geoinfo),
-              photos.headOption.flatMap(_.image).map(_.url.toString),
-              fishes.toSeq.map { fish =>
-                Report.Fishes(fish.name, fish.count.toInt, fish.weight.map(Report.ValueUnit.tupled), fish.length.map(Report.ValueUnit.tupled))
-              })
+          val reports = CatchReport.findBy(user, count, last).flatMap { report =>
+            val comment = report.topComment.map(_.text) getOrElse ""
+            Photo.findBy(report).headOption.map { photo =>
+              val fishes = FishSize findBy photo
+              Report(Some(report.id),
+                comment,
+                report.timestamp,
+                Report.Location(report.location, report.geoinfo),
+                photo.group.map(_.asURL),
+                fishes.toSeq.map { fish =>
+                  Report.Fishes(fish.name, fish.count.toInt, fish.weight.map(Report.ValueUnit.tupled), fish.length.map(Report.ValueUnit.tupled))
+                })
+            }
           }
           Ok(Json toJson reports)
       }
@@ -55,30 +56,25 @@ object ReportSync extends Controller {
             case None => BadRequest(f"Invalid id: ${report.id.orNull}")
             case Some(src) =>
               CatchReport.update(src.id, List(
-                CatchReport.timestamp.diff(src.timestamp, report.dateAt),
-                CatchReport.location.diff(src.location, report.location.name),
-                CatchReport.latitude.diff(src.geoinfo.latitude, report.location.geoinfo.latitude.toDouble),
-                CatchReport.latitude.diff(src.geoinfo.longitude, report.location.geoinfo.longitude.toDouble)
+                src.diff(_.timestamp, report.dateAt),
+                src.diff(_.location, report.location.name),
+                src.diff(_.latitude, report.location.geoinfo.latitude.toDouble),
+                src.diff(_.longitude, report.location.geoinfo.longitude.toDouble)
               ).flatten.toMap) match {
                 case None => InternalServerError("Failed to update report")
                 case Some(doneCR) =>
-                  doneCR.comments(user).headOption.flatMap { comment =>
+                  doneCR.topComment.flatMap { comment =>
                     Comment.update(comment.id, List(
-                      Comment.text.diff(comment.text, report.comment)
+                      comment.diff(_.text, report.comment)
                     ).flatten.toMap)
                   }
                   Photo.findBy(doneCR) match {
                     case thePhoto :: Nil =>
-                      def reduce(east: List[FishSize], west: List[Report.Fishes], left: List[FishSize] = Nil): (List[FishSize], List[Report.Fishes]) = west match {
-                        case Nil => (left, west)
-                        case _ => east match {
-                          case Nil => (left, west)
-                          case fish :: next =>
-                            val (wastWest, nextWest) = west.partition(_ same fish)
-                            reduce(next, nextWest, wastWest match {
-                              case Nil => fish :: left
-                              case _   => left
-                            })
+                      def reduce(left: List[FishSize], adding: List[Report.Fishes], deleting: List[FishSize] = Nil): (List[FishSize], List[Report.Fishes]) = left match {
+                        case Nil => (deleting, adding)
+                        case fish :: next => adding.partition(_ same fish) match {
+                          case (Nil, nextAdding) => reduce(next, nextAdding, fish :: deleting)
+                          case (_, nextAdding)   => reduce(next, nextAdding, deleting)
                         }
                       }
                       reduce(FishSize.findBy(thePhoto), report.fishes.toList) match {

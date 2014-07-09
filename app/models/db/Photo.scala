@@ -1,11 +1,7 @@
 package models.db
 
-import javax.imageio.ImageIO
-
 import scala.collection.JavaConversions._
 import scala.concurrent.duration._
-
-import org.fathens.play.util.Exception.allCatch
 
 import com.amazonaws.services.dynamodbv2.model._
 
@@ -40,9 +36,8 @@ object Photo extends AutoIDTable[Photo]("PHOTO") {
 case class Image(MAP: Map[String, AttributeValue]) extends TimestampedTable.ObjType[Image] {
   val TABLE = Image
 
-  lazy val kind: String = build(_.kind)
-  lazy val format: String = build(_.format)
-  lazy val dataSize: Long = build(_.dataSize)
+  lazy val kind: Image.Kind.Value = TABLE.kind build MAP
+  lazy val format: Image.Format.Value = TABLE.format build MAP
   lazy val width: Long = build(_.width)
   lazy val height: Long = build(_.height)
 
@@ -50,44 +45,38 @@ case class Image(MAP: Map[String, AttributeValue]) extends TimestampedTable.ObjT
   /**
    * Reference to Image file
    */
-  lazy val file = Storage.file("photo", kind, id.toString)
+  lazy val file = Storage.file("photo", kind.toString, id.toString)
   def url(implicit limit: FiniteDuration = 1 hour) = file.generateURL(limit)
 }
 object Image extends AutoIDTable[Image]("IMAGE") {
-  val kind = Column[String]("KIND", (_.kind), (_.getString.get), attrString)
-  val format = Column[String]("FORMAT", (_.format), (_.getString.get), attrString)
-  val dataSize = Column[Long]("DATA_SIZE", (_.dataSize), (_.getLong.get), attrLong)
+  val kind = Column[Kind.Value]("KIND", (_.kind), (Kind withName _.getString.get), attrEnum(Kind))
+  val format = Column[Format.Value]("FORMAT", (_.format), (Format withName _.getString.get), attrEnum(Format))
   val width = Column[Long]("WIDTH", (_.width), (_.getLong.get), attrLong)
   val height = Column[Long]("HEIGHT", (_.height), (_.getLong.get), attrLong)
   // All columns
-  val columns = List(kind, format, dataSize, width, height)
+  val columns = List(kind, format, width, height)
   /**
    * Add new image data
    */
-  def addNew(imageFile: java.io.File): Option[Image] = {
-    for {
-      biOpt <- allCatch opt ImageIO.read(imageFile)
-      bi <- Option(biOpt)
-      image = addNew(imageFile.length, bi.getWidth, bi.getHeight)
-    } yield {
-      image.file write imageFile
-      image
-    }
-  }
-  def addNew(theDataSize: Long, theWidth: Long, theHeight: Long,
-    theFormat: String = "JPEG", theKind: String = KIND_ORIGINAL): Image = addNew(
+  def addNew(theWidth: Long, theHeight: Long,
+    theKind: Kind.Value = Kind.ORIGINAL, theFormat: Format.Value = Format.JPEG): Image = addNew(
     kind(theKind),
     format(theFormat),
-    dataSize(theDataSize),
     width(theWidth),
     height(theHeight)
   )
-  def findBy(theKind: String): List[Image] = {
+  def findBy(theKind: Kind.Value): List[Image] = {
     find(_.withIndexName("KIND-index").withKeyConditions(Map(
       kind compare theKind
     ))).toList
   }
-  val KIND_ORIGINAL = "original"
+  object Format extends Enumeration {
+    val JPEG = Value("jpeg")
+  }
+  object Kind extends Enumeration {
+    val ORIGINAL = Value("original")
+    val REDUCED = Value("reduced")
+  }
 }
 
 case class ImageRelation(MAP: Map[String, AttributeValue]) extends TimestampedTable.ObjType[ImageRelation] {
@@ -95,23 +84,23 @@ case class ImageRelation(MAP: Map[String, AttributeValue]) extends TimestampedTa
 
   lazy val imageSrc: Option[Image] = build(_.imageSrc)
   lazy val imageDst: Option[Image] = build(_.imageDst)
-  lazy val relation: String = build(_.relation)
+  lazy val relation: ImageRelation.Relation.Value = ImageRelation.relation build MAP
 }
 object ImageRelation extends AutoIDTable[ImageRelation]("IMAGE_RELATION") {
   val imageSrc = Column[Option[Image]]("IMAGE_SRC", (_.imageSrc), (_.get(Image)), attrObjID)
   val imageDst = Column[Option[Image]]("IMAGE_DST", (_.imageDst), (_.get(Image)), attrObjID)
-  val relation = Column[String]("RELATION", (_.relation), (_.getString.get), attrString)
+  val relation = Column[Relation.Value]("RELATION", (_.relation), (Relation withName _.getString.get), attrEnum(Relation))
   // All columns
   val columns = List(imageSrc, imageDst, relation)
   /**
    * Add new relation
    */
-  def addNew(theImageSrc: Image, theImageDst: Image, theRelation: String): ImageRelation = addNew(
+  def addNew(theImageSrc: Image, theImageDst: Image, theRelation: Relation.Value): ImageRelation = addNew(
     imageSrc(Option(theImageSrc)),
     imageDst(Option(theImageDst)),
     relation(theRelation)
   )
-  def findBy(theSrc: Image, theRelation: String): List[ImageRelation] = {
+  def findBy(theSrc: Image, theRelation: Relation.Value): List[ImageRelation] = {
     find(_.withIndexName("IMAGE_SRC-RELATION-index").withKeyConditions(Map(
       imageSrc compare Option(theSrc),
       relation compare theRelation
@@ -122,5 +111,9 @@ object ImageRelation extends AutoIDTable[ImageRelation]("IMAGE_RELATION") {
       imageSrc compare Option(theSrc),
       imageDst compare Option(theDst)
     ))).toList
+  }
+  object Relation extends Enumeration {
+    val THUMBNAIL = Value("thumbnail")
+    val MAIN_VIEW = Value("main_view")
   }
 }
