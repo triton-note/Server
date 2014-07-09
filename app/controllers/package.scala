@@ -1,13 +1,14 @@
-import java.io.{ ByteArrayInputStream, ByteArrayOutputStream }
+import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
 
+import play.api.Logger
 import play.api.libs.json._
 
 import org.fathens.play.util.Exception.allCatch
 
-import com.sksamuel.scrimage.{ Format, Image => ScrImage }
+import com.sksamuel.scrimage.{Format, Image => ScrImage}
 
-import models.Report
-import models.db.{ FishSize, Image, ImageRelation, Photo, User, VolatileToken }
+import models.{Report, Settings}
+import models.db.{FishSize, Image, ImageRelation, Photo, User, VolatileToken}
 
 package object controllers {
   object TicketValue {
@@ -61,9 +62,9 @@ package object controllers {
         dst
       }
       def resize(src: Image, image: ScrImage, max: Int, relation: ImageRelation.Relation.Value) = {
-        val (w, h) = if (image.width > image.height)
-          (max, image.height * max / image.width)
-        else (image.width * max / image.height, max)
+        val (width, height) = (image.width, image.height)
+        val (w, h) = if (width > height) (max, height * max / width) else (width * max / height, max)
+        Logger debug f"Resizing image for ${relation}: (${width} x ${height}) -> (${w} x ${h})"
         val scaled = image.scaleTo(w, h)
         val dst = Image.addNew(scaled.width, scaled.height, Image.Kind.REDUCED)
         val out = new ByteArrayOutputStream()
@@ -76,8 +77,8 @@ package object controllers {
         io <- allCatch opt ScrImage(file)
         i <- Option(io)
         o <- allCatch opt original(i)
-        m <- allCatch opt resize(o, i, 800, ImageRelation.Relation.MAIN_VIEW)
-        t <- allCatch opt resize(o, i, 200, ImageRelation.Relation.THUMBNAIL)
+        m <- allCatch opt resize(o, i, Settings.Image.sizeMainview, ImageRelation.Relation.MAIN_VIEW)
+        t <- allCatch opt resize(o, i, Settings.Image.sizeThumbnail, ImageRelation.Relation.THUMBNAIL)
       } yield Photos(o, m, t)
     }
   }

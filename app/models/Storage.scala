@@ -51,11 +51,11 @@ object Storage {
     def exists: Boolean = {
       s3.getObjectMetadata(bucketName, path) != null
     }
-    def write(src: java.io.File, retryCount: Int = Settings.Strage.retryLimit): Boolean = {
+    def write(src: java.io.File, retryCount: Int = Settings.Storage.retryLimit): Boolean = {
       import java.io._
       slurp(new BufferedInputStream(new FileInputStream(src)), retryCount)
     }
-    def slurp(source: java.io.InputStream, retryCount: Int = Settings.Strage.retryLimit): Boolean = {
+    def slurp(source: java.io.InputStream, retryCount: Int = Settings.Storage.retryLimit): Boolean = {
       Logger.debug(f"Storing for S3:${bucketName}:${path}")
       allCatch opt s3.putObject(bucketName, path, source, new ObjectMetadata()) match {
         case None    => if (retryCount > 0) slurp(source, retryCount - 1) else false
