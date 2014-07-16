@@ -15,7 +15,6 @@ import service.AWS.DynamoDB.client
 object Distributions {
   case class Catch(
     reportId: Option[String],
-    id: String,
     name: String,
     count: Int,
     date: Date,
@@ -66,8 +65,7 @@ object Distributions {
       photo <- Photo.findBy(report)
       fish <- FishSize.findBy(photo)
     } yield Catch(
-      Some(report.id),
-      fish.id,
+      userOption.map(_ => report.id),
       fish.name,
       fish.count.toInt,
       report.timestamp,
