@@ -84,33 +84,33 @@ package db {
     /**
      * Query item by attributes given.
      */
-    def find[A](q: QueryRequest => QueryRequest, convert: Map[String, AttributeValue] => A = (map: Map[String, AttributeValue]) => apply(map)): Set[A] = {
+    def find[A](q: QueryRequest => QueryRequest, convert: Map[String, AttributeValue] => A = (map: Map[String, AttributeValue]) => apply(map)): Stream[A] = {
       try {
         for {
-          result <- Option(client query q(new QueryRequest(tableName))).toSet
+          result <- Option(client query q(new QueryRequest(tableName))).toStream
           if { Logger.debug(f"Found ${tableName} ${result}"); true }
-          item <- Option(result.getItems).toSet.flatten
+          item <- Option(result.getItems).toStream.flatten
         } yield convert(item.toMap)
       } catch {
         case ex: Exception =>
           Logger.error(f"Failed to query to ${tableName}: ${ex.getMessage}", ex)
-          Set()
+          Stream.Empty
       }
     }
     /**
      * Scan item by attributes given.
      */
-    def scan[A](q: ScanRequest => ScanRequest, convert: Map[String, AttributeValue] => A = (map: Map[String, AttributeValue]) => apply(map)): Set[A] = {
+    def scan[A](q: ScanRequest => ScanRequest, convert: Map[String, AttributeValue] => A = (map: Map[String, AttributeValue]) => apply(map)): Stream[A] = {
       try {
         for {
-          result <- Option(client scan q(new ScanRequest(tableName))).toSet
+          result <- Option(client scan q(new ScanRequest(tableName))).toStream
           if { Logger.debug(f"Found ${tableName} ${result}"); true }
-          item <- Option(result.getItems).toSet.flatten
+          item <- Option(result.getItems).toStream.flatten
         } yield convert(item.toMap)
       } catch {
         case ex: Exception =>
           Logger.error(f"Failed to scan to ${tableName}: ${ex.getMessage}", ex)
-          Set()
+          Stream.Empty
       }
     }
   }
