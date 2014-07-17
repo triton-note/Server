@@ -16,5 +16,7 @@ object Settings {
   object Image {
     def sizeMainview = 800
     def sizeThumbnail = 200
+    def uploadExpiration = 5 minutes
+    def uploadMaxSize = 10 * 1024 * 1024
   }
 }
