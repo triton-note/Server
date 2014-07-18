@@ -7,6 +7,7 @@ import com.amazonaws.services.dynamodbv2.model._
 case class User(MAP: Map[String, AttributeValue]) extends TimestampedTable.ObjType[User] {
   val TABLE = User
 
+  lazy val email: String = build(_.email)
   lazy val password: Option[String] = build(_.password)
   lazy val firstName: String = build(_.firstName)
   lazy val lastName: String = build(_.lastName)
@@ -37,7 +38,8 @@ case class User(MAP: Map[String, AttributeValue]) extends TimestampedTable.ObjTy
     TABLE.update(id, map)
   }
 }
-object User extends AnyIDTable[User]("USER") {
+object User extends AutoIDTable[User]("USER") {
+  val email = Column[String]("EMAIL", (_.email), (_.getString.get), attrString)
   val password = Column[Option[String]]("PASSWORD", (_.password), (_.getString), attrString)
   val firstName = Column[String]("FIRST_NAME", (_.firstName), (_.getString.get), attrString)
   val lastName = Column[String]("LAST_NAME", (_.lastName), (_.getString.get), attrString)
@@ -55,14 +57,17 @@ object User extends AnyIDTable[User]("USER") {
     theLastName: String,
     theAvatarUrl: Option[String] = None,
     theLengthUnit: String = "cm",
-    theWeightUnit: String = "Kg"): User = addNew(theEmail,
-    password(unhashedPassword.map(hash)),
-    firstName(theFirstName),
-    lastName(theLastName),
-    avatarUrl(theAvatarUrl),
-    lengthUnit(theLengthUnit),
-    weightUnit(theWeightUnit)
-  )
+    theWeightUnit: String = "kg"): User = {
+    addNew(
+      email(theEmail),
+      password(unhashedPassword.map(hash)),
+      firstName(theFirstName),
+      lastName(theLastName),
+      avatarUrl(theAvatarUrl),
+      lengthUnit(theLengthUnit),
+      weightUnit(theWeightUnit)
+    )
+  }
   // Password hashing
   val hashingWay = "SHA-1"
   def hash(v: String): String = play.api.libs.Codecs.sha1(v)
