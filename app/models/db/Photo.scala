@@ -36,6 +36,7 @@ object Photo extends AutoIDTable[Photo]("PHOTO") {
 case class Image(MAP: Map[String, AttributeValue]) extends TimestampedTable.ObjType[Image] {
   val TABLE = Image
 
+  lazy val filename: String = build(_.filename)
   lazy val kind: Image.Kind.Value = TABLE.kind build MAP
   lazy val format: Image.Format.Value = TABLE.format build MAP
   lazy val width: Long = build(_.width)
@@ -45,10 +46,11 @@ case class Image(MAP: Map[String, AttributeValue]) extends TimestampedTable.ObjT
   /**
    * Reference to Image file
    */
-  lazy val file = Storage.file("photo", kind.toString, id.toString)
-  def url(implicit limit: FiniteDuration = 1 hour) = file.generateURL(limit)
+  lazy val file = Storage.file("photo", kind.toString, filename)
+  def url(limit: FiniteDuration) = file.generateURL(limit)
 }
 object Image extends AutoIDTable[Image]("IMAGE") {
+  val filename = Column[String]("FILE_NAME", (_.filename), (_.getString.get), attrString)
   val kind = Column[Kind.Value]("KIND", (_.kind), (Kind withName _.getString.get), attrEnum(Kind))
   val format = Column[Format.Value]("FORMAT", (_.format), (Format withName _.getString.get), attrEnum(Format))
   val width = Column[Long]("WIDTH", (_.width), (_.getLong.get), attrLong)

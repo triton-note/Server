@@ -18,5 +18,6 @@ object Settings {
     def sizeThumbnail = 200
     def uploadExpiration = 5 minutes
     def uploadMaxSize = 10 * 1024 * 1024
+    def urlExpiration = 1 hour
   }
 }

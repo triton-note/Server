@@ -1,14 +1,16 @@
-import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
+import java.io.{ ByteArrayInputStream, ByteArrayOutputStream }
+
+import scala.concurrent.duration._
 
 import play.api.Logger
 import play.api.libs.json._
 
 import org.fathens.play.util.Exception.allCatch
 
-import com.sksamuel.scrimage.{Format, Image => ScrImage}
+import com.sksamuel.scrimage.{ Format, Image => ScrImage }
 
-import models.{Report, Settings}
-import models.db.{FishSize, Image, ImageRelation, Photo, User, VolatileToken}
+import models.{ Report, Settings }
+import models.db.{ FishSize, Image, ImageRelation, Photo, User, VolatileToken }
 
 package object controllers {
   object TicketValue {
@@ -24,7 +26,10 @@ package object controllers {
     original: Image,
     mainview: Image,
     thumbnail: Image) {
-    def asURL = Report.Photo(original.url.toString, mainview.url.toString, thumbnail.url.toString)
+    def asURL = Report.Photo(
+      original.url(Settings.Image.urlExpiration).toString,
+      mainview.url(Settings.Image.urlExpiration).toString,
+      thumbnail.url(Settings.Image.urlExpiration).toString)
   }
   /**
    * Token に紐付けして保存してある情報を JSON と読み書きする
