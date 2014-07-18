@@ -17,7 +17,6 @@ import service.AWS
 object Upload {
   case class Start(
     url: String,
-    filename: String,
     params: Params)
   object Start {
     implicit val startFormat = Json.format[Start]
@@ -46,17 +45,15 @@ object Upload {
     val limit = new java.util.Date(now.getTime + dur.toMillis)
     com.amazonaws.util.DateUtils.formatISO8601Date(limit)
   }
-  def start(image: Image) = {
+  def start(folderPath: String) = {
     val contentType = "image/jpeg"
-    val filename = image.file.name
-    val key = (filename :: image.file.paths.reverse.tail).reverse.mkString("/")
     val (policy, signature) = {
       val charset = Charset.forName("UTF-8")
       val src = Json.obj(
         "expiration" -> expiration(Settings.Image.uploadExpiration),
         "conditions" -> Json.arr(
           Json.obj("bucket" -> AWS.S3.bucketName),
-          Json.obj("key" -> key),
+          Json.arr("starts-with", "$key", folderPath),
           Json.obj("acl" -> AWS.S3.ClientSide.acl),
           Json.obj("Content-Type" -> contentType),
           Json.arr("content-length-range", 1, Settings.Image.uploadMaxSize)
@@ -71,9 +68,8 @@ object Upload {
     }
     Start(
       AWS.S3.ClientSide.targetUrl,
-      filename,
       Params(
-        key,
+        folderPath + "/${filename}",
         AWS.S3.ClientSide.accessKey,
         AWS.S3.ClientSide.acl,
         policy,

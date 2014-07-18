@@ -11,7 +11,7 @@ import play.api.libs.functional.syntax._
 import play.api.libs.json._
 import play.api.mvc.{ Action, Controller, Result }
 
-import models.{ GeoInfo, Report, Settings }
+import models.{ GeoInfo, Report, Settings, Storage, Upload }
 import models.db.{ CatchReport, FishSize, Image, Photo, User, VolatileToken }
 import service.Facebook.{ AccessKey, Fishing }
 import service.InferenceCatches
@@ -33,6 +33,7 @@ object CatchesSession extends Controller {
     publishing: Option[SessionValue.Publishing] = None) {
     override def toString = Json.toJson(this).toString
   }
+  def mkFolder(session: String) = List("photo", Image.Kind.ORIGINAL.toString, session).mkString("/")
 
   def start(ticket: String) = Action.async(parse.json(
     (__ \ "geoinfo").readNullable[GeoInfo])
@@ -45,17 +46,22 @@ object CatchesSession extends Controller {
         case Some((vt, _, user)) =>
           val value = SessionValue(user.id, geoinfo)
           val session = VolatileToken.addNew(Settings.Session.timeoutUpload, Option(value.toString))
-          Ok(session.id)
+          Ok(Json.obj(
+            "session" -> session.id,
+            "upload" -> Upload.start(mkFolder(session.id))
+          ))
       }
     }
   }
 
-  def photo(session: String) = Action.async(parse.multipartFormData) { implicit request =>
-    val files = request.body.files
+  def photo(session: String) = Action.async(parse.json(
+    (__ \ "names").read[Set[String]]
+  )) { implicit request =>
+    val files = request.body.map(Storage.file(mkFolder(session), _))
     Logger debug f"Saving head of ${files}"
-    files.headOption.map(_.ref.file) match {
-      case None => Future(BadRequest("No uploaded files"))
-      case Some(file) => Future(file.asPhoto).flatMap {
+    files.toList match {
+      case Nil => Future(BadRequest("No uploaded files"))
+      case file :: Nil => Future(file.asPhoto).flatMap {
         _ match {
           case None => Future(InternalServerError("Failed to save photo"))
           case Some(photo) =>
@@ -73,6 +79,7 @@ object CatchesSession extends Controller {
             }
         }
       }
+      case _ => Future(BadRequest("Too much uploaded files"))
     }
   }
 
