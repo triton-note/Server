@@ -1,6 +1,6 @@
 package models
 
-import java.io.{BufferedInputStream, FileInputStream}
+import java.io.{BufferedInputStream, BufferedOutputStream, IOException, OutputStream, PipedInputStream, PipedOutputStream}
 import java.util.Date
 
 import scala.concurrent.duration._
@@ -51,15 +51,17 @@ object Storage {
     def exists: Boolean = {
       s3.getObjectMetadata(bucketName, path) != null
     }
-    def write(src: java.io.File, retryCount: Int = Settings.Storage.retryLimit): Boolean = {
-      import java.io._
-      slurp(new BufferedInputStream(new FileInputStream(src)), retryCount)
+    def newWriter: OutputStream = {
+      val ins = new PipedInputStream
+      val out = new PipedOutputStream
+      slurp(new BufferedInputStream(ins), 0)
+      new BufferedOutputStream(out)
     }
-    def slurp(source: java.io.InputStream, retryCount: Int = Settings.Storage.retryLimit): Boolean = {
+    def slurp(source: java.io.InputStream, retryCount: Int = Settings.Storage.retryLimit) {
       Logger.debug(f"Storing for S3:${bucketName}:${path}")
       allCatch opt s3.putObject(bucketName, path, source, new ObjectMetadata()) match {
-        case None    => if (retryCount > 0) slurp(source, retryCount - 1) else false
-        case Some(_) => true
+        case None    => if (retryCount > 0) slurp(source, retryCount - 1) else throw new IOException(f"Failed to load to ${this}")
+        case Some(_) => Unit
       }
     }
     def delete: Boolean = {

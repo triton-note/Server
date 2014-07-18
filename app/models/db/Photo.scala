@@ -66,13 +66,17 @@ object Image extends AutoIDTable[Image]("IMAGE") {
     )
     super.putNew(attributes)
   }
-  def addNew(theWidth: Long, theHeight: Long, theKind: Kind.Value,
-    theFormat: Format.Value = Format.JPEG): Image = addNew(
-    kind(theKind),
-    format(theFormat),
-    width(theWidth),
-    height(theHeight)
-  )
+  def addNewWithWriter(writer: java.io.OutputStream => _, theWidth: Long, theHeight: Long, theKind: Kind.Value,
+    theFormat: Format.Value = Format.JPEG): Image = {
+    val image = addNew(
+      kind(theKind),
+      format(theFormat),
+      width(theWidth),
+      height(theHeight)
+    )
+    writer(image.file.newWriter)
+    image
+  }
   def addNewWithFile(thePath: String, theWidth: Long, theHeight: Long,
     theKind: Kind.Value = Kind.ORIGINAL, theFormat: Format.Value = Format.JPEG): Image = addNew(
     path(thePath),

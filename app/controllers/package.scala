@@ -64,10 +64,7 @@ package object controllers {
         val (w, h) = if (width > height) (max, height * max / width) else (width * max / height, max)
         Logger debug f"Resizing image for ${relation}: (${width} x ${height}) -> (${w} x ${h})"
         val scaled = image.scaleTo(w, h)
-        val dst = Image.addNew(scaled.width, scaled.height, Image.Kind.REDUCED)
-        val out = new ByteArrayOutputStream()
-        scaled.writer(Format.JPEG).write(out)
-        dst.file.slurp(new ByteArrayInputStream(out.toByteArray))
+        val dst = Image.addNewWithWriter(scaled.writer(Format.JPEG).write, scaled.width, scaled.height, Image.Kind.REDUCED)
         ImageRelation.addNew(src, dst, relation)
         dst
       }
