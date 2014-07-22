@@ -13,6 +13,7 @@ import play.api.mvc.Codec.utf_8
 import org.fathens.play.util.Exception.allCatch
 
 import models.db.{Image, User => UserDB}
+import models.Settings
 
 object Facebook {
   case class AccessKey(token: String)
@@ -106,7 +107,7 @@ object Facebook {
       (fb / f"me/photos").withQueryString(
         "access_token" -> accessKey.token
       ).post(Map(
-          "url" -> photo.map(_.url.toString),
+          "url" -> photo.map(_.url(Settings.Pulish.timer).toString),
           "message" -> message.toSeq
         )).map(parse.ObjectID)
     }

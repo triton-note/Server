@@ -244,42 +244,22 @@ package db {
       }
     }
     def putNew(attributes: Map[String, AttributeValue]): T = {
-      val map = (attributes - createdAt.name - lastModifiedAt.name + createdAt(currentTimestamp)).filter(!_._2.isEmpty)
+      val map = (attributes - lastModifiedAt.name + createdAt(currentTimestamp)).filter(!_._2.isEmpty)
       Logger debug f"Putting ${tableName} by ${map}"
       val result = client.putItem(tableName, map)
       Logger debug f"Result of putting ${tableName}: ${result}"
       apply(map)
     }
   }
-  abstract class AnyIDTable[T <: TimestampedTable.ObjType[T]](val tableName: String) extends TimestampedTable[T] {
-    /**
-     * Add item.
-     *
-     * @return New item which has proper id.
-     */
-    def addNew(key: String, attributes: (String, AttributeValue)*): T = {
-      putNew(attributes.toMap - id.name + id(key))
-    }
-  }
   abstract class AutoIDTable[T <: TimestampedTable.ObjType[T]](val tableName: String) extends TimestampedTable[T] {
-    /**
-     * Generating ID by random numbers.
-     */
-    @tailrec
-    final def generateID: String = {
-      val token = play.api.libs.Codecs.sha1(System.currentTimeMillis.toString)
-      get(token) match {
-        case None    => token
-        case Some(_) => generateID
-      }
-    }
     /**
      * Add item.
      *
      * @return New item which has proper id.
      */
     def addNew(attributes: (String, AttributeValue)*): T = {
-      putNew(attributes.toMap - id.name + id(generateID))
+      val generateID = play.api.libs.Crypto.generateToken
+      putNew(attributes.toMap + id(generateID))
     }
   }
 }
