@@ -28,7 +28,6 @@ object CatchesSession extends Controller {
     userId: String,
     geoinfo: Option[GeoInfo],
     imageId: Option[String] = None,
-    report: Option[Report] = None,
     committed: Option[String] = None,
     publishing: Option[SessionValue.Publishing] = None) {
     override def toString = Json.toJson(this).toString
@@ -59,96 +58,110 @@ object CatchesSession extends Controller {
   )) { implicit request =>
     val files = request.body.map(Storage.file(mkFolder(session), _))
     Logger debug f"Saving head of ${files}"
-    files.toList match {
-      case Nil => Future(BadRequest("No uploaded files"))
-      case file :: Nil => Future(file.asPhoto).flatMap {
-        _ match {
-          case None => Future(InternalServerError("Failed to save photo"))
-          case Some(photo) =>
-            mayCommit(session) {
-              _.copy(imageId = Some(photo.original.id))
-            } { value =>
-              value.report.isEmpty option Ok {
-                val (location, fishes) = InferenceCatches.infer(photo.original.file, value.geoinfo)
-                Json.obj(
-                  "url" -> photo.asURL,
-                  "location" -> location,
-                  "fishes" -> fishes
-                )
-              }
+    Future {
+      files.toList match {
+        case Nil => BadRequest("No uploaded files")
+        case file :: Nil => session.asTokenOfUser[SessionValue] match {
+          case None => BadRequest("Session Expired")
+          case Some((vt, value, user)) => file.asPhoto match {
+            case None => InternalServerError("Failed to save photo")
+            case Some(photo) => vt json value.copy(imageId = Some(photo.original.id)) match {
+              case None => InternalServerError("Failed to save session value")
+              case Some(_) => Ok(Json.obj(
+                "url" -> photo.asURL
+              ))
             }
-        }
-      }
-      case _ => Future(BadRequest("Too much uploaded files"))
-    }
-  }
-
-  def submit(session: String) = Action.async(parse.json((
-    (__ \ "report").read[Report] and
-    (__ \ "publishing").readNullable[SessionValue.Publishing]
-  ).tupled)) { implicit request =>
-    val (report, publishing) = request.body
-    Logger debug f"Sumit report with publishing $publishing"
-    mayCommit(session) {
-      _.copy(report = Some(report), publishing = publishing)
-    } { _.imageId.isEmpty option Ok }
-  }
-
-  def mayCommit(token: String)(convert: SessionValue => SessionValue)(result: SessionValue => Option[Result]): Future[Result] = {
-    def commit(vt: VolatileToken)(implicit user: User): Future[Result] = {
-      val ok = for {
-        value <- vt.json[SessionValue]
-        given <- value.report
-        image <- value.imageId.flatMap(Image.get)
-      } yield {
-        val report = CatchReport.addNew(user, given.location.geoinfo, given.location.name, given.dateAt)
-        val photo = Photo.addNew(report, image)
-        val comment = report.addComment(given.comment)
-        val photos = given.fishes.map(_ add photo)
-        vt json value.copy(committed = Some(report.id)) match {
-          case Some(vt) => value.publishing match {
-            case Some(SessionValue.Publishing(way, token)) => publish(way, token)(given, image)
-            case None                                      => Future(Ok)
           }
-          case None => Future(InternalServerError("Failed to update the session"))
         }
+        case _ => BadRequest("Too much uploaded files")
       }
-      ok getOrElse Future(InternalServerError("Failed to commit the submit"))
     }
-    @tailrec
-    def retry(count: Int): Future[Result] = token.asTokenOfUser[SessionValue] match {
+  }
+
+  def infer(session: String) = Action.async { implicit request =>
+    Logger debug f"Inferring of photo on session: ${session}"
+    Future {
+      session.asTokenOfUser[SessionValue] match {
+        case None => BadRequest("Session Expired")
+        case Some((vt, value, user)) =>
+          val ok = for {
+            imageId <- value.imageId
+            image <- Image get imageId
+          } yield {
+            val (location, fishes) = InferenceCatches.infer(image.file, value.geoinfo)
+            Ok(Json.obj(
+              "location" -> location,
+              "fishes" -> fishes
+            ))
+          }
+          ok getOrElse BadRequest("Any image is not saved yet")
+      }
+    }
+  }
+
+  def submit(session: String) = Action.async(parse.json(
+    (__ \ "report").read[Report]
+  )) { implicit request =>
+    val given = request.body
+    Logger debug f"Sumit report: ${given}"
+    Future {
+      session.asTokenOfUser[SessionValue] match {
+        case None => BadRequest("Session Expired")
+        case Some((vt, value, user)) =>
+          val ok = for {
+            imageId <- value.imageId
+            image <- Image get imageId
+          } yield {
+            val report = CatchReport.addNew(user, given.location.geoinfo, given.location.name, given.dateAt)
+            val photo = Photo.addNew(report, image)
+            val comment = report.addComment(given.comment)(user)
+            val photos = given.fishes.map(_ add photo)
+            vt json value.copy(committed = Some(report.id)) match {
+              case None    => InternalServerError("Failed to save session value")
+              case Some(_) => Ok(report.id)
+            }
+          }
+          ok getOrElse BadRequest("Any image is not saved yet")
+      }
+    }
+  }
+
+  def publish(session: String) = Action.async(parse.json(
+    (__ \ "publishing").read[SessionValue.Publishing]
+  )) { implicit request =>
+    val publish = request.body
+    session.asTokenOfUser[SessionValue] match {
       case None => Future(BadRequest("Session Expired"))
       case Some((vt, value, user)) =>
-        val next = convert(value)
-        vt json next match {
-          case Some(vt)          => result(next).map(Future(_)) getOrElse commit(vt)(user)
-          case None if count > 0 => retry(count - 1)
-          case None              => Future(InternalServerError("Failed to update the session"))
-        }
-    }
-    retry(3)
-  }
-  def publish(way: String, token: String)(report: Report, image: Image): Future[Result] = {
-    def mkMessage = {
-      val catches = report.fishes.map { fish =>
-        val size = List(
-          fish.length.map { v => f"${v.value} ${v.unit}" },
-          fish.weight.map { v => f"${v.value} ${v.unit}" }
-        ).flatten match {
-            case Nil  => ""
-            case list => list.mkString("(", ",", ")")
+        val ok = for {
+          reportId <- value.committed
+          report <- CatchReport get reportId
+          imageId <- value.imageId
+          image <- Image get imageId
+        } yield {
+          def mkMessage = {
+            val catches = Photo.findBy(report).flatMap(FishSize.findBy).map { fish =>
+              val size = List(
+                fish.length.map { case (value, unit) => f"${value} ${unit}" },
+                fish.weight.map { case (value, unit) => f"${value} ${unit}" }
+              ).flatten match {
+                  case Nil  => ""
+                  case list => list.mkString("(", ",", ")")
+                }
+              f"${fish.name}${size} x ${fish.count}"
+            }.mkString("\n")
+            report.topComment.map(_.text + "\n\n").getOrElse("") + catches
           }
-        f"${fish.name}${size} x ${fish.count}"
-      }.mkString("\n")
-      report.comment + "\n\n" + catches
-    }
-    way match {
-      case "facebook" =>
-        Fishing.publish(List(image), Some(mkMessage))(new AccessKey(token)).map(_ match {
-          case Some(id) => Ok
-          case None     => InternalServerError(f"Failed to publish to $way")
-        })
-      case _ => Future(NotImplemented(f"No way for Publishing '${way}'"))
+          publish.way match {
+            case "facebook" =>
+              Fishing.publish(List(image), Some(mkMessage))(new AccessKey(publish.token)).map(_ match {
+                case Some(id) => Ok
+                case None     => InternalServerError(f"Failed to publish to ${publish.way}")
+              })
+            case _ => Future(NotImplemented(f"No way for Publishing '${publish.way}'"))
+          }
+        }
+        ok getOrElse Future(BadRequest("Image or Report is not submitted yet"))
     }
   }
 }
