@@ -1,14 +1,14 @@
-import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
+import java.io.{ ByteArrayInputStream, ByteArrayOutputStream }
 
 import play.api.Logger
 import play.api.libs.json._
 
 import org.fathens.play.util.Exception.allCatch
 
-import com.sksamuel.scrimage.{Format, Image => ScrImage}
+import com.sksamuel.scrimage.{ Format, Image => ScrImage }
 
-import models.{Report, Settings, Storage}
-import models.db.{FishSize, Image, ImageRelation, Photo, User, VolatileToken}
+import models.{ Report, Settings, Storage }
+import models.db.{ FishSize, Image, ImageRelation, Photo, User, VolatileToken }
 
 package object controllers {
   object TicketValue {
@@ -64,7 +64,11 @@ package object controllers {
         val (w, h) = if (width > height) (max, height * max / width) else (width * max / height, max)
         Logger debug f"Resizing image for ${relation}: (${width} x ${height}) -> (${w} x ${h})"
         val scaled = image.scaleTo(w, h)
-        val dst = Image.addNewWithWriter(scaled.writer(Format.JPEG).write, scaled.width, scaled.height, Image.Kind.REDUCED)
+        val path = file.paths.reverse match {
+          case name :: parent :: left => List("photo", Image.Kind.REDUCED.toString, parent, relation.toString).mkString("/")
+          case _                      => throw new IllegalArgumentException(f"Unexpected file path: ${file.paths}")
+        }
+        val dst = Image.addNewWithWriter(scaled.writer(Format.JPEG).write, path, scaled.width, scaled.height, Image.Kind.REDUCED)
         ImageRelation.addNew(src, dst, relation)
         dst
       }
