@@ -1,8 +1,10 @@
 package models
 
-import java.io.{BufferedInputStream, FileInputStream}
+import java.io.{BufferedInputStream, BufferedOutputStream, IOException, OutputStream, PipedInputStream, PipedOutputStream}
 import java.util.Date
 
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
 import scala.concurrent.duration._
 
 import play.api.Logger
@@ -15,20 +17,6 @@ import com.amazonaws.services.s3.model.ObjectMetadata
 object Storage {
   lazy val s3 = service.AWS.S3.client
   lazy val bucketName = service.AWS.S3.bucketName
-  def retry[T](count: Int)(proc: => T): Option[T] = {
-    var down = count
-    while (down > 0) {
-      try {
-        return Some(proc)
-      } catch {
-        case ex: Exception => {
-          Thread.sleep(1000)
-          down -= 1
-        }
-      }
-    }
-    None
-  }
   def file(paths: String*) = {
     val list = paths.map(_ split "/").flatten.toList
     Logger.trace(f"Creating S3File: $list")
@@ -51,15 +39,20 @@ object Storage {
     def exists: Boolean = {
       s3.getObjectMetadata(bucketName, path) != null
     }
-    def write(src: java.io.File, retryCount: Int = Settings.Storage.retryLimit): Boolean = {
-      import java.io._
-      slurp(new BufferedInputStream(new FileInputStream(src)), retryCount)
+    def newWriter: OutputStream = {
+      val ins = new PipedInputStream
+      val out = new PipedOutputStream(ins)
+      Future {
+        slurp(new BufferedInputStream(ins))
+      }
+      new BufferedOutputStream(out)
     }
-    def slurp(source: java.io.InputStream, retryCount: Int = Settings.Storage.retryLimit): Boolean = {
+    def slurp(source: java.io.InputStream) {
       Logger.debug(f"Storing for S3:${bucketName}:${path}")
-      allCatch opt s3.putObject(bucketName, path, source, new ObjectMetadata()) match {
-        case None    => if (retryCount > 0) slurp(source, retryCount - 1) else false
-        case Some(_) => true
+      try {
+        s3.putObject(bucketName, path, source, new ObjectMetadata())
+      } catch {
+        case ex: Exception => throw new IOException(f"Failed to load to ${this}", ex)
       }
     }
     def delete: Boolean = {

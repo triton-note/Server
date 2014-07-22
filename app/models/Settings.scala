@@ -10,11 +10,11 @@ object Settings {
   object Pulish {
     def timer: FiniteDuration = 3 minutes
   }
-  object Storage {
-    def retryLimit: Int = 5
-  }
   object Image {
     def sizeMainview = 800
     def sizeThumbnail = 200
+    def uploadExpiration = 5 minutes
+    def uploadMaxSize = 10 * 1024 * 1024
+    def urlExpiration = 1 hour
   }
 }

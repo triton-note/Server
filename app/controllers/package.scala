@@ -1,14 +1,14 @@
-import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
+import java.io.{ ByteArrayInputStream, ByteArrayOutputStream }
 
 import play.api.Logger
 import play.api.libs.json._
 
 import org.fathens.play.util.Exception.allCatch
 
-import com.sksamuel.scrimage.{Format, Image => ScrImage}
+import com.sksamuel.scrimage.{ Format, Image => ScrImage }
 
-import models.{Report, Settings}
-import models.db.{FishSize, Image, ImageRelation, Photo, User, VolatileToken}
+import models.{ Report, Settings, Storage }
+import models.db.{ FishSize, Image, ImageRelation, Photo, User, VolatileToken }
 
 package object controllers {
   object TicketValue {
@@ -24,7 +24,10 @@ package object controllers {
     original: Image,
     mainview: Image,
     thumbnail: Image) {
-    def asURL = Report.Photo(original.url.toString, mainview.url.toString, thumbnail.url.toString)
+    def asURL = Report.Photo(
+      original.url(Settings.Image.urlExpiration).toString,
+      mainview.url(Settings.Image.urlExpiration).toString,
+      thumbnail.url(Settings.Image.urlExpiration).toString)
   }
   /**
    * Token に紐付けして保存してある情報を JSON と読み書きする
@@ -54,29 +57,25 @@ package object controllers {
     def same(o: FishSize): Boolean = o.name == fish.name && o.count == fish.count && o.length == fish.length.map(_.tupled) && o.weight == fish.weight.map(_.tupled)
     def add(photo: Photo): FishSize = FishSize.addNew(photo, fish.name, fish.count, fish.weight.map(_.tupled), fish.length.map(_.tupled))
   }
-  implicit class PhotoFile(file: java.io.File) {
+  implicit class PhotoFile(file: Storage.S3File) {
     def asPhoto: Option[Photos] = {
-      def original(image: ScrImage) = {
-        val dst = Image.addNew(image.width, image.height)
-        dst.file write file
-        dst
-      }
       def resize(src: Image, image: ScrImage, max: Int, relation: ImageRelation.Relation.Value) = {
         val (width, height) = (image.width, image.height)
         val (w, h) = if (width > height) (max, height * max / width) else (width * max / height, max)
         Logger debug f"Resizing image for ${relation}: (${width} x ${height}) -> (${w} x ${h})"
         val scaled = image.scaleTo(w, h)
-        val dst = Image.addNew(scaled.width, scaled.height, Image.Kind.REDUCED)
-        val out = new ByteArrayOutputStream()
-        scaled.writer(Format.JPEG).write(out)
-        dst.file.slurp(new ByteArrayInputStream(out.toByteArray))
+        val path = file.paths.reverse match {
+          case name :: parent :: left => List("photo", Image.Kind.REDUCED.toString, parent, relation.toString).mkString("/")
+          case _                      => throw new IllegalArgumentException(f"Unexpected file path: ${file.paths}")
+        }
+        val dst = Image.addNewWithWriter(scaled.writer(Format.JPEG).write, path, scaled.width, scaled.height, Image.Kind.REDUCED)
         ImageRelation.addNew(src, dst, relation)
         dst
       }
       for {
-        io <- allCatch opt ScrImage(file)
+        io <- allCatch opt ScrImage(file.read)
         i <- Option(io)
-        o <- allCatch opt original(i)
+        o <- allCatch opt Image.addNewWithFile(file.path, i.width, i.height)
         m <- allCatch opt resize(o, i, Settings.Image.sizeMainview, ImageRelation.Relation.MAIN_VIEW)
         t <- allCatch opt resize(o, i, Settings.Image.sizeThumbnail, ImageRelation.Relation.THUMBNAIL)
       } yield Photos(o, m, t)

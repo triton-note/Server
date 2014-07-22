@@ -6,7 +6,9 @@ POST   /login/:way	            	controllers.Account.login(way: String)
 # Report posting
 POST   /report/new-session/:ticket  controllers.CatchesSession.start(ticket: String)
 POST   /report/photo/:session    	controllers.CatchesSession.photo(session: String)
+GET    /report/infer/:session    	controllers.CatchesSession.infer(session: String)
 POST   /report/submit/:session   	controllers.CatchesSession.submit(session: String)
+POST   /report/publish/:session    	controllers.CatchesSession.publish(session: String)
 
 # Report loading
 POST   /report/load/:ticket        	controllers.ReportSync.load(ticket: String)
@@ -16,3 +18,8 @@ POST   /report/remove/:ticket      	controllers.ReportSync.remove(ticket: String
 # Account Settings
 GET    /account/unit/load/:ticket   controllers.Account.loadUnit(ticket: String)
 POST   /account/unit/change/:ticket controllers.Account.changeUnit(ticket: String)
+
+# Distributions of Catches
+GET    /distribution/mine/:ticket   controllers.Distribution.mine(ticket: String)
+GET    /distribution/others/:ticket controllers.Distribution.others(ticket: String)
+GET    /distribution/names/:ticket  controllers.Distribution.names(ticket: String)

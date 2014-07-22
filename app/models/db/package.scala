@@ -84,33 +84,33 @@ package db {
     /**
      * Query item by attributes given.
      */
-    def find[A](q: QueryRequest => QueryRequest, convert: Map[String, AttributeValue] => A = (map: Map[String, AttributeValue]) => apply(map)): Set[A] = {
+    def find[A](q: QueryRequest => QueryRequest, convert: Map[String, AttributeValue] => A = (map: Map[String, AttributeValue]) => apply(map)): Stream[A] = {
       try {
         for {
-          result <- Option(client query q(new QueryRequest(tableName))).toSet
+          result <- Option(client query q(new QueryRequest(tableName))).toStream
           if { Logger.debug(f"Found ${tableName} ${result}"); true }
-          item <- Option(result.getItems).toSet.flatten
+          item <- Option(result.getItems).toStream.flatten
         } yield convert(item.toMap)
       } catch {
         case ex: Exception =>
           Logger.error(f"Failed to query to ${tableName}: ${ex.getMessage}", ex)
-          Set()
+          Stream.Empty
       }
     }
     /**
      * Scan item by attributes given.
      */
-    def scan[A](q: ScanRequest => ScanRequest, convert: Map[String, AttributeValue] => A = (map: Map[String, AttributeValue]) => apply(map)): Set[A] = {
+    def scan[A](q: ScanRequest => ScanRequest, convert: Map[String, AttributeValue] => A = (map: Map[String, AttributeValue]) => apply(map)): Stream[A] = {
       try {
         for {
-          result <- Option(client scan q(new ScanRequest(tableName))).toSet
+          result <- Option(client scan q(new ScanRequest(tableName))).toStream
           if { Logger.debug(f"Found ${tableName} ${result}"); true }
-          item <- Option(result.getItems).toSet.flatten
+          item <- Option(result.getItems).toStream.flatten
         } yield convert(item.toMap)
       } catch {
         case ex: Exception =>
           Logger.error(f"Failed to scan to ${tableName}: ${ex.getMessage}", ex)
-          Set()
+          Stream.Empty
       }
     }
   }
@@ -244,42 +244,22 @@ package db {
       }
     }
     def putNew(attributes: Map[String, AttributeValue]): T = {
-      val map = (attributes - createdAt.name - lastModifiedAt.name + createdAt(currentTimestamp)).filter(!_._2.isEmpty)
+      val map = (attributes - lastModifiedAt.name + createdAt(currentTimestamp)).filter(!_._2.isEmpty)
       Logger debug f"Putting ${tableName} by ${map}"
       val result = client.putItem(tableName, map)
       Logger debug f"Result of putting ${tableName}: ${result}"
       apply(map)
     }
   }
-  abstract class AnyIDTable[T <: TimestampedTable.ObjType[T]](val tableName: String) extends TimestampedTable[T] {
-    /**
-     * Add item.
-     *
-     * @return New item which has proper id.
-     */
-    def addNew(key: String, attributes: (String, AttributeValue)*): T = {
-      putNew(attributes.toMap - id.name + id(key))
-    }
-  }
   abstract class AutoIDTable[T <: TimestampedTable.ObjType[T]](val tableName: String) extends TimestampedTable[T] {
-    /**
-     * Generating ID by random numbers.
-     */
-    @tailrec
-    final def generateID: String = {
-      val token = play.api.libs.Codecs.sha1(System.currentTimeMillis.toString)
-      get(token) match {
-        case None    => token
-        case Some(_) => generateID
-      }
-    }
     /**
      * Add item.
      *
      * @return New item which has proper id.
      */
     def addNew(attributes: (String, AttributeValue)*): T = {
-      putNew(attributes.toMap - id.name + id(generateID))
+      val generateID = play.api.libs.Crypto.generateToken
+      putNew(attributes.toMap + id(generateID))
     }
   }
 }

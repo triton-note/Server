@@ -24,5 +24,11 @@ object AWS {
       c.setEndpoint(f"s3${ep}.amazonaws.com")
       c
     }
+    object ClientSide {
+      lazy val targetUrl = f"https://${bucketName}.s3.amazonaws.com/"
+      lazy val accessKey = System.getenv("AWS_ACCESS_KEY_ID_CLIENTSIDE")
+      lazy val seacretKey = System.getenv("AWS_SECRET_ACCESS_KEY_CLIENTSIDE")
+      val acl = "bucket-owner-full-control"
+    }
   }
 }

@@ -36,6 +36,7 @@ object Photo extends AutoIDTable[Photo]("PHOTO") {
 case class Image(MAP: Map[String, AttributeValue]) extends TimestampedTable.ObjType[Image] {
   val TABLE = Image
 
+  lazy val path: String = build(_.path)
   lazy val kind: Image.Kind.Value = TABLE.kind build MAP
   lazy val format: Image.Format.Value = TABLE.format build MAP
   lazy val width: Long = build(_.width)
@@ -45,10 +46,11 @@ case class Image(MAP: Map[String, AttributeValue]) extends TimestampedTable.ObjT
   /**
    * Reference to Image file
    */
-  lazy val file = Storage.file("photo", kind.toString, id.toString)
-  def url(implicit limit: FiniteDuration = 1 hour) = file.generateURL(limit)
+  lazy val file = Storage.file(path)
+  def url(limit: FiniteDuration) = file.generateURL(limit)
 }
 object Image extends AutoIDTable[Image]("IMAGE") {
+  val path = Column[String]("PATH", (_.path), (_.getString.get), attrString)
   val kind = Column[Kind.Value]("KIND", (_.kind), (Kind withName _.getString.get), attrEnum(Kind))
   val format = Column[Format.Value]("FORMAT", (_.format), (Format withName _.getString.get), attrEnum(Format))
   val width = Column[Long]("WIDTH", (_.width), (_.getLong.get), attrLong)
@@ -58,8 +60,27 @@ object Image extends AutoIDTable[Image]("IMAGE") {
   /**
    * Add new image data
    */
-  def addNew(theWidth: Long, theHeight: Long,
+  override def putNew(map: Map[String, AttributeValue]): Image = {
+    val attributes = if (map contains path.name) map else map + path(
+      List("photo", kind.build(map), id.build(map)).mkString("/")
+    )
+    super.putNew(attributes)
+  }
+  def addNewWithWriter(writer: java.io.OutputStream => _, thePath: String, theWidth: Long, theHeight: Long, theKind: Kind.Value,
+    theFormat: Format.Value = Format.JPEG): Image = {
+    val image = addNew(
+      path(thePath),
+      kind(theKind),
+      format(theFormat),
+      width(theWidth),
+      height(theHeight)
+    )
+    writer(image.file.newWriter)
+    image
+  }
+  def addNewWithFile(thePath: String, theWidth: Long, theHeight: Long,
     theKind: Kind.Value = Kind.ORIGINAL, theFormat: Format.Value = Format.JPEG): Image = addNew(
+    path(thePath),
     kind(theKind),
     format(theFormat),
     width(theWidth),

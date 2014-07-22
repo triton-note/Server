@@ -48,6 +48,6 @@ object VolatileToken extends AutoIDTable[VolatileToken]("VOLATILE_TOKEN") {
       _.withAttributesToGet(id.name).withScanFilter(Map(
         expiration.compare(currentTimestamp, ComparisonOperator.LE)
       )), id.build)
-    expired.par.toList.map(delete).filter(_ == true).size
+    expired.par.map(delete).filter(_ == true).size
   }
 }
