@@ -12,6 +12,7 @@ POST   /report/publish/:session    	controllers.CatchesSession.publish(session: 
 
 # Report loading
 POST   /report/load/:ticket        	controllers.ReportSync.load(ticket: String)
+POST   /report/read/:ticket        	controllers.ReportSync.read(ticket: String)
 POST   /report/update/:ticket      	controllers.ReportSync.update(ticket: String)
 POST   /report/remove/:ticket      	controllers.ReportSync.remove(ticket: String)
 
