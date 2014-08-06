@@ -3,6 +3,7 @@ package service
 import scala.{ Left, Right }
 import scala.collection.JavaConversions._
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration._
 
 import play.api.Logger
 import play.api.Play.current
@@ -16,16 +17,16 @@ import com.google.api.client.googleapis.auth.oauth2.GoogleCredential
 import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.json.jackson2.JacksonFactory
 import com.google.api.services.plus.Plus
-import com.google.api.services.plus.model.Person
+import com.google.api.services.plus.model.{ ItemScope, Moment, Person }
 
-import models.db.{ Image, User }
+import models.db.{ Image, ImageRelation, Photo, User }
 
 object GooglePlus {
   val applicationName = System.getenv("GOOGLEPLUS_APPLICATION_NAME")
   val apiKey = System.getenv("GOOGLEPLUS_API_KEY")
 
   object ActivityTypes {
-    val AddActivity = "http://schemas.google.com/AddActivity"
+    val AddActivity = "https://schemas.google.com/AddActivity"
   }
 
   def getService(token: String) = {
@@ -41,7 +42,7 @@ object GooglePlus {
       email <- getEmail(me)
     } yield User.findBy(email) getOrElse {
       val firstName = me.getName.getGivenName
-      val lastName = List(Option(me.getName.getMiddleName), Option(me.getName.getFamilyName)).flatten.mkString(" ")
+      val lastName = List(me.getName.getMiddleName, me.getName.getFamilyName).flatMap(Option(_)).mkString(" ")
       val avatarUrl = Option(me.getImage.getUrl)
       User.addNew(email, None, firstName, lastName, avatarUrl)
     }
@@ -57,30 +58,20 @@ object GooglePlus {
     rc.headOption
   }
 
-  def publish(token: String)(photo: Image, title: String, message: Option[String]) = {
+  def publish(token: String)(photo: Photo, title: String, message: Option[String]) = allCatch opt {
     val itemId = play.api.libs.Codecs.sha1(photo.id)
     val desc = (message getOrElse "")
-    val json = Json.obj(
-      "kind" -> "plus#moment",
-      "type" -> ActivityTypes.AddActivity,
-      "object" -> Json.obj(
-        "kind" -> "plus#itemScope",
-        "type" -> ActivityTypes.AddActivity,
-        "id" -> itemId,
-        "name" -> title,
-        "description" -> desc
-      )
+    implicit class ImageToURL(oi: Image) {
+      def toURL = oi.url(1 hour).toString
+    }
+    val image = photo.image.get
+    val moment = new Moment().setType(ActivityTypes.AddActivity).setTarget(new ItemScope()
+      .setId(itemId)
+      .setType(ActivityTypes.AddActivity)
+      .setName(title)
+      .setDescription(desc)
+      .setImage(image.toURL)
     )
-    val client = WS.client url "https://www.googleapis.com/plus/v1/people/me/moments/vault"
-    client.withQueryString("key" -> apiKey)
-      .withMethod("POST").withHeaders(
-        "Content-Type" -> "application/json",
-        "Authorization" -> f"Bearer ${token}"
-      ).withBody(json).execute.map { res =>
-          res.status match {
-            case 200 => Right(res.json)
-            case _   => Left(res.json)
-          }
-        }
+    getService(token).moments().insert("me", "vault", moment).execute()
   }
 }
