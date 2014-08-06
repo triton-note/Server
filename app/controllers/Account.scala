@@ -3,19 +3,19 @@ package controllers
 import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
-
 import play.api.Logger
 import play.api.libs.functional.syntax._
 import play.api.libs.json._
 import play.api.mvc.{ Action, Controller }
-
 import models.Settings
 import models.db.VolatileToken
 import service.Facebook
+import service.GooglePlus
 
 object Account extends Controller {
   def auth(way: String, token: String) = way match {
     case "facebook" => Facebook.User(token)
+    case "google"   => Future(GooglePlus getUserByToken token)
     case _          => Future(None)
   }
   def login(way: String) = Action.async(parse.json(

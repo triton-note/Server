@@ -1,6 +1,6 @@
 package models.db
 
-import scalaz.Scalaz._
+import scala.collection.JavaConversions._
 
 import com.amazonaws.services.dynamodbv2.model._
 
@@ -71,4 +71,10 @@ object User extends AutoIDTable[User]("USER") {
   // Password hashing
   val hashingWay = "SHA-1"
   def hash(v: String): String = play.api.libs.Codecs.sha1(v)
+  
+  def findBy(theEmail: String): Option[User] = {
+    find(_.withIndexName("EMAIL-index").withKeyConditions(Map(
+      email compare theEmail
+    ))).headOption
+  }
 }
