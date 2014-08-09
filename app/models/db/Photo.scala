@@ -105,7 +105,7 @@ case class ImageRelation(MAP: Map[String, AttributeValue]) extends TimestampedTa
 
   lazy val imageSrc: Option[Image] = build(_.imageSrc)
   lazy val imageDst: Option[Image] = build(_.imageDst)
-  lazy val relation: ImageRelation.Relation.Value = ImageRelation.relation build MAP
+  lazy val relation: ImageRelation.Relation.Value = TABLE.relation build MAP
 }
 object ImageRelation extends AutoIDTable[ImageRelation]("IMAGE_RELATION") {
   val imageSrc = Column[Option[Image]]("IMAGE_SRC", (_.imageSrc), (_.get(Image)), attrObjID)
