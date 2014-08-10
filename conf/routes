@@ -2,6 +2,8 @@ GET    /assets/*file             	controllers.Assets.at(path="/public", file)
 
 # Login
 POST   /login/:way	            	controllers.Account.login(way: String)
+POST   /account/connect/:ticket     controllers.Account.connect(ticket: String)
+POST   /account/disconnect/:ticket  controllers.Account.disconnect(ticket: String)
 
 # Report posting
 POST   /report/new-session/:ticket  controllers.CatchesSession.start(ticket: String)

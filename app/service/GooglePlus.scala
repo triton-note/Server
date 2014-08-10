@@ -1,22 +1,19 @@
 package service
 
-import scala.{ Left, Right }
 import scala.collection.JavaConversions._
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.duration._
+import scala.concurrent.duration.DurationInt
+
 import play.api.Logger
-import play.api.Play.current
-import play.api.libs.json._
-import play.api.libs.json.Json.toJsFieldJsValueWrapper
-import play.api.libs.ws.WS
+
 import org.fathens.play.util.Exception.allCatch
+
 import com.google.api.client.googleapis.auth.oauth2.GoogleCredential
 import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.json.jackson2.JacksonFactory
 import com.google.api.services.plus.Plus
 import com.google.api.services.plus.model.{ ItemScope, Moment, Person }
-import models.db.{ Image, ImageRelation, Photo, User }
-import models.db.SocialConnection
+
+import models.db.{ Image, Photo, SocialConnection, User }
 
 object GooglePlus {
   val applicationName = System.getenv("GOOGLEPLUS_APPLICATION_NAME")
@@ -26,36 +23,45 @@ object GooglePlus {
     val AddActivity = "https://schemas.google.com/AddActivity"
   }
 
+  def getUserByToken(token: String): Option[User] = {
+    for {
+      me <- findMe(token)
+      user <- findSocial(me).map(_.user.get) orElse create(me)
+    } yield user
+  }
+  def connect(user: User, token: String): Option[SocialConnection] = {
+    findMe(token).map { me =>
+      findSocial(me) getOrElse {
+        val social = SocialConnection.addNew(me.getId, SocialConnection.Service.GOOGLE, user)
+        Logger.info(f"Connecting ${user} to ${social}")
+        social
+      }
+    }
+  }
+
   def getService(token: String) = {
     val credential = new GoogleCredential().setAccessToken(token)
     new Plus.Builder(new NetHttpTransport, new JacksonFactory, credential)
       .setApplicationName(applicationName)
       .build
   }
-
-  def getUserByToken(token: String): Option[User] = {
-    for {
-      me <- findMe(token)
-      user <- find(me) orElse create(me)
-    } yield user
+  def findSocial(me: Person): Option[SocialConnection] = {
+    SocialConnection.findBy(me.getId, SocialConnection.Service.GOOGLE)
   }
-
-  def find(me: Person): Option[User] = {
-    SocialConnection.findBy(me.getId, SocialConnection.Service.GOOGLE).flatMap(_.user)
-  }
-
   def create(me: Person): Option[User] = {
     getEmail(me).map { email =>
-      val name = me.getName.getFormatted
+      val name = me.getDisplayName
       val avatarUrl = Option(me.getImage.getUrl)
-      User.addNew(email, name, avatarUrl)
+      val user = User.addNew(email, name, avatarUrl)
+      val social = SocialConnection.addNew(me.getId, SocialConnection.Service.GOOGLE, user)
+      Logger.info(f"Creating ${user} as ${social}")
+      user
     }
   }
 
   def findMe(token: String): Option[Person] = allCatch opt {
     getService(token).people().get("me").execute
   }
-
   def getEmail(me: Person): Option[String] = {
     val rc = me.getEmails.filter(_.getType == "account").map(_.getValue)
     Logger debug f"Emails as account: ${rc}"

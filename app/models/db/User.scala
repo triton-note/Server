@@ -83,10 +83,10 @@ object SocialConnection extends AutoIDTable[SocialConnection]("SOCIAL_CONNECTION
       service compare theService
     ))).headOption
   }
-  def findBy(theUser: User): Option[SocialConnection] = {
+  def findBy(theUser: User): List[SocialConnection] = {
     find(_.withIndexName("USER-index").withKeyConditions(Map(
       user compare Option(theUser)
-    ))).headOption
+    ))).toList
   }
 
   object Service extends Enumeration {

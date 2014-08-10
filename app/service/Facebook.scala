@@ -3,15 +3,17 @@ package service
 import scala.{ Left, Right }
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
+
 import play.api.Logger
 import play.api.Play.current
 import play.api.libs.json._
 import play.api.libs.ws.{ WS, WSResponse }
 import play.api.mvc.Codec.utf_8
+
 import org.fathens.play.util.Exception.allCatch
-import models.db.{ Image, User => UserDB }
+
 import models.Settings
-import models.db.SocialConnection
+import models.db.{ Image, SocialConnection, User => UserDB }
 
 object Facebook {
   case class AccessKey(token: String)
@@ -47,8 +49,8 @@ object Facebook {
     /**
      * Find UserAlias by given accessKey.
      * If accessKey is not valid, return None.
-     * If UserAlias is not found, return email which is obtained by accessKey.
-     * If UserAlias is found by email, return UserAlias.
+     * If User is not found, return accountId which is obtained by accessKey.
+     * If User is found by accountId, return User.
      */
     def find(implicit accesskey: AccessKey): Future[Option[Either[String, UserDB]]] = {
       obtain("email") map { opt =>
@@ -84,14 +86,25 @@ object Facebook {
         }
       }
     }
+    def connect(user: UserDB)(implicit accesskey: AccessKey): Future[Option[SocialConnection]] = {
+      obtain("id") map { opt =>
+        for {
+          json <- opt
+          id <- (json \ "id").asOpt[String]
+        } yield {
+          val social = SocialConnection.addNew(id, SocialConnection.Service.FACEBOOK, user)
+          Logger.info(f"Connecting ${user} to ${social}")
+          social
+        }
+      }
+    }
     /**
      * Find UserAlias by email which is obtained by accessKey.
      * If UserAlias is not created yet, create it.
      * If accessKey is not valid, return None.
      */
-    def apply(accesskey: String): Future[Option[UserDB]] = {
-      implicit val ak = AccessKey(accesskey)
-      Logger.debug(f"Login as user with $ak")
+    def apply(implicit accesskey: AccessKey): Future[Option[UserDB]] = {
+      Logger.debug(f"Login as user with ${accesskey}")
       find flatMap (_ match {
         case Some(e) => e match {
           case Right(user) => Future(Some(user))
