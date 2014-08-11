@@ -6,6 +6,13 @@ lazy val root = (project in file(".")).enablePlugins(PlayScala)
 
 scalaVersion := "2.11.1"
 
+scalacOptions ++= Seq(
+  "-language:postfixOps",
+  "-language:implicitConversions",
+  "-language:reflectiveCalls",
+  "-feature"
+)
+
 libraryDependencies ++= Seq(
   "com.amazonaws" % "aws-java-sdk" % "1.8.5",
   "org.scalaz" %% "scalaz-core" % "7.0.6",
