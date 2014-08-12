@@ -87,6 +87,38 @@ object Account extends Controller {
     }
   }
 
+  def loadProfile(ticket: String) = Action.async { implicit request =>
+    Future {
+      ticket.asTokenOfUser[TicketValue] match {
+        case None => BadRequest("Ticket Expired")
+        case Some((vt, value, user)) =>
+          Ok(Json.obj(
+            "email" -> user.email,
+            "name" -> user.name,
+            "avatar" -> user.avatarUrl
+          ))
+      }
+    }
+  }
+
+  def changeProfile(ticket: String) = Action.async(parse.json((
+    (__ \ "profile" \ "email").read[String] and
+    (__ \ "profile" \ "name").read[String] and
+    (__ \ "profile" \ "avatar").readNullable[String]
+  ).tupled)) { implicit request =>
+    Future {
+      ticket.asTokenOfUser[TicketValue] match {
+        case None => BadRequest("Ticket Expired")
+        case Some((vt, value, user)) =>
+          val (email, name, avatar) = request.body
+          user.update(email = email, name = name, avatarUrl = avatar) match {
+            case None     => InternalServerError(f"Failed to update user: ${user.id}")
+            case Some(ok) => Ok
+          }
+      }
+    }
+  }
+
   def loadUnit(ticket: String) = Action.async { implicit request =>
     Future {
       ticket.asTokenOfUser[TicketValue] match {
