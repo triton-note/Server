@@ -13,6 +13,7 @@ import com.google.api.client.json.jackson2.JacksonFactory
 import com.google.api.services.plus.Plus
 import com.google.api.services.plus.model.{ ItemScope, Moment, Person }
 
+import models.Profile
 import models.db.{ Image, Photo, SocialConnection, User }
 
 object GooglePlus {
@@ -37,6 +38,15 @@ object GooglePlus {
         social
       }
     }
+  }
+  def profile(token: String): Option[Profile] = {
+    def opt[A](value: => A) = allCatch opt value
+    for {
+      me <- findMe(token)
+      email <- getEmail(me)
+      name <- opt(me.getDisplayName)
+      avatar = opt(me.getImage).flatMap(image => opt(image.getUrl))
+    } yield Profile(email, name, avatar)
   }
 
   def getService(token: String) = {
