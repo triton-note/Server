@@ -23,7 +23,6 @@ GET    /account/unit/load/:ticket      controllers.Account.loadUnit(ticket: Stri
 POST   /account/unit/change/:ticket    controllers.Account.changeUnit(ticket: String)
 GET    /account/profile/load/:ticket   controllers.Account.loadProfile(ticket: String)
 POST   /account/profile/change/:ticket controllers.Account.changeProfile(ticket: String)
-POST   /account/profile/social/:ticket controllers.Account.readSocialProfile(ticket: String)
 
 # Distributions of Catches
 GET    /distribution/mine/:ticket      controllers.Distribution.mine(ticket: String)

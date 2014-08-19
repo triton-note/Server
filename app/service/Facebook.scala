@@ -12,7 +12,7 @@ import play.api.mvc.Codec.utf_8
 
 import org.fathens.play.util.Exception.allCatch
 
-import models.{ Profile, Settings }
+import models.Settings
 import models.db.{ Image, SocialConnection, User => UserDB }
 
 object Facebook {
@@ -96,20 +96,6 @@ object Facebook {
           Logger.info(f"Connecting ${user} to ${social}")
           social
         }
-      }
-    }
-    def profile(implicit accesskey: AccessKey): Future[Option[Profile]] = {
-      obtain("email", "name", "picture") map { opt =>
-        for {
-          json <- opt
-          email <- (json \ "email").asOpt[String]
-          name <- (json \ "name").asOpt[String]
-          avatarUrl = (json \ "picture" \ "data" \ "url").asOpt[String]
-        } yield Profile(
-          email,
-          name,
-          avatarUrl
-        )
       }
     }
     /**

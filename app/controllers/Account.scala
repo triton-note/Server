@@ -11,7 +11,7 @@ import play.api.mvc.{ Action, Controller }
 
 import org.fathens.play.util.Exception.allCatch
 
-import models.{ Profile, Settings }
+import models.Settings
 import models.db.{ SocialConnection, VolatileToken }
 import service.{ Facebook, GooglePlus }
 
@@ -83,36 +83,6 @@ object Account extends Controller {
           }
         }
       }
-    }
-  }
-
-  def readSocialProfile(ticket: String) = Action.async(parse.json) { implicit request =>
-    val json = request.body
-    def getProfile(service: SocialConnection.Service.Value): Future[Option[Profile]] = {
-      (json \ service.toString \ "token").asOpt[String] match {
-        case None => Future(None)
-        case Some(token) =>
-          Logger.debug(f"Reading profile of ${service}")
-          service match {
-            case Way.facebook => Facebook.User.profile(Facebook.AccessKey(token))
-            case Way.google   => Future(GooglePlus.profile(token))
-            case _            => Future(None)
-          }
-      }
-    }
-    ticket.asTokenOfUser[TicketValue] match {
-      case None => Future(BadRequest("Ticket Expired"))
-      case Some((vt, value, user)) =>
-        val list = Future.sequence(
-          SocialConnection.findBy(user).map(_.service).distinct.map { service =>
-            getProfile(service).map(_.map { profile =>
-              service.toString -> (profile: Json.JsValueWrapper)
-            })
-          }
-        ).map(_.flatten)
-        list.map { result =>
-          Ok(Json.obj(result: _*))
-        }
     }
   }
 
