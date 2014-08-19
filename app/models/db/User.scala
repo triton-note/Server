@@ -15,12 +15,14 @@ case class User(MAP: Map[String, AttributeValue]) extends TimestampedTable.ObjTy
   /**
    * Change properties (like a copy) and update Database
    */
-  def update(email: String = this.email,
+  def update(
+    email: String = this.email,
     name: String = this.name,
     avatarUrl: Option[String] = this.avatarUrl,
     lengthUnit: String = this.lengthUnit,
     weightUnit: String = this.weightUnit): Option[User] = {
     val map = List(
+      diff(_.email, email),
       diff(_.name, name),
       diff(_.avatarUrl, avatarUrl),
       diff(_.lengthUnit, lengthUnit),

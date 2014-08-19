@@ -4,10 +4,9 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 import play.api.Logger
-import play.api.libs.functional.syntax.{ functionalCanBuildApplicative, toFunctionalBuilderOps }
+import play.api.libs.functional.syntax._
 import play.api.libs.json._
 import play.api.libs.json.Json.toJsFieldJsValueWrapper
-import play.api.libs.json.__
 import play.api.mvc.{ Action, Controller }
 
 import org.fathens.play.util.Exception.allCatch
@@ -26,7 +25,7 @@ object Account extends Controller {
     (__ \ "token").read[String]
   )) { implicit request =>
     val token = request.body
-    Logger info f"Authorizing ${way}(${token})"
+    Logger info f"Authorizing ${way}"
     allCatch opt SocialConnection.Service.withName(way) match {
       case None => Future(BadRequest(f"Invalid social service: ${way}"))
       case Some(service) => (service match {
@@ -83,6 +82,38 @@ object Account extends Controller {
               if (social.delete) Ok else InternalServerError(f"Failed to delete: ${social}")
           }
         }
+      }
+    }
+  }
+
+  def loadProfile(ticket: String) = Action.async { implicit request =>
+    Future {
+      ticket.asTokenOfUser[TicketValue] match {
+        case None => BadRequest("Ticket Expired")
+        case Some((vt, value, user)) =>
+          Ok(Json.obj(
+            "email" -> user.email,
+            "name" -> user.name,
+            "avatar" -> user.avatarUrl
+          ))
+      }
+    }
+  }
+
+  def changeProfile(ticket: String) = Action.async(parse.json((
+    (__ \ "profile" \ "email").read[String] and
+    (__ \ "profile" \ "name").read[String] and
+    (__ \ "profile" \ "avatar").readNullable[String]
+  ).tupled)) { implicit request =>
+    Future {
+      ticket.asTokenOfUser[TicketValue] match {
+        case None => BadRequest("Ticket Expired")
+        case Some((vt, value, user)) =>
+          val (email, name, avatar) = request.body
+          user.update(email = email, name = name, avatarUrl = avatar) match {
+            case None     => InternalServerError(f"Failed to update user: ${user.id}")
+            case Some(ok) => Ok
+          }
       }
     }
   }
