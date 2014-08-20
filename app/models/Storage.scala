@@ -1,6 +1,6 @@
 package models
 
-import java.io.{BufferedInputStream, BufferedOutputStream, IOException, OutputStream, PipedInputStream, PipedOutputStream}
+import java.io.{ BufferedInputStream, BufferedOutputStream, IOException, OutputStream, PipedInputStream, PipedOutputStream }
 import java.util.Date
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -8,7 +8,7 @@ import scala.concurrent.Future
 import scala.concurrent.duration._
 
 import play.api.Logger
-import play.api.libs.json.{Format, Json, Writes, __}
+import play.api.libs.json.{ Format, Json, Writes, __ }
 
 import org.fathens.play.util.Exception.allCatch
 
@@ -33,8 +33,8 @@ object Storage {
     lazy val name = paths.last
     override def toString = f"S3:$path"
     def length: Long = {
-      val obj = s3.getObject(bucketName, path)
-      obj.getObjectMetadata.getContentLength
+      val meta = s3.getObjectMetadata(bucketName, path)
+      meta.getContentLength
     }
     def exists: Boolean = {
       s3.getObjectMetadata(bucketName, path) != null
@@ -60,7 +60,12 @@ object Storage {
     }
     def read: java.io.InputStream = {
       val obj = s3.getObject(bucketName, path)
-      obj.getObjectContent
+      val ins = new java.io.BufferedInputStream(obj.getObjectContent)
+      // available が 0 になっているのでバッファに少しは読み込ませる
+      ins.mark(1)
+      ins.skip(1)
+      ins.reset
+      ins
     }
     def move(dstPaths: String*): S3File = {
       val dstFile = new S3File(dstPaths.toList)
