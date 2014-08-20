@@ -1,18 +1,32 @@
 package controllers
 
-import scala.collection.JavaConversions._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 import play.api.Logger
 import play.api.libs.functional.syntax._
 import play.api.libs.json._
-import play.api.mvc.{ Action, Controller }
+import play.api.mvc.{Action, Controller}
 
 import models.Report
-import models.db.{ CatchReport, Comment, FishSize, Photo }
+import models.db.{CatchReport, Comment, FishSize, Photo}
 
 object ReportSync extends Controller {
+
+  def convert(cr: CatchReport): Option[Report] = {
+    val comment = cr.topComment.map(_.text) getOrElse ""
+    Photo.findBy(cr).headOption.map { photo =>
+      val fishes = FishSize findBy photo
+      Report(Some(cr.id),
+        comment,
+        cr.timestamp,
+        Report.Location(cr.location, cr.geoinfo),
+        photo.group.map(_.asURL),
+        fishes.toSeq.map { fish =>
+          Report.Fishes(fish.name, fish.count.toInt, fish.weight.map(Report.ValueUnit.tupled), fish.length.map(Report.ValueUnit.tupled))
+        })
+    }
+  }
 
   def load(ticket: String) = Action.async(parse.json((
     (__ \ "count").read[Int] and
@@ -24,21 +38,28 @@ object ReportSync extends Controller {
       ticket.asTokenOfUser[TicketValue] match {
         case None => BadRequest("Ticket Expired")
         case Some((vt, value, user)) =>
-          val reports = CatchReport.findBy(user, count, last).flatMap { report =>
-            val comment = report.topComment.map(_.text) getOrElse ""
-            Photo.findBy(report).headOption.map { photo =>
-              val fishes = FishSize findBy photo
-              Report(Some(report.id),
-                comment,
-                report.timestamp,
-                Report.Location(report.location, report.geoinfo),
-                photo.group.map(_.asURL),
-                fishes.toSeq.map { fish =>
-                  Report.Fishes(fish.name, fish.count.toInt, fish.weight.map(Report.ValueUnit.tupled), fish.length.map(Report.ValueUnit.tupled))
-                })
-            }
-          }
+          val reports = CatchReport.findBy(user, count, last).flatMap(convert)
           Ok(Json toJson reports)
+      }
+    }
+  }
+
+  def read(ticket: String) = Action.async(parse.json((
+    (__ \ "id").read[String]
+  ))) { implicit request =>
+    val id = request.body
+    Logger debug f"Reading report:${id}"
+    Future {
+      ticket.asTokenOfUser[TicketValue] match {
+        case None => BadRequest("Ticket Expired")
+        case Some((vt, value, user)) => CatchReport.get(id).flatMap(convert) match {
+          case None => BadRequest(f"Report NotFound: ${id}")
+          case Some(report) => Ok {
+            Json.obj(
+              "report" -> report
+            )
+          }
+        }
       }
     }
   }

@@ -1,25 +1,30 @@
-GET    /assets/*file             	controllers.Assets.at(path="/public", file)
+GET    /assets/*file             	   controllers.Assets.at(path="/public", file)
 
 # Login
-POST   /login/:way	            	controllers.Account.login(way: String)
+POST   /login/:way	            	   controllers.Account.login(way: String)
+POST   /account/connect/:ticket        controllers.Account.connect(ticket: String)
+POST   /account/disconnect/:ticket     controllers.Account.disconnect(ticket: String)
 
 # Report posting
-POST   /report/new-session/:ticket  controllers.CatchesSession.start(ticket: String)
-POST   /report/photo/:session    	controllers.CatchesSession.photo(session: String)
-GET    /report/infer/:session    	controllers.CatchesSession.infer(session: String)
-POST   /report/submit/:session   	controllers.CatchesSession.submit(session: String)
-POST   /report/publish/:session    	controllers.CatchesSession.publish(session: String)
+POST   /report/new-session/:ticket     controllers.CatchesSession.start(ticket: String)
+POST   /report/photo/:session    	   controllers.CatchesSession.photo(session: String)
+GET    /report/infer/:session    	   controllers.CatchesSession.infer(session: String)
+POST   /report/submit/:session   	   controllers.CatchesSession.submit(session: String)
+POST   /report/publish/:session    	   controllers.CatchesSession.publish(session: String)
 
 # Report loading
-POST   /report/load/:ticket        	controllers.ReportSync.load(ticket: String)
-POST   /report/update/:ticket      	controllers.ReportSync.update(ticket: String)
-POST   /report/remove/:ticket      	controllers.ReportSync.remove(ticket: String)
+POST   /report/load/:ticket        	   controllers.ReportSync.load(ticket: String)
+POST   /report/read/:ticket        	   controllers.ReportSync.read(ticket: String)
+POST   /report/update/:ticket      	   controllers.ReportSync.update(ticket: String)
+POST   /report/remove/:ticket      	   controllers.ReportSync.remove(ticket: String)
 
 # Account Settings
-GET    /account/unit/load/:ticket   controllers.Account.loadUnit(ticket: String)
-POST   /account/unit/change/:ticket controllers.Account.changeUnit(ticket: String)
+GET    /account/unit/load/:ticket      controllers.Account.loadUnit(ticket: String)
+POST   /account/unit/change/:ticket    controllers.Account.changeUnit(ticket: String)
+GET    /account/profile/load/:ticket   controllers.Account.loadProfile(ticket: String)
+POST   /account/profile/change/:ticket controllers.Account.changeProfile(ticket: String)
 
 # Distributions of Catches
-GET    /distribution/mine/:ticket   controllers.Distribution.mine(ticket: String)
-GET    /distribution/others/:ticket controllers.Distribution.others(ticket: String)
-GET    /distribution/names/:ticket  controllers.Distribution.names(ticket: String)
+GET    /distribution/mine/:ticket      controllers.Distribution.mine(ticket: String)
+GET    /distribution/others/:ticket    controllers.Distribution.others(ticket: String)
+GET    /distribution/names/:ticket     controllers.Distribution.names(ticket: String)
