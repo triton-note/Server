@@ -49,23 +49,15 @@ object GooglePlus {
     SocialConnection.findBy(me.getId, SocialConnection.Service.GOOGLE)
   }
   def create(me: Person): Option[User] = {
-    getEmail(me).map { email =>
-      val name = me.getDisplayName
-      val avatarUrl = Option(me.getImage.getUrl)
-      val user = User.addNew(email, name, avatarUrl)
-      val social = SocialConnection.addNew(me.getId, SocialConnection.Service.GOOGLE, user)
-      Logger.info(f"Creating ${user} as ${social}")
-      user
-    }
+    val name = me.getDisplayName
+    val user = User.addNew(name)
+    val social = SocialConnection.addNew(me.getId, SocialConnection.Service.GOOGLE, user)
+    Logger.info(f"Creating ${user} as ${social}")
+    Option(user)
   }
 
   def findMe(token: String): Option[Person] = allCatch opt {
     getService(token).people().get("me").execute
-  }
-  def getEmail(me: Person): Option[String] = {
-    val rc = me.getEmails.filter(_.getType == "account").map(_.getValue)
-    Logger debug f"Emails as account: ${rc}"
-    rc.headOption
   }
 
   def publish(token: String)(photo: Photo, title: String, message: Option[String]) = allCatch opt {
