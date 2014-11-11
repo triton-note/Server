@@ -7,24 +7,18 @@ import com.amazonaws.services.dynamodbv2.model._
 case class User(MAP: Map[String, AttributeValue]) extends TimestampedTable.ObjType[User] {
   val TABLE = User
 
-  lazy val email: String = build(_.email)
   lazy val name: String = build(_.name)
-  lazy val avatarUrl: Option[String] = build(_.avatarUrl)
   lazy val lengthUnit: String = build(_.lengthUnit)
   lazy val weightUnit: String = build(_.weightUnit)
   /**
    * Change properties (like a copy) and update Database
    */
   def update(
-    email: String = this.email,
     name: String = this.name,
-    avatarUrl: Option[String] = this.avatarUrl,
     lengthUnit: String = this.lengthUnit,
     weightUnit: String = this.weightUnit): Option[User] = {
     val map = List(
-      diff(_.email, email),
       diff(_.name, name),
-      diff(_.avatarUrl, avatarUrl),
       diff(_.lengthUnit, lengthUnit),
       diff(_.weightUnit, weightUnit)
     ).flatten.toMap
@@ -32,25 +26,19 @@ case class User(MAP: Map[String, AttributeValue]) extends TimestampedTable.ObjTy
   }
 }
 object User extends AutoIDTable[User]("USER") {
-  val email = Column[String]("EMAIL", (_.email), (_.getString.get), attrString)
   val name = Column[String]("NAME", (_.name), (_.getString.get), attrString)
-  val avatarUrl = Column[Option[String]]("AVATAR_URL", (_.avatarUrl), (_.getString), attrString)
   val lengthUnit = Column[String]("LENGTH_UNIT", (_.lengthUnit), (_.getString.get), attrString)
   val weightUnit = Column[String]("WEIGHT_UNIT", (_.weightUnit), (_.getString.get), attrString)
   // All columns
-  val columns = List(name, avatarUrl, lengthUnit, weightUnit)
+  val columns = List(name, lengthUnit, weightUnit)
   /**
    * Add new user
    */
-  def addNew(theEmail: String,
-    theName: String,
-    theAvatarUrl: Option[String] = None,
+  def addNew(theName: String,
     theLengthUnit: String = "cm",
     theWeightUnit: String = "kg"): User = {
     addNew(
-      email(theEmail),
       name(theName),
-      avatarUrl(theAvatarUrl),
       lengthUnit(theLengthUnit),
       weightUnit(theWeightUnit)
     )
