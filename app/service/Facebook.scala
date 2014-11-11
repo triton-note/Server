@@ -53,7 +53,7 @@ object Facebook {
      * If User is found by accountId, return User.
      */
     def find(implicit accesskey: AccessKey): Future[Option[Either[String, UserDB]]] = {
-      obtain("email") map { opt =>
+      obtain("id") map { opt =>
         for {
           json <- opt
           id <- (json \ "id").asOpt[String]
@@ -71,15 +71,13 @@ object Facebook {
      * The email is obtained by accessKey.
      */
     def create(implicit accesskey: AccessKey): Future[Option[UserDB]] = {
-      obtain("email", "name", "picture") map { opt =>
+      obtain("id", "name") map { opt =>
         for {
           json <- opt
           id <- (json \ "id").asOpt[String]
-          email <- (json \ "email").asOpt[String]
           name <- (json \ "name").asOpt[String]
-          avatarUrl = (json \ "picture" \ "data" \ "url").asOpt[String]
         } yield {
-          val user = UserDB.addNew(email, name, avatarUrl)
+          val user = UserDB.addNew(name)
           val social = SocialConnection.addNew(id, SocialConnection.Service.FACEBOOK, user)
           Logger.info(f"Creating ${user} as ${social}")
           user
