@@ -1,10 +1,10 @@
 name := """TritonNote-Server"""
 
-version := "0.5.1-SNAPSHOT"
+version := "0.6.0-SNAPSHOT"
 
 lazy val root = (project in file(".")).enablePlugins(PlayScala)
 
-scalaVersion := "2.11.2"
+scalaVersion := "2.11.4"
 
 scalacOptions ++= Seq(
   "-language:postfixOps",
@@ -14,9 +14,9 @@ scalacOptions ++= Seq(
 )
 
 libraryDependencies ++= Seq(
-  "com.amazonaws" % "aws-java-sdk" % "1.8.9.1",
+  "com.amazonaws" % "aws-java-sdk" % "1.9.4",
   "org.scalaz" %% "scalaz-core" % "7.1.0",
-  "com.sksamuel.scrimage" %% "scrimage-canvas" % "1.4.1",
-  "com.google.apis" % "google-api-services-plus" % "v1-rev145-1.19.0",
+  "com.sksamuel.scrimage" %% "scrimage-canvas" % "1.4.2",
+  "com.google.apis" % "google-api-services-plus" % "v1-rev193-1.19.0",
   ws
 )
