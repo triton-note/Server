@@ -3,21 +3,23 @@ package service
 import scala.{ Left, Right }
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
-
 import play.api.Logger
 import play.api.Play.current
 import play.api.libs.json._
 import play.api.libs.ws.{ WS, WSResponse }
 import play.api.mvc.Codec.utf_8
-
 import org.fathens.play.util.Exception.allCatch
-
 import models.Settings
-import models.db.{ Image, SocialConnection, User => UserDB }
+import models.db.{ CatchReport, FishSize, Photo, SocialConnection, User => UserDB }
+import play.api.mvc.RequestHeader
+import java.net.URLEncoder
 
 object Facebook {
   case class AccessKey(token: String)
   case class ObjectId(id: String)
+  lazy val appName = System.getenv("FACEBOOK_APP_NAME")
+  lazy val actionName = System.getenv("FACEBOOK_CATCH_ACTION")
+  lazy val objectName = System.getenv("FACEBOOK_CATCH_OBJECT")
   object fb {
     lazy val host = System.getenv("FACEBOOK_HOST")
     val client = WS.client
@@ -47,7 +49,7 @@ object Facebook {
       ).get().map(parse.JSON)
     }
     /**
-     * Find UserAlias by given accessKey.
+     * Find User by given accessKey.
      * If accessKey is not valid, return None.
      * If User is not found, return accountId which is obtained by accessKey.
      * If User is found by accountId, return User.
@@ -97,8 +99,8 @@ object Facebook {
       }
     }
     /**
-     * Find UserAlias by email which is obtained by accessKey.
-     * If UserAlias is not created yet, create it.
+     * Find User by email which is obtained by accessKey.
+     * If User is not created yet, create it.
      * If accessKey is not valid, return None.
      */
     def apply(implicit accesskey: AccessKey): Future[Option[UserDB]] = {
@@ -112,14 +114,30 @@ object Facebook {
       })
     }
   }
-  object Fishing {
-    def publish(photo: List[Image], message: Option[String])(implicit accessKey: AccessKey): Future[Option[ObjectId]] = {
-      (fb / f"me/photos").withQueryString(
+  object Report {
+    def publish(report: CatchReport)(implicit accessKey: AccessKey, request: RequestHeader): Future[Option[ObjectId]] = {
+      def model(f: controllers.routes.ModelView.type => play.api.mvc.Call) =
+        Seq(f(controllers.routes.ModelView).absoluteURL(request.secure))
+      val params = {
+        val images = Photo.findBy(report).flatMap(_.image)
+        Map(
+          "fb:explicitly_shared" -> Seq("true"),
+          "message" -> report.topComment.map(_.text).toSeq,
+          "place" -> model(_ spot report.id),
+          objectName -> model(_ catchReport report.id)
+        ) ++ {
+            for {
+              (image, index) <- images.zipWithIndex
+              (key, value) <- Map(
+                "url" -> image.url(Settings.Pulish.timer),
+                "user_generated" -> true
+              )
+            } yield f"image[${index}][${key}]" -> Seq(value.toString)
+          }
+      }
+      (fb / f"me/${appName}:${actionName}").withQueryString(
         "access_token" -> accessKey.token
-      ).post(Map(
-          "url" -> photo.map(_.url(Settings.Pulish.timer).toString),
-          "message" -> message.toSeq
-        )).map(parse.ObjectID)
+      ).post(params).map(parse.ObjectID)
     }
   }
 }

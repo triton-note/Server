@@ -1,0 +1,37 @@
+@(title: String, geoinfo: models.GeoInfo, props: Map[String, String])
+
+<!DOCTYPE html>
+<html>
+<head prefix="og: http://ogp.me/ns# fb: http://ogp.me/ns/fb# place: http://ogp.me/ns/place#">
+  <title>@title</title>
+  @for((key, value) <- props) {
+    <meta property="@key" content="@value" />
+  }
+  <link type="text/css" rel="stylesheet" href="@routes.Assets.at("stylesheets/spot.min.css")" />
+  <script src="http://maps.google.com/maps/api/js?sensor=false" type="text/javascript"></script>
+</head>
+
+<body>
+  <h1>@title</h1>
+  
+  <div id="gmap"></div>
+  <script type="text/javascript">
+  var pos = new google.maps.LatLng(@geoinfo.latitude, @geoinfo.longitude);
+  var map = new google.maps.Map(document.getElementById("gmap"), {
+	  zoom : 10,
+	  center : pos,
+	  mapTypeId : google.maps.MapTypeId.HYBRID
+	});
+  var marker = new google.maps.Marker({
+	  position: pos,
+	  map: map
+	});
+  var infowindow = new google.maps.InfoWindow({
+	  content: "@title"
+	});
+  google.maps.event.addListener(marker, "click", function() {
+	  infowindow.open(map, marker);
+  });
+  </script>
+</body>
+</html>

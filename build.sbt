@@ -20,3 +20,10 @@ libraryDependencies ++= Seq(
   "com.google.apis" % "google-api-services-plus" % "v1-rev193-1.19.0",
   ws
 )
+
+// for LESS CSS
+includeFilter in (Assets, LessKeys.less) := "*.less"
+
+excludeFilter in (Assets, LessKeys.less) := "_*.less"
+
+LessKeys.compress := true

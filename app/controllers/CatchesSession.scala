@@ -13,7 +13,7 @@ import play.api.mvc.{ Action, Controller, Result }
 
 import models.{ GeoInfo, Report, Settings, Storage, Upload }
 import models.db.{ CatchReport, FishSize, Image, Photo, User, VolatileToken }
-import service.Facebook.{ AccessKey, Fishing }
+import service.Facebook
 import service.InferenceCatches
 
 object CatchesSession extends Controller {
@@ -136,25 +136,11 @@ object CatchesSession extends Controller {
         val ok = for {
           reportId <- value.committed
           report <- CatchReport get reportId
-          imageId <- value.imageId
-          image <- Image get imageId
         } yield {
-          def mkMessage = {
-            val catches = Photo.findBy(report).flatMap(FishSize.findBy).map { fish =>
-              val size = List(
-                fish.length.map { case (value, unit) => f"${value} ${unit}" },
-                fish.weight.map { case (value, unit) => f"${value} ${unit}" }
-              ).flatten match {
-                  case Nil  => ""
-                  case list => list.mkString("(", ",", ")")
-                }
-              f"${fish.name}${size} x ${fish.count}"
-            }.mkString("\n")
-            report.topComment.map(_.text + "\n\n").getOrElse("") + catches
-          }
           publish.way match {
             case "facebook" =>
-              Fishing.publish(List(image), Some(mkMessage))(new AccessKey(publish.token)).map(_ match {
+              implicit val key = Facebook.AccessKey(publish.token)
+              Facebook.Report.publish(report).map(_ match {
                 case Some(id) => Ok
                 case None     => InternalServerError(f"Failed to publish to ${publish.way}")
               })
