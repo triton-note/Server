@@ -1,0 +1,41 @@
+@(title: String, fishes: Seq[models.db.FishSize], images: Seq[String], props: Map[String, String])
+
+<!DOCTYPE html>
+<html>
+<head prefix="og: http://ogp.me/ns# fb: http://ogp.me/ns/fb#">
+  <title>@title</title>
+  @for((key, value) <- props) {
+    <meta property="@key" content="@value" />
+  }
+  <link type="text/css" rel="stylesheet" href="@routes.Assets.at("stylesheets/catch-report.min.css")" />
+</head>
+
+<body>
+  <h1>@title</h1>
+  
+  <table class="photo">
+  @for(image <- images) {
+    <tr>
+      <td class="image"><img src="@image" /></td>
+    </tr>
+  }
+  </table>
+  
+  <table class="fish">
+    <tr class="header">
+      <th class="name">Name</th>
+      <td class="length">Length</td>
+      <td class="weight">Weight</td>
+      <td class="count">Count</td>
+    </tr>
+  @for(fish <- fishes) {
+    <tr class="body">
+      <th class="name">@fish.name</th>
+      <td class="length">@for((value, unit) <- fish.length) { f"${value}%f.1 ${unit}" }</td>
+      <td class="weight">@for((value, unit) <- fish.weight) { f"${value}%f.1 ${unit}" }</td>
+      <td class="count">@fish.count</td>
+    </tr>
+  }
+  </table>
+</body>
+</html>

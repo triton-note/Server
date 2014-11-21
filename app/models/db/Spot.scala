@@ -1,0 +1,30 @@
+package models.db
+
+import scala.collection.JavaConversions._
+
+import com.amazonaws.services.dynamodbv2.model._
+
+import models.GeoInfo
+
+case class Spot(MAP: Map[String, AttributeValue]) extends TimestampedTable.ObjType[Spot] {
+  val TABLE = Spot
+  
+  lazy val name: String = build(_.name)
+  /**
+   * Point on map by latitude and longitude
+   */
+  lazy val geoinfo: GeoInfo = GeoInfo(build(_.latitude), build(_.longitude))
+  /**
+   * Change name
+   */
+  def update(name: String): Option[Spot] = {
+    TABLE.update(id, Map(TABLE.name(name)))
+  }
+}
+object Spot extends AutoIDTable[Spot]("Spot") {
+  val name = Column[String]("NAME", (_.name), (_.getString getOrElse ""), attrString)
+  val latitude = Column[Double]("LATITUDE", (_.geoinfo.latitude), (_.getDouble.get), attrDouble)
+  val longitude = Column[Double]("LONGITUDE", (_.geoinfo.longitude), (_.getDouble.get), attrDouble)
+  // All columns
+  val columns = List(name, latitude, longitude)
+}
