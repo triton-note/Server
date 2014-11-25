@@ -29,7 +29,7 @@ object ModelView extends Controller {
         val imageUrls = images.map(_ url Settings.Image.urlExpiration).map(_.toString)
         val props = Map(
           "fb:app_id" -> appId,
-          "og:type" -> objectName,
+          "og:type" -> f"${appName}:${objectName}",
           "og:url" -> routes.ModelView.catchReport(id).absoluteURL(request.secure),
           "og:title" -> title,
           "og:image" -> imageUrls.head,
