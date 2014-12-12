@@ -130,24 +130,26 @@ object CatchesSession extends Controller {
     (__ \ "publishing").read[SessionValue.Publishing]
   )) { implicit request =>
     val publish = request.body
-    session.asTokenOfUser[SessionValue] match {
-      case None => Future(BadRequest("Session Expired"))
-      case Some((vt, value, user)) =>
-        val ok = for {
-          reportId <- value.committed
-          report <- CatchReport get reportId
-        } yield {
-          publish.way match {
-            case "facebook" =>
-              implicit val key = Facebook.AccessKey(publish.token)
-              Facebook.Report.publish(report).map(_ match {
-                case Some(id) => Ok
-                case None     => InternalServerError(f"Failed to publish to ${publish.way}")
-              })
-            case _ => Future(NotImplemented(f"No way for Publishing '${publish.way}'"))
+    Future {
+      session.asTokenOfUser[SessionValue] match {
+        case None => Future(BadRequest("Session Expired"))
+        case Some((vt, value, user)) =>
+          val ok = for {
+            reportId <- value.committed
+            report <- CatchReport get reportId
+          } yield {
+            publish.way match {
+              case "facebook" =>
+                implicit val key = Facebook.AccessKey(publish.token)
+                Facebook.Report.publish(report).map(_ match {
+                  case Some(id) => Ok
+                  case None     => InternalServerError(f"Failed to publish to ${publish.way}")
+                })
+              case _ => Future(NotImplemented(f"No way for Publishing '${publish.way}'"))
+            }
           }
-        }
-        ok getOrElse Future(BadRequest("Image or Report is not submitted yet"))
-    }
+          ok getOrElse Future(BadRequest("Image or Report is not submitted yet"))
+      }
+    }.flatMap(identity)
   }
 }
