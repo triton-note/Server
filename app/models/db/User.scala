@@ -50,11 +50,27 @@ case class SocialConnection(MAP: Map[String, AttributeValue]) extends Timestampe
 
   lazy val accountId: String = build(_.accountId)
   lazy val service: SocialConnection.Service.Value = TABLE.service build MAP
+  lazy val connected: Boolean = build(_.connected)
   lazy val user: Option[User] = build(_.user)
+  /**
+   * Change properties (like a copy) and update Database
+   */
+  def update(
+    accountId: String = this.accountId,
+    connected: Boolean = this.connected): Option[SocialConnection] = {
+    val map = List(
+      diff(_.accountId, accountId),
+      diff(_.connected, connected)
+    ).flatten.toMap
+    TABLE.update(id, map)
+  }
+  def connect: Option[SocialConnection] = if (connected) None else update(connected = true)
+  def disconnect: Option[SocialConnection] = if (connected) update(connected = false) else None
 }
 object SocialConnection extends AutoIDTable[SocialConnection]("SOCIAL_CONNECTION") {
   val accountId = Column[String]("ACCOUNT_ID", (_.accountId), (_.getString.get), attrString)
   val service = Column[Service.Value]("SERVICE", (_.service), (Service withName _.getString.get), attrEnum(Service))
+  val connected = Column[Boolean]("CONNECTED", (_.connected), (_.getBoolean), attrBoolean)
   val user = Column[Option[User]]("USER", (_.user), (_.get(User)), attrObjID)
   // All columns
   val columns = List(accountId)
@@ -63,6 +79,7 @@ object SocialConnection extends AutoIDTable[SocialConnection]("SOCIAL_CONNECTION
     addNew(
       accountId(theAccountId),
       service(theService),
+      connected(true),
       user(Option(theUser))
     )
   }

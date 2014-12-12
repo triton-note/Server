@@ -91,11 +91,11 @@ object Facebook {
         for {
           json <- opt
           id <- (json \ "id").asOpt[String]
-        } yield SocialConnection.findBy(id, SocialConnection.Service.FACEBOOK) getOrElse {
-          val social = SocialConnection.addNew(id, SocialConnection.Service.FACEBOOK, user)
-          Logger.info(f"Connecting ${user} to ${social}")
-          social
-        }
+          social <- SocialConnection.findBy(id, SocialConnection.Service.FACEBOOK) match {
+            case Some(social) => social.connect
+            case None         => Option(SocialConnection.addNew(id, SocialConnection.Service.FACEBOOK, user))
+          }
+        } yield social
       }
     }
     /**

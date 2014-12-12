@@ -34,12 +34,15 @@ package db {
       def isEmpty: Boolean = new AttributeValue == av
     }
     class AttributeValueWrapper(av: AttributeValue) {
+      def getBoolean: Boolean = Option(av.getS).flatMap(allCatch opt _.toBoolean) getOrElse false
       def getString: Option[String] = Option(av.getS)
       def getDouble: Option[Double] = Option(av.getN).flatMap(allCatch opt _.toDouble)
       def getLong: Option[Long] = Option(av.getN).flatMap(allCatch opt _.toLong)
       def getDate: Option[Date] = getString.flatMap(allCatch opt dateFormat.parse(_))
       def get[O <: TimestampedTable.ObjType[O]](t: TimestampedTable[O]): Option[O] = getString.flatMap(t.get)
     }
+    // for Boolean
+    implicit def attrBoolean(v: Boolean) = new AttributeValue().withS(Option(v).getOrElse(false).toString)
     // for String
     implicit def attrString(s: String) = new AttributeValue().withS(if (s != null && s.length > 0) s else null)
     implicit def attrString(s: Option[String]) = new AttributeValue().withS(s.flatMap(v => if (v != null && v.length > 0) Some(v) else None).orNull)
