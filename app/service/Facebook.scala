@@ -61,7 +61,7 @@ object Facebook {
           id <- (json \ "id").asOpt[String]
         } yield {
           Logger debug f"Getting User of facebook by id: ${id}"
-          SocialConnection.findBy(id, SocialConnection.Service.FACEBOOK).flatMap(_.user) match {
+          SocialConnection.findBy(id, SocialConnection.Service.FACEBOOK).flatMap(_.connect).flatMap(_.user) match {
             case Some(user) => Right(user)
             case None       => Left(id)
           }

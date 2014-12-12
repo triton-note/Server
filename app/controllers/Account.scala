@@ -78,7 +78,7 @@ object Account extends Controller {
           case Some((vt, value, user)) => SocialConnection.findBy(user).find(_.service == service) match {
             case None => BadRequest(f"Not connected: ${service}")
             case Some(social) => social.disconnect match {
-              case None => InternalServerError(f"Failed to disconnect: ${social}")
+              case None       => InternalServerError(f"Failed to disconnect: ${social}")
               case Some(next) => Ok
             }
           }

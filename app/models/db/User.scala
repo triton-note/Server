@@ -62,10 +62,10 @@ case class SocialConnection(MAP: Map[String, AttributeValue]) extends Timestampe
       diff(_.accountId, accountId),
       diff(_.connected, connected)
     ).flatten.toMap
-    TABLE.update(id, map)
+    if (map.isEmpty) Some(this) else TABLE.update(id, map)
   }
-  def connect: Option[SocialConnection] = if (connected) None else update(connected = true)
-  def disconnect: Option[SocialConnection] = if (connected) update(connected = false) else None
+  def connect: Option[SocialConnection] = update(connected = true)
+  def disconnect: Option[SocialConnection] = update(connected = false)
 }
 object SocialConnection extends AutoIDTable[SocialConnection]("SOCIAL_CONNECTION") {
   val accountId = Column[String]("ACCOUNT_ID", (_.accountId), (_.getString.get), attrString)
