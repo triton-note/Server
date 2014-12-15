@@ -34,12 +34,15 @@ package db {
       def isEmpty: Boolean = new AttributeValue == av
     }
     class AttributeValueWrapper(av: AttributeValue) {
+      def getBoolean: Boolean = Option(av.getS).flatMap(allCatch opt _.toBoolean) getOrElse false
       def getString: Option[String] = Option(av.getS)
       def getDouble: Option[Double] = Option(av.getN).flatMap(allCatch opt _.toDouble)
       def getLong: Option[Long] = Option(av.getN).flatMap(allCatch opt _.toLong)
       def getDate: Option[Date] = getString.flatMap(allCatch opt dateFormat.parse(_))
       def get[O <: TimestampedTable.ObjType[O]](t: TimestampedTable[O]): Option[O] = getString.flatMap(t.get)
     }
+    // for Boolean
+    implicit def attrBoolean(v: Boolean) = new AttributeValue().withS(Option(v).getOrElse(false).toString)
     // for String
     implicit def attrString(s: String) = new AttributeValue().withS(if (s != null && s.length > 0) s else null)
     implicit def attrString(s: Option[String]) = new AttributeValue().withS(s.flatMap(v => if (v != null && v.length > 0) Some(v) else None).orNull)
@@ -224,11 +227,11 @@ package db {
      */
     def update(i: String, attributes: Map[String, AttributeValue])(implicit expected: Map[String, ExpectedAttributeValue] = Map()): Option[T] = {
       val key = Map(id(i))
-      Logger debug f"Updating ${tableName} by ${key}"
+      Logger debug f"Updating ${tableName}(id: ${key}) by ${attributes}"
       try {
         val request = {
           val u = for {
-            (n, v) <- attributes.toMap - id.name - createdAt.name + lastModifiedAt(Option(currentTimestamp))
+            (n, v) <- attributes - id.name - createdAt.name + lastModifiedAt(Option(currentTimestamp))
           } yield n -> new AttributeValueUpdate(v, AttributeAction.PUT)
           new UpdateItemRequest(tableName, key, u, "ALL_NEW").withExpected(expected)
         }

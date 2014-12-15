@@ -77,9 +77,10 @@ object Account extends Controller {
           case None => BadRequest("Ticket Expired")
           case Some((vt, value, user)) => SocialConnection.findBy(user).find(_.service == service) match {
             case None => BadRequest(f"Not connected: ${service}")
-            case Some(social) =>
-              Logger info f"Deleting social: ${social}"
-              if (social.delete) Ok else InternalServerError(f"Failed to delete: ${social}")
+            case Some(social) => social.disconnect match {
+              case None       => InternalServerError(f"Failed to disconnect: ${social}")
+              case Some(next) => Ok
+            }
           }
         }
       }
