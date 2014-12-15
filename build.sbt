@@ -1,6 +1,6 @@
 name := """TritonNote-Server"""
 
-version := "0.7.2-SNAPSHOT"
+version := "0.8.0"
 
 lazy val root = (project in file(".")).enablePlugins(PlayScala)
 
