@@ -112,7 +112,7 @@ object CatchesSession extends Controller {
             imageId <- value.imageId
             image <- Image get imageId
           } yield {
-            val report = CatchReport.addNew(user, given.location.geoinfo, given.location.name, given.dateAt)
+            val report = CatchReport.addNew(user, given.location.geoinfo, given.location.name, given.dateAt, given.condition.asJson)
             val photo = Photo.addNew(report, image)
             val comment = report.addComment(given.comment)(user)
             val photos = given.fishes.map(_ add photo)
