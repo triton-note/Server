@@ -14,7 +14,7 @@ scalacOptions ++= Seq(
 )
 
 libraryDependencies ++= Seq(
-  "com.amazonaws" % "aws-java-sdk" % "1.9.4",
+  "com.amazonaws" % "aws-java-sdk" % "1.9.13",
   "org.scalaz" %% "scalaz-core" % "7.1.0",
   "com.sksamuel.scrimage" %% "scrimage-canvas" % "1.4.2",
   "com.google.apis" % "google-api-services-plus" % "v1-rev193-1.19.0",
