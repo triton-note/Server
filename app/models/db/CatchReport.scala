@@ -5,6 +5,7 @@ import java.util.Date
 import scala.collection.JavaConversions._
 
 import com.amazonaws.services.dynamodbv2.model._
+import org.fathens.math._
 
 import models.GeoInfo
 import play.api.libs.json._
@@ -19,7 +20,7 @@ case class CatchReport(MAP: Map[String, AttributeValue]) extends TimestampedTabl
   /**
    * Point on map by latitude and longitude
    */
-  lazy val geoinfo: GeoInfo = GeoInfo(build(_.latitude), build(_.longitude))
+  lazy val geoinfo: GeoInfo = GeoInfo(Degrees(build(_.latitude)), Degrees(build(_.longitude)))
   /**
    * All comments
    */
@@ -38,8 +39,8 @@ object CatchReport extends AutoIDTable[CatchReport]("CATCH_REPORT") {
   val timestamp = Column[Date]("TIMESTAMP", (_.timestamp), (_.getDate.get), attrDate)
   val location = Column[String]("LOCATION", (_.location), (_.getString.get), attrString)
   val condition = Column[Option[JsValue]]("CONDITION", (_.condition), (_.getJson), attrJson)
-  val latitude = Column[Double]("LATITUDE", (_.geoinfo.latitude), (_.getDouble.get), attrDouble)
-  val longitude = Column[Double]("LONGITUDE", (_.geoinfo.longitude), (_.getDouble.get), attrDouble)
+  val latitude = Column[Double]("LATITUDE", (_.geoinfo.latitude.value), (_.getDouble.get), attrDouble)
+  val longitude = Column[Double]("LONGITUDE", (_.geoinfo.longitude.value), (_.getDouble.get), attrDouble)
   // All columns
   val columns = List(user, timestamp, location, condition, latitude, longitude)
   /**
@@ -50,8 +51,8 @@ object CatchReport extends AutoIDTable[CatchReport]("CATCH_REPORT") {
     timestamp(theTimestamp),
     location(theLocation),
     condition(theCondition),
-    latitude(theGeoinfo.latitude.toDouble),
-    longitude(theGeoinfo.longitude.toDouble)
+    latitude(theGeoinfo.latitude.value),
+    longitude(theGeoinfo.longitude.value)
   )
   def findBy(theUser: User, count: Int = 0, last: Option[String] = None): List[CatchReport] = {
     find(_.withIndexName("USER-TIMESTAMP-index").withKeyConditions(Map(
