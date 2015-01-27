@@ -39,8 +39,8 @@ object CatchReport extends AutoIDTable[CatchReport]("CATCH_REPORT") {
   val timestamp = Column[Date]("TIMESTAMP", (_.timestamp), (_.getDate.get), attrDate)
   val location = Column[String]("LOCATION", (_.location), (_.getString.get), attrString)
   val condition = Column[Option[JsValue]]("CONDITION", (_.condition), (_.getJson), attrJson)
-  val latitude = Column[Double]("LATITUDE", (_.geoinfo.latitude.value), (_.getDouble.get), attrDouble)
-  val longitude = Column[Double]("LONGITUDE", (_.geoinfo.longitude.value), (_.getDouble.get), attrDouble)
+  val latitude = Column[Double]("LATITUDE", (_.geoinfo.latitude.toDouble), (_.getDouble.get), attrDouble)
+  val longitude = Column[Double]("LONGITUDE", (_.geoinfo.longitude.toDouble), (_.getDouble.get), attrDouble)
   // All columns
   val columns = List(user, timestamp, location, condition, latitude, longitude)
   /**
@@ -51,8 +51,8 @@ object CatchReport extends AutoIDTable[CatchReport]("CATCH_REPORT") {
     timestamp(theTimestamp),
     location(theLocation),
     condition(theCondition),
-    latitude(theGeoinfo.latitude.value),
-    longitude(theGeoinfo.longitude.value)
+    latitude(theGeoinfo.latitude.toDouble),
+    longitude(theGeoinfo.longitude.toDouble)
   )
   def findBy(theUser: User, count: Int = 0, last: Option[String] = None): List[CatchReport] = {
     find(_.withIndexName("USER-TIMESTAMP-index").withKeyConditions(Map(

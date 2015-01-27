@@ -24,8 +24,8 @@ case class Spot(MAP: Map[String, AttributeValue]) extends TimestampedTable.ObjTy
 }
 object Spot extends AutoIDTable[Spot]("Spot") {
   val name = Column[String]("NAME", (_.name), (_.getString getOrElse ""), attrString)
-  val latitude = Column[Double]("LATITUDE", (_.geoinfo.latitude.value), (_.getDouble.get), attrDouble)
-  val longitude = Column[Double]("LONGITUDE", (_.geoinfo.longitude.value), (_.getDouble.get), attrDouble)
+  val latitude = Column[Double]("LATITUDE", (_.geoinfo.latitude.toDouble), (_.getDouble.get), attrDouble)
+  val longitude = Column[Double]("LONGITUDE", (_.geoinfo.longitude.toDouble), (_.getDouble.get), attrDouble)
   // All columns
   val columns = List(name, latitude, longitude)
 }
