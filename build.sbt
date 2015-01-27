@@ -14,6 +14,7 @@ scalacOptions ++= Seq(
 )
 
 libraryDependencies ++= Seq(
+  "org.fathens" %% "astronomy" % "1.1.0",
   "com.amazonaws" % "aws-java-sdk" % "1.9.13",
   "org.scalaz" %% "scalaz-core" % "7.1.0",
   "com.sksamuel.scrimage" %% "scrimage-canvas" % "1.4.2",
