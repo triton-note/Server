@@ -2,6 +2,7 @@ import java.io.{ ByteArrayInputStream, ByteArrayOutputStream }
 
 import play.api.Logger
 import play.api.libs.json._
+import play.api.mvc.Results._
 
 import org.fathens.play.util.Exception.allCatch
 
@@ -90,4 +91,7 @@ package object controllers {
       } yield Photos(o, m, t)
     }
   }
+  
+  val TicketExpired = BadRequest("Ticket Expired")
+  val SessionExpired = BadRequest("Session Expired")
 }

@@ -48,7 +48,7 @@ object ReportSync extends Controller {
     Logger debug f"Loading reports: count(${count}) from ${last}"
     Future(ticket.asTokenOfUser[TicketValue]).flatMap {
       _ match {
-        case None => Future(BadRequest("Ticket Expired"))
+        case None => Future(TicketExpired)
         case Some((vt, value, user)) =>
           Future.sequence {
             CatchReport.findBy(user, count, last).map(convert)
@@ -66,7 +66,7 @@ object ReportSync extends Controller {
     Logger debug f"Reading report:${id}"
     Future(ticket.asTokenOfUser[TicketValue]).flatMap {
       _ match {
-        case None => Future(BadRequest("Ticket Expired"))
+        case None => Future(TicketExpired)
         case Some((vt, value, user)) => CatchReport.get(id).map(convert) match {
           case None => Future(BadRequest(f"Report NotFound: ${id}"))
           case Some(reportF) => reportF.map { report =>
@@ -87,7 +87,7 @@ object ReportSync extends Controller {
     Logger debug f"Updating ${report}"
     Future {
       ticket.asTokenOfUser[TicketValue] match {
-        case None => BadRequest("Ticket Expired")
+        case None => TicketExpired
         case Some((vt, value, user)) =>
           report.id.flatMap(CatchReport.get) match {
             case None => BadRequest(f"Invalid id: ${report.id.orNull}")

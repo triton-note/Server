@@ -22,7 +22,7 @@ object Conditions extends Controller {
     val (date, geoinfo) = request.body
     Future {
       ticket.asTokenOfUser[TicketValue] match {
-        case None => BadRequest("Ticket Expired")
+        case None => TicketExpired
         case Some((vt, value, user)) =>
           val tide = new TideMoon(date, geoinfo)
           Ok(Json.obj(
