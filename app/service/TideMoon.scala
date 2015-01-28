@@ -11,6 +11,19 @@ object TideMoon {
     val Ebb = Value("Ebb")
     val Low = Value("Low")
     val Flood = Value("Flood")
+
+    def of(origin: Degrees, moon: Degrees): Value = {
+      def anguler: Degrees = {
+        val diff = moon - origin + Degrees(15)
+        diff.normalize % Pi
+      }
+      anguler.toDouble match {
+        case d if d < 30             => TideState.High
+        case d if 30 <= d && d <= 90 => TideState.Flood
+        case d if 90 < d && d < 120  => TideState.Low
+        case d if 120 <= d           => TideState.Ebb
+      }
+    }
   }
 }
 class TideMoon(val date: java.util.Date, val geoinfo: GeoInfo) {
@@ -18,13 +31,5 @@ class TideMoon(val date: java.util.Date, val geoinfo: GeoInfo) {
 
   val moon = new Moon(date)
 
-  val state = {
-    val diff: Degrees = (moon.earth_longitude - geoinfo.longitude + Degrees(15)).normalize
-    (diff % Pi).toDouble match {
-      case d if d < 30             => TideState.High
-      case d if 30 <= d && d <= 90 => TideState.Ebb
-      case d if 90 < d && d < 120  => TideState.Low
-      case d if 120 <= d           => TideState.Flood
-    }
-  }
+  val state = TideState.of(geoinfo.longitude, moon.earth_longitude)
 }
