@@ -30,7 +30,7 @@ GET    /distribution/others/:ticket      controllers.Distribution.others(ticket:
 GET    /distribution/names/:ticket       controllers.Distribution.names(ticket: String)
 
 # Natural Conditions
-GET    /conditions/get/:ticket           controllers.Conditions.get(ticket: String)
+POST   /conditions/get/:ticket           controllers.Conditions.get(ticket: String)
 
 # Showing models
 GET    /model/catch-report/:id           controllers.ModelView.catchReport(id: String)
