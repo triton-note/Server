@@ -4,7 +4,7 @@ version := "0.8.1-SNAPSHOT"
 
 lazy val root = (project in file(".")).enablePlugins(PlayScala)
 
-scalaVersion := "2.11.4"
+scalaVersion := "2.11.5"
 
 scalacOptions ++= Seq(
   "-language:postfixOps",
@@ -16,9 +16,10 @@ scalacOptions ++= Seq(
 libraryDependencies ++= Seq(
   "org.fathens" %% "astronomy" % "1.1.1",
   "com.amazonaws" % "aws-java-sdk" % "1.9.13",
-  "org.scalaz" %% "scalaz-core" % "7.1.0",
+  "org.scalaz" %% "scalaz-core" % "7.0.6",
   "com.sksamuel.scrimage" %% "scrimage-canvas" % "1.4.2",
   "com.google.apis" % "google-api-services-plus" % "v1-rev193-1.19.0",
+  "org.specs2" %% "specs2-scalacheck" % "2.3.12" % "test",
   ws
 )
 
