@@ -4,6 +4,7 @@ import org.fathens.astronomy.Moon
 import org.fathens.math._
 
 import models.GeoInfo
+import play.api.Logger
 
 object TideMoon {
   object TideState extends Enumeration {
@@ -13,11 +14,12 @@ object TideMoon {
     val Flood = Value("Flood")
 
     def of(origin: Degrees, moon: Degrees): Value = {
-      def anguler: Degrees = {
+      def angle: Degrees = {
         val diff = moon - origin + Degrees(15)
         diff.normalize % Pi
       }
-      anguler.toDouble match {
+      Logger debug f"TideMoon origin(${origin}) -> moon(${moon}): ${angle}"
+      angle.toDouble match {
         case d if d < 30             => TideState.High
         case d if 30 <= d && d <= 90 => TideState.Flood
         case d if 90 < d && d < 120  => TideState.Low

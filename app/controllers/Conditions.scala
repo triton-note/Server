@@ -5,6 +5,7 @@ import java.util.Date
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
+import play.api.Logger
 import play.api.libs.functional.syntax._
 import play.api.libs.json._
 import play.api.libs.json.Json.toJsFieldJsValueWrapper
@@ -20,6 +21,7 @@ object Conditions extends Controller {
     (__ \ "geoinfo").read[GeoInfo]
   ).tupled)) { implicit request =>
     val (date, geoinfo) = request.body
+    Logger debug f"Getting conditions: ${geoinfo} at ${date}"
     Future {
       ticket.asTokenOfUser[TicketValue] match {
         case None => TicketExpired
