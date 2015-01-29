@@ -41,7 +41,7 @@ object CatchesSession extends Controller {
     Logger debug f"Starting session by ${ticket} on ${geoinfo}"
     Future {
       ticket.asTokenOfUser[TicketValue] match {
-        case None => BadRequest("Ticket Expired")
+        case None => TicketExpired
         case Some((vt, _, user)) =>
           val value = SessionValue(user.id, geoinfo)
           val session = VolatileToken.addNew(Settings.Session.timeoutUpload, Option(value.toString))
@@ -62,7 +62,7 @@ object CatchesSession extends Controller {
       files.toList match {
         case Nil => BadRequest("No uploaded files")
         case file :: Nil => session.asTokenOfUser[SessionValue] match {
-          case None => BadRequest("Session Expired")
+          case None => SessionExpired
           case Some((vt, value, user)) => file.asPhoto match {
             case None => InternalServerError("Failed to save photo")
             case Some(photo) => vt json value.copy(imageId = Some(photo.original.id)) match {
@@ -82,7 +82,7 @@ object CatchesSession extends Controller {
     Logger debug f"Inferring of photo on session: ${session}"
     Future {
       session.asTokenOfUser[SessionValue] match {
-        case None => BadRequest("Session Expired")
+        case None => SessionExpired
         case Some((vt, value, user)) =>
           val ok = for {
             imageId <- value.imageId
@@ -106,13 +106,13 @@ object CatchesSession extends Controller {
     Logger debug f"Sumit report: ${given}"
     Future {
       session.asTokenOfUser[SessionValue] match {
-        case None => BadRequest("Session Expired")
+        case None => SessionExpired
         case Some((vt, value, user)) =>
           val ok = for {
             imageId <- value.imageId
             image <- Image get imageId
           } yield {
-            val report = CatchReport.addNew(user, given.location.geoinfo, given.location.name, given.dateAt)
+            val report = CatchReport.addNew(user, given.location.geoinfo, given.location.name, given.dateAt, given.condition.asJson)
             val photo = Photo.addNew(report, image)
             val comment = report.addComment(given.comment)(user)
             val photos = given.fishes.map(_ add photo)
@@ -132,7 +132,7 @@ object CatchesSession extends Controller {
     val publish = request.body
     Future {
       session.asTokenOfUser[SessionValue] match {
-        case None => Future(BadRequest("Session Expired"))
+        case None => Future(SessionExpired)
         case Some((vt, value, user)) =>
           val ok = for {
             reportId <- value.committed

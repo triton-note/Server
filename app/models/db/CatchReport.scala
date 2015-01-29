@@ -5,8 +5,10 @@ import java.util.Date
 import scala.collection.JavaConversions._
 
 import com.amazonaws.services.dynamodbv2.model._
+import org.fathens.math._
 
 import models.GeoInfo
+import play.api.libs.json._
 
 case class CatchReport(MAP: Map[String, AttributeValue]) extends TimestampedTable.ObjType[CatchReport] {
   val TABLE = CatchReport
@@ -14,10 +16,11 @@ case class CatchReport(MAP: Map[String, AttributeValue]) extends TimestampedTabl
   lazy val user: Option[User] = build(_.user)
   lazy val timestamp: Date = build(_.timestamp)
   lazy val location: String = build(_.location)
+  lazy val condition: Option[JsValue] = build(_.condition)
   /**
    * Point on map by latitude and longitude
    */
-  lazy val geoinfo: GeoInfo = GeoInfo(build(_.latitude), build(_.longitude))
+  lazy val geoinfo: GeoInfo = GeoInfo(Degrees(build(_.latitude)), Degrees(build(_.longitude)))
   /**
    * All comments
    */
@@ -35,17 +38,19 @@ object CatchReport extends AutoIDTable[CatchReport]("CATCH_REPORT") {
   val user = Column[Option[User]]("USER", (_.user), (_.get(User)), attrObjID)
   val timestamp = Column[Date]("TIMESTAMP", (_.timestamp), (_.getDate.get), attrDate)
   val location = Column[String]("LOCATION", (_.location), (_.getString.get), attrString)
-  val latitude = Column[Double]("LATITUDE", (_.geoinfo.latitude), (_.getDouble.get), attrDouble)
-  val longitude = Column[Double]("LONGITUDE", (_.geoinfo.longitude), (_.getDouble.get), attrDouble)
+  val condition = Column[Option[JsValue]]("CONDITION", (_.condition), (_.getJson), attrJson)
+  val latitude = Column[Double]("LATITUDE", (_.geoinfo.latitude.toDouble), (_.getDouble.get), attrDouble)
+  val longitude = Column[Double]("LONGITUDE", (_.geoinfo.longitude.toDouble), (_.getDouble.get), attrDouble)
   // All columns
-  val columns = List(user, timestamp, location, latitude, longitude)
+  val columns = List(user, timestamp, location, condition, latitude, longitude)
   /**
    * Add new
    */
-  def addNew(theUser: User, theGeoinfo: GeoInfo, theLocation: String, theTimestamp: Date): CatchReport = addNew(
+  def addNew(theUser: User, theGeoinfo: GeoInfo, theLocation: String, theTimestamp: Date, theCondition: Option[JsValue]): CatchReport = addNew(
     user(Some(theUser)),
     timestamp(theTimestamp),
     location(theLocation),
+    condition(theCondition),
     latitude(theGeoinfo.latitude.toDouble),
     longitude(theGeoinfo.longitude.toDouble)
   )

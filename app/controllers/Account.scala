@@ -51,7 +51,7 @@ object Account extends Controller {
     allCatch opt SocialConnection.Service.withName(way) match {
       case None => Future(BadRequest(f"Invalid social service: ${way}"))
       case Some(service) => ticket.asTokenOfUser[TicketValue] match {
-        case None => Future(BadRequest("Ticket Expired"))
+        case None => Future(TicketExpired)
         case Some((vt, value, user)) => (service match {
           case Way.facebook => Facebook.User.connect(user)(Facebook.AccessKey(token))
           case Way.google   => Future(GooglePlus.connect(user, token))
@@ -74,7 +74,7 @@ object Account extends Controller {
       allCatch opt SocialConnection.Service.withName(way) match {
         case None => BadRequest(f"Invalid social service: ${way}")
         case Some(service) => ticket.asTokenOfUser[TicketValue] match {
-          case None => BadRequest("Ticket Expired")
+          case None => TicketExpired
           case Some((vt, value, user)) => SocialConnection.findBy(user).find(_.service == service) match {
             case None => BadRequest(f"Not connected: ${service}")
             case Some(social) => social.disconnect match {
@@ -90,7 +90,7 @@ object Account extends Controller {
   def loadProfile(ticket: String) = Action.async { implicit request =>
     Future {
       ticket.asTokenOfUser[TicketValue] match {
-        case None => BadRequest("Ticket Expired")
+        case None => TicketExpired
         case Some((vt, value, user)) =>
           Ok(Json.obj(
             "name" -> user.name
@@ -104,7 +104,7 @@ object Account extends Controller {
   )) { implicit request =>
     Future {
       ticket.asTokenOfUser[TicketValue] match {
-        case None => BadRequest("Ticket Expired")
+        case None => TicketExpired
         case Some((vt, value, user)) =>
           val name = request.body
           user.update(name = name) match {
@@ -118,7 +118,7 @@ object Account extends Controller {
   def loadUnit(ticket: String) = Action.async { implicit request =>
     Future {
       ticket.asTokenOfUser[TicketValue] match {
-        case None => BadRequest("Ticket Expired")
+        case None => TicketExpired
         case Some((vt, value, user)) =>
           Ok(Json.obj(
             "length" -> user.lengthUnit,
@@ -134,7 +134,7 @@ object Account extends Controller {
   ).tupled)) { implicit request =>
     Future {
       ticket.asTokenOfUser[TicketValue] match {
-        case None => BadRequest("Ticket Expired")
+        case None => TicketExpired
         case Some((vt, value, user)) =>
           val (length, weight) = request.body
           user.update(lengthUnit = length, weightUnit = weight) match {

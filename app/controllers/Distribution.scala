@@ -11,7 +11,7 @@ object Distribution extends Controller {
   def mine(ticket: String) = Action.async {
     Future {
       ticket.asTokenOfUser[TicketValue] match {
-        case None => BadRequest("Ticket Expired")
+        case None => TicketExpired
         case Some((vt, value, user)) =>
           val catches = Distributions.catches(Some(user))
           Ok(Json toJson catches)
@@ -21,7 +21,7 @@ object Distribution extends Controller {
   def others(ticket: String) = Action.async {
     Future {
       ticket.asTokenOfUser[TicketValue] match {
-        case None => BadRequest("Ticket Expired")
+        case None => TicketExpired
         case Some((vt, value, user)) =>
           val catches = Distributions.catches(None)
           Ok(Json toJson catches)
@@ -31,7 +31,7 @@ object Distribution extends Controller {
   def names(ticket: String) = Action.async {
     Future {
       ticket.asTokenOfUser[TicketValue] match {
-        case None => BadRequest("Ticket Expired")
+        case None => TicketExpired
         case Some((vt, value, user)) =>
           val names = Distributions.names()
           Ok(Json toJson names)
