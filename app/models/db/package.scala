@@ -2,18 +2,17 @@ package models
 
 import java.util.Date
 
-import scala.annotation.tailrec
 import scala.collection.JavaConversions._
 
 import scalaz.Scalaz._
 
 import play.api.Logger
+import play.api.libs.json._
 
 import org.fathens.play.util.Exception.allCatch
 
 import com.amazonaws.services.dynamodbv2.model._
 
-import models.db.TimestampedTable
 import service.AWS.DynamoDB.client
 
 package object db {
@@ -34,6 +33,7 @@ package db {
       def isEmpty: Boolean = new AttributeValue == av
     }
     class AttributeValueWrapper(av: AttributeValue) {
+      def getJson: Option[JsValue] = Option(av.getS).flatMap(allCatch opt Json.parse(_))
       def getBoolean: Boolean = Option(av.getS).flatMap(allCatch opt _.toBoolean) getOrElse false
       def getString: Option[String] = Option(av.getS)
       def getDouble: Option[Double] = Option(av.getN).flatMap(allCatch opt _.toDouble)
@@ -41,6 +41,9 @@ package db {
       def getDate: Option[Date] = getString.flatMap(allCatch opt dateFormat.parse(_))
       def get[O <: TimestampedTable.ObjType[O]](t: TimestampedTable[O]): Option[O] = getString.flatMap(t.get)
     }
+    // for JSON
+    implicit def attrJson(v: JsValue) = new AttributeValue().withS(Option(v).map(Json.stringify).orNull)
+    implicit def attrJson(v: Option[JsValue]) = new AttributeValue().withS(v.map(Json.stringify).orNull)
     // for Boolean
     implicit def attrBoolean(v: Boolean) = new AttributeValue().withS(Option(v).getOrElse(false).toString)
     // for String
