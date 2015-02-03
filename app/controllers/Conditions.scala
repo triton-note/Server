@@ -12,7 +12,7 @@ import play.api.libs.json.Json.toJsFieldJsValueWrapper
 import play.api.mvc.{ Action, Controller }
 
 import models.GeoInfo
-import service.TideMoon
+import service.NaturalConditions
 
 object Conditions extends Controller {
 
@@ -26,13 +26,13 @@ object Conditions extends Controller {
       ticket.asTokenOfUser[TicketValue] match {
         case None => TicketExpired
         case Some((vt, value, user)) =>
-          val tide = new TideMoon(date, geoinfo)
+          val nc = new NaturalConditions(date, geoinfo)
           Ok(Json.obj(
             "moon" -> Json.obj(
-              "age" -> tide.moon.age.toInt
+              "age" -> nc.moon.age.toInt
             ),
             "tide" -> Json.obj(
-              "state" -> tide.state.toString
+              "state" -> nc.tide.toString
             )
           ))
       }

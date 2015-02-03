@@ -30,10 +30,10 @@ object Report {
   }
   object Condition {
     object Tide extends Enumeration {
-      val FLOOD = Value("Flood")
-      val HIGH = Value("High")
-      val EBB = Value("Ebb")
-      val LOW = Value("Low")
+      val Flood = Value("Flood")
+      val High = Value("High")
+      val Ebb = Value("Ebb")
+      val Low = Value("Low")
       implicit val tideFormat = Format(
         (__).read[String].map(Tide.withName),
         Writes { (t: Tide.Value) => JsString(t.toString) })
@@ -46,11 +46,12 @@ object Report {
      * Create by datetime and geolocation
      */
     def at(datetime: Date, geoinfo: GeoInfo): Future[Condition] = {
-      for {
-        moon <- NaturalConditions.moon(datetime, geoinfo)
-        tide <- NaturalConditions.tide(datetime, geoinfo)
-        weather <- NaturalConditions.weather(datetime, geoinfo)
-      } yield Condition(moon, tide, weather)
+      val nc = new NaturalConditions(datetime, geoinfo)
+      nc.weather.map { weather =>
+        val moon = nc.moon.age.round.toInt
+        val tide = Tide withName nc.tide.toString
+        Condition(moon, tide, weather)
+      }
     }
     implicit val json = Json.format[Condition]
   }
