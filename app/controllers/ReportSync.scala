@@ -10,6 +10,7 @@ import play.api.mvc.{Action, Controller}
 
 import models.Report
 import models.db.{CatchReport, Comment, FishSize, Photo}
+import service.NaturalConditions
 
 object ReportSync extends Controller {
 
@@ -25,7 +26,7 @@ object ReportSync extends Controller {
             json <- cr.condition
             v <- Report.Condition.json.reads(json).asOpt
           } yield Future(v)
-          oc getOrElse Report.Condition.at(cr.timestamp, cr.geoinfo)
+          oc getOrElse NaturalConditions.at(cr.timestamp, cr.geoinfo)
         }
         condition.map { condition =>
           Report(Some(cr.id),

@@ -38,20 +38,9 @@ object Report {
         (__).read[String].map(Tide.withName),
         Writes { (t: Tide.Value) => JsString(t.toString) })
     }
-    case class Weather(name: String, temperature: Double)
+    case class Weather(name: String, temperature: Double, iconUrl: String)
     object Weather {
       implicit val weatherFormat = Json.format[Weather]
-    }
-    /**
-     * Create by datetime and geolocation
-     */
-    def at(datetime: Date, geoinfo: GeoInfo): Future[Condition] = {
-      val nc = new NaturalConditions(datetime, geoinfo)
-      nc.weather.map { weather =>
-        val moon = nc.moon.age.round.toInt
-        val tide = Tide withName nc.tide.toString
-        Condition(moon, tide, weather)
-      }
     }
     implicit val json = Json.format[Condition]
   }
