@@ -18,7 +18,8 @@ import models.Report.Condition
 import models.Report.Condition.{Tide, Weather}
 
 object NaturalConditions {
-  lazy val WEATHER_API_KEY = System.getProperty("OPENWEATHERMAP_APPID")
+  lazy val WEATHER_API_URL = System.getenv("OPENWEATHERMAP_URL")
+  lazy val WEATHER_API_KEY = System.getenv("OPENWEATHERMAP_APPID")
 
   def weatherIcon(id: String) = f"http://openweathermap.org/img/w/${id}.png"
 
@@ -45,28 +46,29 @@ object NaturalConditions {
     }
   }
   def weather(date: java.util.Date, geoinfo: GeoInfo): Future[Option[Weather]] = {
-    val ws = WS.client url "http://api.openweathermap.org/data/2.5/history/city"
-    ws.withQueryString(
-      "lat" -> f"${geoinfo.latitude.toDouble}%0.5f",
-      "lon" -> f"${geoinfo.longitude.toDouble}%0.5f",
+    (WS.client url WEATHER_API_URL).withQueryString(
+      "lat" -> f"${geoinfo.latitude.toDouble}%3.8f",
+      "lon" -> f"${geoinfo.longitude.toDouble}%3.8f",
       "type" -> "hour",
-      "start" -> date.getTime.toString,
+      "start" -> f"${date.getTime / 1000}",
       "cnt" -> "1",
       "APPID" -> WEATHER_API_KEY
     ).get().map(parse.JSON).map {
         _ flatMap { json =>
-          ((json \ "cnt").as[Int] <= 0) option {
+          Logger debug f"Weather Result of (${geoinfo} at ${date}): ${json}"
+          (json \ "cnt").as[Int] > 0 option {
             val info = (json \ "list")(0)
-            val name = (info \ "weather" \ "main").as[String]
+            val wth = (info \ "weather")(0)
+            val name = (wth \ "main").as[String]
+            val icon = (wth \ "icon").as[String]
             val temp = (info \ "main" \ "temp").as[Double] - 273.15
-            val icon = (info \ "weather" \ "icon").as[String]
             Weather(name, temp, weatherIcon(icon))
           }
         }
       }
   }
   def at(date: java.util.Date, geoinfo: GeoInfo): Future[Condition] = {
-    weather(date, geoinfo).map(_ getOrElse Weather("Fine", 20.0, weatherIcon("01d"))) map { weather =>
+    weather(date, geoinfo).map(_ getOrElse Weather("Clear", 20.0, weatherIcon("01d"))) map { weather =>
       val moon: Moon = new Moon(date)
       val tide: Tide.Value = tideState(geoinfo.longitude, moon.earth_longitude)
       Condition(moon.age.round.toInt, tide, weather)
