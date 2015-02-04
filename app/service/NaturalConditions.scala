@@ -35,16 +35,19 @@ object NaturalConditions {
     /**
      * OpenWeatherMap.com API
      */
-    private def get(path: String, geoinfo: GeoInfo)(parameters: (String, String)*)(reciever: JsValue => Option[Weather]): Future[Either[Int, Option[Weather]]] = {
+    private def get(subpath: String, geoinfo: GeoInfo)(parameters: (String, String)*)(reciever: JsValue => Option[Weather]): Future[Either[Int, Option[Weather]]] = {
       val params = "APPID" -> API_KEY ::
         "lat" -> f"${geoinfo.latitude.toDouble}%3.8f" ::
         "lon" -> f"${geoinfo.longitude.toDouble}%3.8f" ::
         parameters.toList
-      (WS.client url f"${URL}/${path}").withQueryString(params: _*).get().map { res =>
+      val paramString = params.map{ case (a, b) => f"${a}=${b}" }.mkString(", ")
+      val path = f"${URL}/${subpath}"
+      Logger info f"GET: ${path}: ${paramString}"
+      (WS.client url path).withQueryString(params: _*).get().map { res =>
         res.status match {
           case 200 => Right((allCatch opt reciever(res.json)).flatten)
           case error =>
-            Logger error f"Request for ${URL}/${path}(${params.mkString(", ")}) => Status(${res.status}) ${res.body}"
+            Logger error f"Request for ${path}(${paramString}) => Status(${res.status}) ${res.body}"
             Left(error)
         }
       }
@@ -92,7 +95,7 @@ object NaturalConditions {
           (sch ? "go").mapTo[Option[Weather]]
         }
       }
-      if (date.getTime - new Date().getTime < 3 * 60 * 60 * 1000) {
+      if (new Date().getTime - date.getTime < 3 * 60 * 60 * 1000) {
         retry(getCurrent(geoinfo))(countMax)
       } else retry(getPast(date, geoinfo))(countMax)
     }

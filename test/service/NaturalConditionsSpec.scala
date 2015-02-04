@@ -1,14 +1,18 @@
 package service
 
+import java.util.Date
+
 import scala.concurrent.duration._
+
+import play.api.Logger
+import play.api.test.FakeApplication
+import play.api.test.Helpers.running
 
 import org.fathens.math._
 import org.scalacheck._
 import org.specs2._
 
-import play.api.test._
-import play.api.test.Helpers._
-import play.api.Logger
+import models.Report.Condition.Tide
 
 object NaturalConditionsSpec extends Specification with ScalaCheck {
   def is = s2"""
@@ -18,7 +22,8 @@ object NaturalConditionsSpec extends Specification with ScalaCheck {
 
   Weather
 
-    current info at athens           $cw01
+    current info at Athens           $ci01
+    past info at Tokyo               $ci02
 """
 
   implicit val genDegrees = Arbitrary(Arbitrary.arbitrary[Double].map(Degrees).map(_.normalize: Degrees))
@@ -41,11 +46,19 @@ object NaturalConditionsSpec extends Specification with ScalaCheck {
     actual must_== expected
   }
 
-  def cw01 = running(FakeApplication())  {
+  def ci01 = running(FakeApplication())  {
     val geoinfo = models.GeoInfo(Degrees(37.9908372), Degrees(23.7383394))
-    NaturalConditions.weather(new java.util.Date, geoinfo).map { weather =>
+    NaturalConditions.weather(new Date, geoinfo).map { weather =>
       Logger debug f"${weather} at ${geoinfo}"
       weather must beSome
-    }.await(3, FiniteDuration(10, SECONDS))
+    }.await(3, FiniteDuration(10, MINUTES))
+  }
+  def ci02 = running(FakeApplication())  {
+    val geoinfo = models.GeoInfo(Degrees(35.681710), Degrees(139.748154))
+    val date = new Date(new Date().getTime - 24 * 60 * 60 * 1000)
+    NaturalConditions.weather(date, geoinfo).map { weather =>
+      Logger debug f"${weather} at ${geoinfo}"
+      weather must beSome
+    }.await(3, FiniteDuration(10, MINUTES))
   }
 }
