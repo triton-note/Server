@@ -74,26 +74,27 @@ object NaturalConditions {
         Weather(name, temp, icon(id))
       }
     }
-    def apply(delay: FiniteDuration, retry: Int)(date: Date, geoinfo: GeoInfo) = {
-      def obtain(retry: Int)(task: => Future[Either[Int, Option[Weather]]]): Future[Option[Weather]] = task.flatMap {
+    def apply(delay: FiniteDuration, countMax: Int)(date: Date, geoinfo: GeoInfo) = {
+      def retry(task: => Future[Either[Int, Option[Weather]]])(count: Int): Future[Option[Weather]] = task.flatMap {
         case Right(w) => Future(w)
-        case Left(_) => if (retry < 1) Future(None) else {
-          Logger warn f"Retry left: ${retry} after ${delay}"
-          val reciever = Akka.system.actorOf(Props(new Actor {
+        case Left(_) => if (count < 1) Future(None) else {
+          val sch = Akka.system.actorOf(Props(new Actor {
             def receive = {
-              case "go" => Akka.system.scheduler.scheduleOnce(delay) {
-                Logger warn f"Start scheduled task"
-                obtain(retry - 1)(task).map(sender ! _)
-              }
+              case "go" =>
+                val sed = sender
+                Akka.system.scheduler.scheduleOnce(delay) {
+                  retry(task)(count - 1).map(sed ! _)
+                }
             }
           }))
-          implicit val timeout = Timeout(delay * retry * 2)
-          (reciever ? "go").mapTo[Option[Weather]]
+          Logger warn f"Retry left: ${count} after ${delay}"
+          implicit val timeout = Timeout(delay * count * 2)
+          (sch ? "go").mapTo[Option[Weather]]
         }
       }
       if (date.getTime - new Date().getTime < 3 * 60 * 60 * 1000) {
-        obtain(retry)(getCurrent(geoinfo))
-      } else obtain(retry)(getPast(date, geoinfo))
+        retry(getCurrent(geoinfo))(countMax)
+      } else retry(getPast(date, geoinfo))(countMax)
     }
   }
 
