@@ -67,8 +67,9 @@ object NaturalConditions {
         }
       }
   }
-  def at(date: java.util.Date, geoinfo: GeoInfo): Future[Condition] = {
-    weather(date, geoinfo).map(_ getOrElse Weather("Clear", 20.0, weatherIcon("01d"))) map { weather =>
+
+  def at(date: Date, geoinfo: GeoInfo): Future[Condition] = {
+    weather(date, geoinfo) map { weather =>
       val moon: Moon = new Moon(date)
       val tide: Tide.Value = tideState(geoinfo.longitude, moon.earth_longitude)
       Condition(moon.age.round.toInt, tide, weather)

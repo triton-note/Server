@@ -25,7 +25,7 @@ object Report {
   object Location {
     implicit val locationFormat = Json.format[Location]
   }
-  case class Condition(moon: Int, tide: Condition.Tide.Value, weather: Condition.Weather) {
+  case class Condition(moon: Int, tide: Condition.Tide.Value, weather: Option[Condition.Weather]) {
     lazy val asJson = allCatch opt Json.toJson(this)
   }
   object Condition {
