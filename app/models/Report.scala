@@ -33,7 +33,11 @@ object Report {
         (__).read[String].map(Tide.withName),
         Writes { (t: Tide.Value) => JsString(t.toString) })
     }
-    case class Weather(name: String, temperature: Double, iconUrl: String)
+    case class Temperature(value: Double, unit: MeasureUnit.Temperature.Value)
+    object Temperature {
+      implicit val json = Json.format[Temperature]
+    }
+    case class Weather(name: String, temperature: Temperature, iconUrl: String)
     object Weather {
       implicit val weatherFormat = Json.format[Weather]
     }

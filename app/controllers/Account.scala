@@ -11,7 +11,7 @@ import play.api.mvc.{ Action, Controller }
 
 import org.fathens.play.util.Exception.allCatch
 
-import models.Settings
+import models.{ MeasureUnit, Settings }
 import models.db.{ SocialConnection, VolatileToken }
 import service.{ Facebook, GooglePlus }
 
@@ -120,24 +120,20 @@ object Account extends Controller {
       ticket.asTokenOfUser[TicketValue] match {
         case None => TicketExpired
         case Some((vt, value, user)) =>
-          Ok(Json.obj(
-            "length" -> user.lengthUnit,
-            "weight" -> user.weightUnit
-          ))
+          Ok(user.measureUnit.asJson)
       }
     }
   }
 
-  def changeUnit(ticket: String) = Action.async(parse.json((
-    (__ \ "unit" \ "length").read[String] and
-    (__ \ "unit" \ "weight").read[String]
-  ).tupled)) { implicit request =>
+  def changeUnit(ticket: String) = Action.async(parse.json(
+    (__).read[MeasureUnit]
+  )) { implicit request =>
     Future {
       ticket.asTokenOfUser[TicketValue] match {
         case None => TicketExpired
         case Some((vt, value, user)) =>
-          val (length, weight) = request.body
-          user.update(lengthUnit = length, weightUnit = weight) match {
+          val measureUnit = request.body
+          user.update(measureUnit = measureUnit) match {
             case None     => InternalServerError(f"Failed to update user: ${user.id}")
             case Some(ok) => Ok
           }
