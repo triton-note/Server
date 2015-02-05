@@ -18,8 +18,8 @@ object MeasureUnit {
       Writes { (t: Weight.Value) => JsString(t.toString) })
   }
   object Temperature extends Enumeration {
-    val Cels = Value("℃")
-    val Fahr = Value("℉")
+    val Cels = Value("Cels")
+    val Fahr = Value("Fahr")
     implicit val json = Format(
       (__).read[String].map(Temperature.withName),
       Writes { (t: Temperature.Value) => JsString(t.toString) })
