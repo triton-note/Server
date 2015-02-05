@@ -2,14 +2,9 @@ package models
 
 import java.util.Date
 
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
-
 import play.api.libs.json._
 
 import org.fathens.play.util.Exception.allCatch
-
-import service.NaturalConditions
 
 case class Report(
   id: Option[String],

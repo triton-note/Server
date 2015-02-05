@@ -1,10 +1,11 @@
 package controllers
 
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
-import play.api.libs.json._
 
+import play.api.libs.concurrent.Execution.Implicits.defaultContext
+import play.api.libs.json._
 import play.api.mvc.{ Action, Controller }
+
 import models.Distributions
 
 object Distribution extends Controller {

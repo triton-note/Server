@@ -4,14 +4,13 @@ import java.nio.charset.Charset
 
 import scala.concurrent.duration._
 
-import play.api.libs.{Codecs, Crypto}
+import play.api.libs.{ Codecs, Crypto }
 import play.api.libs.functional.syntax._
 import play.api.libs.json._
 import play.api.libs.json.Json.toJsFieldJsValueWrapper
 
 import org.apache.commons.codec.binary.Base64
 
-import models.db.Image
 import service.AWS
 
 object Upload {

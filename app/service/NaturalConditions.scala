@@ -2,7 +2,7 @@ package service
 
 import java.util.Date
 
-import scala.concurrent._
+import scala.concurrent.Future
 import scala.concurrent.duration._
 
 import scalaz.Scalaz._
@@ -18,7 +18,7 @@ import org.fathens.astronomy.Moon
 import org.fathens.math._
 import org.fathens.play.util.Exception.allCatch
 
-import akka.actor.{ Actor, Props }
+import akka.actor._
 import akka.pattern.ask
 import akka.util.Timeout
 import models.GeoInfo

@@ -4,11 +4,13 @@ import java.util.Date
 
 import scala.collection.JavaConversions._
 
-import com.amazonaws.services.dynamodbv2.model._
+import play.api.libs.json._
+
 import org.fathens.math._
 
+import com.amazonaws.services.dynamodbv2.model._
+
 import models.GeoInfo
-import play.api.libs.json._
 
 case class CatchReport(MAP: Map[String, AttributeValue]) extends TimestampedTable.ObjType[CatchReport] {
   val TABLE = CatchReport
