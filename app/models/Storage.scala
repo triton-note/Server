@@ -3,12 +3,12 @@ package models
 import java.io.{ BufferedInputStream, BufferedOutputStream, IOException, OutputStream, PipedInputStream, PipedOutputStream }
 import java.util.Date
 
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
 import play.api.Logger
-import play.api.libs.json.{ Format, Json, Writes, __ }
+import play.api.libs.concurrent.Execution.Implicits.defaultContext
+import play.api.libs.json._
 
 import org.fathens.play.util.Exception.allCatch
 

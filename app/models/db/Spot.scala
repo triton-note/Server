@@ -1,9 +1,8 @@
 package models.db
 
-import scala.collection.JavaConversions._
+import org.fathens.math._
 
 import com.amazonaws.services.dynamodbv2.model._
-import org.fathens.math._
 
 import models.GeoInfo
 

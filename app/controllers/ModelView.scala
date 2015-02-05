@@ -1,12 +1,12 @@
 package controllers
 
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
-import play.api.mvc.{Action, Controller}
+import play.api.libs.concurrent.Execution.Implicits.defaultContext
+import play.api.mvc.{ Action, Controller }
 
 import models.Settings
-import models.db.{CatchReport, FishSize, Photo}
+import models.db.{ CatchReport, FishSize, Photo }
 
 object ModelView extends Controller {
   val appId = System.getenv("FACEBOOK_APP_ID")

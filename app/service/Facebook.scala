@@ -1,18 +1,20 @@
 package service
 
 import scala.{ Left, Right }
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
+
 import play.api.Logger
 import play.api.Play.current
+import play.api.libs.concurrent.Execution.Implicits.defaultContext
 import play.api.libs.json._
 import play.api.libs.ws.{ WS, WSResponse }
 import play.api.mvc.Codec.utf_8
-import org.fathens.play.util.Exception.allCatch
-import models.Settings
-import models.db.{ CatchReport, FishSize, Photo, SocialConnection, User => UserDB }
 import play.api.mvc.RequestHeader
-import java.net.URLEncoder
+
+import org.fathens.play.util.Exception.allCatch
+
+import models.Settings
+import models.db.{ CatchReport, Photo, SocialConnection, User => UserDB }
 
 object Facebook {
   case class AccessKey(token: String)

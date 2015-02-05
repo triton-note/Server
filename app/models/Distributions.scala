@@ -9,7 +9,7 @@ import play.api.libs.json._
 
 import com.amazonaws.services.dynamodbv2.model._
 
-import models.db.{CatchReport, FishSize, Photo, TableRoot, User}
+import models.db.{ CatchReport, FishSize, Photo, TableRoot, User }
 import service.AWS.DynamoDB.client
 
 object Distributions {
