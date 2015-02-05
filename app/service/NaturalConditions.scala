@@ -8,11 +8,11 @@ import scala.concurrent.duration._
 import scalaz.Scalaz._
 
 import play.api.Logger
+import play.api.Play.current
 import play.api.libs.concurrent.Akka
 import play.api.libs.concurrent.Execution.Implicits.defaultContext
 import play.api.libs.json._
 import play.api.libs.ws.WS
-import play.api.Play.current
 
 import org.fathens.astronomy.Moon
 import org.fathens.math._
@@ -40,7 +40,7 @@ object NaturalConditions {
         "lat" -> f"${geoinfo.latitude.toDouble}%3.8f" ::
         "lon" -> f"${geoinfo.longitude.toDouble}%3.8f" ::
         parameters.toList
-      val paramString = params.map{ case (a, b) => f"${a}=${b}" }.mkString(", ")
+      val paramString = params.map { case (a, b) => f"${a}=${b}" }.mkString(", ")
       val path = f"${URL}/${subpath}"
       Logger info f"GET: ${path}: ${paramString}"
       (WS.client url path).withQueryString(params: _*).get().map { res =>
@@ -122,8 +122,8 @@ object NaturalConditions {
 
   def at(date: Date, geoinfo: GeoInfo): Future[Condition] = {
     weather(date, geoinfo) map { weather =>
-      val moon: Moon = new Moon(date)
-      val tide: Tide.Value = tideState(geoinfo.longitude, moon.earth_longitude)
+      val moon = new Moon(date)
+      val tide = tideState(geoinfo.longitude, moon.earth_longitude)
       Condition(moon.age.round.toInt, tide, weather)
     }
   }
