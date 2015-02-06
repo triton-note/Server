@@ -4,13 +4,11 @@ import java.util.Date
 
 import scala.collection.JavaConversions._
 
-import play.api.libs.json._
-
 import org.fathens.math._
 
 import com.amazonaws.services.dynamodbv2.model._
 
-import models.GeoInfo
+import models.{ GeoInfo, Report }
 
 case class CatchReport(MAP: Map[String, AttributeValue]) extends TimestampedTable.ObjType[CatchReport] {
   val TABLE = CatchReport
@@ -18,7 +16,7 @@ case class CatchReport(MAP: Map[String, AttributeValue]) extends TimestampedTabl
   lazy val user: Option[User] = build(_.user)
   lazy val timestamp: Date = build(_.timestamp)
   lazy val location: String = build(_.location)
-  lazy val condition: Option[JsValue] = build(_.condition)
+  lazy val condition: Report.Condition = build(_.condition)
   /**
    * Point on map by latitude and longitude
    */
@@ -40,7 +38,7 @@ object CatchReport extends AutoIDTable[CatchReport]("CATCH_REPORT") {
   val user = Column[Option[User]]("USER", (_.user), (_.get(User)), attrObjID)
   val timestamp = Column[Date]("TIMESTAMP", (_.timestamp), (_.getDate.get), attrDate)
   val location = Column[String]("LOCATION", (_.location), (_.getString.get), attrString)
-  val condition = Column[Option[JsValue]]("CONDITION", (_.condition), (_.getJson), attrJson)
+  val condition = Column[Report.Condition]("CONDITION", (_.condition), (_.getJson.get.as[Report.Condition]), { v => attrJson(v.asJson) })
   val latitude = Column[Double]("LATITUDE", (_.geoinfo.latitude.toDouble), (_.getDouble.get), attrDouble)
   val longitude = Column[Double]("LONGITUDE", (_.geoinfo.longitude.toDouble), (_.getDouble.get), attrDouble)
   // All columns
@@ -48,7 +46,7 @@ object CatchReport extends AutoIDTable[CatchReport]("CATCH_REPORT") {
   /**
    * Add new
    */
-  def addNew(theUser: User, theGeoinfo: GeoInfo, theLocation: String, theTimestamp: Date, theCondition: Option[JsValue]): CatchReport = addNew(
+  def addNew(theUser: User, theGeoinfo: GeoInfo, theLocation: String, theTimestamp: Date, theCondition: Report.Condition): CatchReport = addNew(
     user(Some(theUser)),
     timestamp(theTimestamp),
     location(theLocation),

@@ -11,35 +11,23 @@ import play.api.mvc.{ Action, Controller }
 
 import models.Report
 import models.db.{ CatchReport, Comment, FishSize, Photo }
-import service.NaturalConditions
 
 object ReportSync extends Controller {
 
-  def convert(cr: CatchReport): Future[Option[Report]] = {
-    Future.sequence({
-      Photo.findBy(cr).headOption.map { photo =>
-        val comment = cr.topComment.map(_.text) getOrElse ""
-        val fishes = FishSize.findBy(photo).toSeq.map { fish =>
-          Report.Fishes(fish.name, fish.count.toInt, fish.weight.map(Report.ValueUnit.tupled), fish.length.map(Report.ValueUnit.tupled))
-        }
-        val condition = {
-          val oc = for {
-            json <- cr.condition
-            v <- Report.Condition.json.reads(json).asOpt
-          } yield Future(v)
-          oc getOrElse NaturalConditions.at(cr.timestamp, cr.geoinfo)
-        }
-        condition.map { condition =>
-          Report(Some(cr.id),
-            comment,
-            cr.timestamp,
-            Report.Location(cr.location, cr.geoinfo),
-            condition,
-            photo.group.map(_.asURL),
-            fishes)
-        }
+  def convert(cr: CatchReport): Option[Report] = {
+    Photo.findBy(cr).headOption.map { photo =>
+      val comment = cr.topComment.map(_.text) getOrElse ""
+      val fishes = FishSize.findBy(photo).toSeq.map { fish =>
+        Report.Fishes(fish.name, fish.count.toInt, fish.weight.map(Report.ValueUnit.tupled), fish.length.map(Report.ValueUnit.tupled))
       }
-    }.toSeq).map(_.headOption)
+      Report(Some(cr.id),
+        comment,
+        cr.timestamp,
+        Report.Location(cr.location, cr.geoinfo),
+        cr.condition,
+        photo.group.map(_.asURL),
+        fishes)
+    }
   }
 
   def load(ticket: String) = Action.async(parse.json((
@@ -48,15 +36,11 @@ object ReportSync extends Controller {
   ).tupled)) { implicit request =>
     val (count, last) = request.body
     Logger debug f"Loading reports: count(${count}) from ${last}"
-    Future(ticket.asTokenOfUser[TicketValue]).flatMap {
-      _ match {
-        case None => Future(TicketExpired)
-        case Some((vt, value, user)) =>
-          Future.sequence {
-            CatchReport.findBy(user, count, last).map(convert)
-          }.map(_.flatten).map { reports =>
-            Ok(Json toJson reports)
-          }
+    ticket.asTokenOfUser[TicketValue] match {
+      case None => Future(TicketExpired)
+      case Some((vt, value, user)) => Future {
+        val reports = CatchReport.findBy(user, count, last).flatMap(convert)
+        Ok(Json toJson reports)
       }
     }
   }
@@ -66,16 +50,14 @@ object ReportSync extends Controller {
   ))) { implicit request =>
     val id = request.body
     Logger debug f"Reading report:${id}"
-    Future(ticket.asTokenOfUser[TicketValue]).flatMap {
-      _ match {
-        case None => Future(TicketExpired)
-        case Some((vt, value, user)) => CatchReport.get(id).map(convert) match {
-          case None => Future(BadRequest(f"Report NotFound: ${id}"))
-          case Some(reportF) => reportF.map { report =>
-            Ok {
-              Json.obj(
-                "report" -> report)
-            }
+    ticket.asTokenOfUser[TicketValue] match {
+      case None => Future(TicketExpired)
+      case Some((vt, value, user)) => Future {
+        CatchReport.get(id).flatMap(convert) match {
+          case None => BadRequest(f"Report NotFound: ${id}")
+          case Some(report) => Ok {
+            Json.obj(
+              "report" -> report)
           }
         }
       }
@@ -97,7 +79,7 @@ object ReportSync extends Controller {
               CatchReport.update(src.id, List(
                 src.diff(_.timestamp, report.dateAt),
                 src.diff(_.location, report.location.name),
-                src.diff(_.condition, report.condition.asJson),
+                src.diff(_.condition, report.condition),
                 src.diff(_.latitude, report.location.geoinfo.latitude.toDouble),
                 src.diff(_.longitude, report.location.geoinfo.longitude.toDouble)
               ).flatten.toMap) match {

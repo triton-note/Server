@@ -4,8 +4,6 @@ import java.util.Date
 
 import play.api.libs.json._
 
-import org.fathens.play.util.Exception.allCatch
-
 case class Report(
   id: Option[String],
   comment: String,
@@ -21,7 +19,7 @@ object Report {
     implicit val locationFormat = Json.format[Location]
   }
   case class Condition(moon: Int, tide: Condition.Tide.Value, weather: Option[Condition.Weather]) {
-    lazy val asJson = allCatch opt Json.toJson(this)
+    lazy val asJson = Json toJson this
   }
   object Condition {
     object Tide extends Enumeration {
