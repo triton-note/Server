@@ -4,7 +4,8 @@ import scala.collection.JavaConversions._
 
 import com.amazonaws.services.dynamodbv2.model._
 
-import models.Report.{ LengthValue, SizeValue, WeightValue }
+import models.Report.ValueUnit.{ LengthValue, WeightValue }
+import models.Report.Fishes.SizeValue
 
 case class FishSize(MAP: Map[String, AttributeValue]) extends TimestampedTable.ObjType[FishSize] {
   val TABLE = FishSize

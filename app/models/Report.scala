@@ -21,9 +21,25 @@ object Report {
   case class Condition(moon: Int, tide: Condition.Tide.Value, weather: Option[Condition.Weather]) {
     lazy val asJson = Json toJson this
   }
+
   trait ValueUnit[U] {
     val value: Double
     val unit: U
+    override def toString: String = f"${value}%1.1f${unit}"
+  }
+  object ValueUnit {
+    case class LengthValue(value: Double, unit: MeasureUnit.Length.Value) extends ValueUnit[MeasureUnit.Length.Value]
+    object LengthValue {
+      implicit val json = Json.format[LengthValue]
+    }
+    case class WeightValue(value: Double, unit: MeasureUnit.Weight.Value) extends ValueUnit[MeasureUnit.Weight.Value]
+    object WeightValue {
+      implicit val json = Json.format[WeightValue]
+    }
+    case class TemperatureValue(value: Double, unit: MeasureUnit.Temperature.Value) extends ValueUnit[MeasureUnit.Temperature.Value]
+    object TemperatureValue {
+      implicit val json = Json.format[TemperatureValue]
+    }
   }
   object Condition {
     object Tide extends Enumeration {
@@ -35,37 +51,12 @@ object Report {
         (__).read[String].map(Tide.withName),
         Writes { (t: Tide.Value) => JsString(t.toString) })
     }
-    case class TemperatureValue(value: Double, unit: MeasureUnit.Temperature.Value) extends ValueUnit[MeasureUnit.Temperature.Value]
-    object TemperatureValue {
-      implicit val json = Json.format[TemperatureValue]
-    }
-    case class Weather(name: String, temperature: TemperatureValue, iconUrl: String)
+    case class Weather(name: String, temperature: ValueUnit.TemperatureValue, iconUrl: String)
     object Weather {
       implicit val weatherFormat = Json.format[Weather]
     }
     implicit val json = Json.format[Condition]
   }
-  case class LengthValue(value: Double, unit: MeasureUnit.Length.Value) extends ValueUnit[MeasureUnit.Length.Value]
-  object LengthValue {
-    implicit val json = Json.format[LengthValue]
-  }
-  case class WeightValue(value: Double, unit: MeasureUnit.Weight.Value) extends ValueUnit[MeasureUnit.Weight.Value]
-  object WeightValue {
-    implicit val json = Json.format[WeightValue]
-  }
-  object SizeValue {
-    implicit val json = Json.format[SizeValue]
-  }
-  case class SizeValue(weight: Option[WeightValue], length: Option[LengthValue]) {
-    override def toString = List(weight, length).flatten.map { vu =>
-      f"${vu.value}%10.1f ${vu.unit}"
-    } match {
-      case Nil  => ""
-      case list => list.mkString(", ")
-    }
-    lazy val asJson = Json toJson this
-  }
-
   case class Photo(
     original: String,
     mainview: String,
@@ -76,10 +67,20 @@ object Report {
   case class Fishes(
     name: String,
     count: Int,
-    weight: Option[WeightValue] = None,
-    length: Option[LengthValue] = None) {
+    weight: Option[ValueUnit.WeightValue] = None,
+    length: Option[ValueUnit.LengthValue] = None) {
   }
   object Fishes {
+    object SizeValue {
+      implicit val json = Json.format[SizeValue]
+    }
+    case class SizeValue(weight: Option[ValueUnit.WeightValue], length: Option[ValueUnit.LengthValue]) {
+      override def toString = List(weight, length).flatten.map(_.toString) match {
+        case Nil  => ""
+        case list => list.mkString(", ")
+      }
+      lazy val asJson = Json toJson this
+    }
     implicit val catchesFormat = Json.format[Fishes]
   }
   implicit val reportFormat = Json.format[Report]

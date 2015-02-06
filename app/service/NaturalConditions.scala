@@ -23,7 +23,8 @@ import akka.pattern.ask
 import akka.util.Timeout
 import models.{ GeoInfo, MeasureUnit }
 import models.Report.Condition
-import models.Report.Condition.{ TemperatureValue, Tide, Weather }
+import models.Report.Condition.{ Tide, Weather }
+import models.Report.ValueUnit
 
 object NaturalConditions {
   object OpenWeatherMap {
@@ -64,7 +65,7 @@ object NaturalConditions {
           val name = (wth \ "main").as[String]
           val id = (wth \ "icon").as[String]
           val temp = (info \ "main" \ "temp").as[Double] - 273.15
-          Weather(name, TemperatureValue(temp, MeasureUnit.Temperature.Cels), icon(id))
+          Weather(name, ValueUnit.TemperatureValue(temp, MeasureUnit.Temperature.Cels), icon(id))
         }
       }
     def getCurrent(geoinfo: GeoInfo) = get("weather", geoinfo)() { json =>
@@ -74,7 +75,7 @@ object NaturalConditions {
         val name = (wth \ "main").as[String]
         val id = (wth \ "icon").as[String]
         val temp = (json \ "main" \ "temp").as[Double] - 273.15
-        Weather(name, TemperatureValue(temp, MeasureUnit.Temperature.Cels), icon(id))
+        Weather(name, ValueUnit.TemperatureValue(temp, MeasureUnit.Temperature.Cels), icon(id))
       }
     }
     def apply(delay: FiniteDuration, countMax: Int)(date: Date, geoinfo: GeoInfo) = {
