@@ -34,13 +34,7 @@ object ModelView extends Controller {
           "og:title" -> title,
           "og:image" -> imageUrls.head,
           "og:description" -> fishes.map { fish =>
-            val size = List(fish.weight, fish.length).flatten.map {
-              case (value, unit) => f"${value}%f.1 ${unit}"
-            } match {
-              case Nil  => ""
-              case list => list.mkString("(", ", ", ")")
-            }
-            f"${fish.name}${size} x ${fish.count}"
+            f"${fish.name}${fish.size} x ${fish.count}"
           }.mkString("\n")
         )
         Ok(views.html.catchReport(title, fishes, imageUrls, props))

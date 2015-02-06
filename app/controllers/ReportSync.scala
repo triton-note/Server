@@ -18,7 +18,7 @@ object ReportSync extends Controller {
     Photo.findBy(cr).headOption.map { photo =>
       val comment = cr.topComment.map(_.text) getOrElse ""
       val fishes = FishSize.findBy(photo).toSeq.map { fish =>
-        Report.Fishes(fish.name, fish.count.toInt, fish.weight.map(Report.ValueUnit.tupled), fish.length.map(Report.ValueUnit.tupled))
+        Report.Fishes(fish.name, fish.count.toInt, fish.size.weight, fish.size.length)
       }
       Report(Some(cr.id),
         comment,

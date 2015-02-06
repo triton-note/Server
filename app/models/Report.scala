@@ -21,6 +21,10 @@ object Report {
   case class Condition(moon: Int, tide: Condition.Tide.Value, weather: Option[Condition.Weather]) {
     lazy val asJson = Json toJson this
   }
+  trait ValueUnit[U] {
+    val value: Double
+    val unit: U
+  }
   object Condition {
     object Tide extends Enumeration {
       val Flood = Value("Flood")
@@ -31,23 +35,37 @@ object Report {
         (__).read[String].map(Tide.withName),
         Writes { (t: Tide.Value) => JsString(t.toString) })
     }
-    case class Temperature(value: Double, unit: MeasureUnit.Temperature.Value)
-    object Temperature {
-      implicit val json = Json.format[Temperature]
+    case class TemperatureValue(value: Double, unit: MeasureUnit.Temperature.Value) extends ValueUnit[MeasureUnit.Temperature.Value]
+    object TemperatureValue {
+      implicit val json = Json.format[TemperatureValue]
     }
-    case class Weather(name: String, temperature: Temperature, iconUrl: String)
+    case class Weather(name: String, temperature: TemperatureValue, iconUrl: String)
     object Weather {
       implicit val weatherFormat = Json.format[Weather]
     }
     implicit val json = Json.format[Condition]
   }
-  case class ValueUnit(value: Double, unit: String) {
-    def tupled = (value, unit)
+  case class LengthValue(value: Double, unit: MeasureUnit.Length.Value) extends ValueUnit[MeasureUnit.Length.Value]
+  object LengthValue {
+    implicit val json = Json.format[LengthValue]
   }
-  object ValueUnit {
-    implicit val valueunitFormat = Json.format[ValueUnit]
-    def tupled(t: (Double, String)) = ValueUnit(t._1, t._2)
+  case class WeightValue(value: Double, unit: MeasureUnit.Weight.Value) extends ValueUnit[MeasureUnit.Weight.Value]
+  object WeightValue {
+    implicit val json = Json.format[WeightValue]
   }
+  object SizeValue {
+    implicit val json = Json.format[SizeValue]
+  }
+  case class SizeValue(weight: Option[WeightValue], length: Option[LengthValue]) {
+    override def toString = List(weight, length).flatten.map { vu =>
+      f"${vu.value}%f.1 ${vu.unit}"
+    } match {
+      case Nil  => ""
+      case list => list.mkString("(", ", ", ")")
+    }
+    lazy val asJson = Json toJson this
+  }
+
   case class Photo(
     original: String,
     mainview: String,
@@ -58,8 +76,8 @@ object Report {
   case class Fishes(
     name: String,
     count: Int,
-    weight: Option[ValueUnit] = None,
-    length: Option[ValueUnit] = None) {
+    weight: Option[WeightValue] = None,
+    length: Option[LengthValue] = None) {
   }
   object Fishes {
     implicit val catchesFormat = Json.format[Fishes]

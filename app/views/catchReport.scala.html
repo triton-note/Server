@@ -31,8 +31,7 @@
   @for(fish <- fishes) {
     <tr class="body">
       <th class="name">@fish.name</th>
-      <td class="length">@for((value, unit) <- fish.length) { f"${value}%f.1 ${unit}" }</td>
-      <td class="weight">@for((value, unit) <- fish.weight) { f"${value}%f.1 ${unit}" }</td>
+      <td class="size">@fish.size</td>
       <td class="count">@fish.count</td>
     </tr>
   }
