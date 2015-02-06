@@ -58,10 +58,10 @@ object Report {
   }
   case class SizeValue(weight: Option[WeightValue], length: Option[LengthValue]) {
     override def toString = List(weight, length).flatten.map { vu =>
-      f"${vu.value}%f.1 ${vu.unit}"
+      f"${vu.value}%10.1f ${vu.unit}"
     } match {
       case Nil  => ""
-      case list => list.mkString("(", ", ", ")")
+      case list => list.mkString(", ")
     }
     lazy val asJson = Json toJson this
   }
