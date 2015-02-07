@@ -2,14 +2,7 @@ package models
 
 import java.util.Date
 
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
-
 import play.api.libs.json._
-
-import org.fathens.play.util.Exception.allCatch
-
-import service.NaturalConditions
 
 case class Report(
   id: Option[String],
@@ -25,41 +18,24 @@ object Report {
   object Location {
     implicit val locationFormat = Json.format[Location]
   }
-  case class Condition(moon: Int, tide: Condition.Tide.Value, weather: Condition.Weather) {
-    lazy val asJson = allCatch opt Json.toJson(this)
+  case class Condition(moon: Int, tide: Condition.Tide.Value, weather: Option[Condition.Weather]) {
+    lazy val asJson = Json toJson this
   }
   object Condition {
     object Tide extends Enumeration {
-      val FLOOD = Value("Flood")
-      val HIGH = Value("High")
-      val EBB = Value("Ebb")
-      val LOW = Value("Low")
+      val Flood = Value("Flood")
+      val High = Value("High")
+      val Ebb = Value("Ebb")
+      val Low = Value("Low")
       implicit val tideFormat = Format(
         (__).read[String].map(Tide.withName),
         Writes { (t: Tide.Value) => JsString(t.toString) })
     }
-    case class Weather(name: String, temperature: Double)
+    case class Weather(name: String, temperature: ValueUnit.Temperature, iconUrl: String)
     object Weather {
       implicit val weatherFormat = Json.format[Weather]
     }
-    /**
-     * Create by datetime and geolocation
-     */
-    def at(datetime: Date, geoinfo: GeoInfo): Future[Condition] = {
-      for {
-        moon <- NaturalConditions.moon(datetime, geoinfo)
-        tide <- NaturalConditions.tide(datetime, geoinfo)
-        weather <- NaturalConditions.weather(datetime, geoinfo)
-      } yield Condition(moon, tide, weather)
-    }
     implicit val json = Json.format[Condition]
-  }
-  case class ValueUnit(value: Double, unit: String) {
-    def tupled = (value, unit)
-  }
-  object ValueUnit {
-    implicit val valueunitFormat = Json.format[ValueUnit]
-    def tupled(t: (Double, String)) = ValueUnit(t._1, t._2)
   }
   case class Photo(
     original: String,
@@ -71,10 +47,20 @@ object Report {
   case class Fishes(
     name: String,
     count: Int,
-    weight: Option[ValueUnit] = None,
-    length: Option[ValueUnit] = None) {
+    weight: Option[ValueUnit.Weight] = None,
+    length: Option[ValueUnit.Length] = None) {
   }
   object Fishes {
+    object SizeValue {
+      implicit val json = Json.format[SizeValue]
+    }
+    case class SizeValue(weight: Option[ValueUnit.Weight], length: Option[ValueUnit.Length]) {
+      override def toString = List(weight, length).flatten.map(_.toString) match {
+        case Nil  => ""
+        case list => list.mkString(", ")
+      }
+      lazy val asJson = Json toJson this
+    }
     implicit val catchesFormat = Json.format[Fishes]
   }
   implicit val reportFormat = Json.format[Report]

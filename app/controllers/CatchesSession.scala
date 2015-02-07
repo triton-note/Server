@@ -1,20 +1,16 @@
 package controllers
 
-import scala.annotation.tailrec
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
-import scalaz.Scalaz._
-
 import play.api.Logger
-import play.api.libs.functional.syntax._
+import play.api.libs.concurrent.Execution.Implicits.defaultContext
 import play.api.libs.json._
-import play.api.mvc.{ Action, Controller, Result }
+import play.api.libs.json.Json.toJsFieldJsValueWrapper
+import play.api.mvc.{ Action, Controller }
 
 import models.{ GeoInfo, Report, Settings, Storage, Upload }
-import models.db.{ CatchReport, FishSize, Image, Photo, User, VolatileToken }
-import service.Facebook
-import service.InferenceCatches
+import models.db.{ CatchReport, Image, Photo, VolatileToken }
+import service.{ Facebook, InferenceCatches }
 
 object CatchesSession extends Controller {
   object SessionValue {
@@ -112,7 +108,7 @@ object CatchesSession extends Controller {
             imageId <- value.imageId
             image <- Image get imageId
           } yield {
-            val report = CatchReport.addNew(user, given.location.geoinfo, given.location.name, given.dateAt, given.condition.asJson)
+            val report = CatchReport.addNew(user, given.location.geoinfo, given.location.name, given.dateAt, given.condition)
             val photo = Photo.addNew(report, image)
             val comment = report.addComment(given.comment)(user)
             val photos = given.fishes.map(_ add photo)

@@ -1,6 +1,5 @@
 package service
 
-import scala.collection.JavaConversions._
 import scala.concurrent.duration.DurationInt
 
 import play.api.Logger

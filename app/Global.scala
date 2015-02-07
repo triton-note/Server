@@ -1,9 +1,9 @@
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 
 import play.api.{ Application, Logger }
 import play.api.libs.concurrent.Akka
+import play.api.libs.concurrent.Execution.Implicits.defaultContext
 import play.api.mvc.{ Filter, RequestHeader, Result, WithFilters }
 
 import models.db.VolatileToken

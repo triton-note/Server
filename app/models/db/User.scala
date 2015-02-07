@@ -4,43 +4,43 @@ import scala.collection.JavaConversions._
 
 import com.amazonaws.services.dynamodbv2.model._
 
+import models.ValueUnit
+
 case class User(MAP: Map[String, AttributeValue]) extends TimestampedTable.ObjType[User] {
   val TABLE = User
 
   lazy val name: String = build(_.name)
-  lazy val lengthUnit: String = build(_.lengthUnit)
-  lazy val weightUnit: String = build(_.weightUnit)
+  lazy val measureUnit: ValueUnit.Measures = build(_.measureUnit)
   /**
    * Change properties (like a copy) and update Database
    */
   def update(
     name: String = this.name,
-    lengthUnit: String = this.lengthUnit,
-    weightUnit: String = this.weightUnit): Option[User] = {
+    measureUnit: ValueUnit.Measures = this.measureUnit): Option[User] = {
     val map = List(
       diff(_.name, name),
-      diff(_.lengthUnit, lengthUnit),
-      diff(_.weightUnit, weightUnit)
+      diff(_.measureUnit, measureUnit)
     ).flatten.toMap
     TABLE.update(id, map)
   }
 }
 object User extends AutoIDTable[User]("USER") {
   val name = Column[String]("NAME", (_.name), (_.getString.get), attrString)
-  val lengthUnit = Column[String]("LENGTH_UNIT", (_.lengthUnit), (_.getString.get), attrString)
-  val weightUnit = Column[String]("WEIGHT_UNIT", (_.weightUnit), (_.getString.get), attrString)
+  val measureUnit = Column[ValueUnit.Measures]("MEASURE_UNIT", (_.measureUnit), (_.getJson.get.as[ValueUnit.Measures]), (_.asJson))
   // All columns
-  val columns = List(name, lengthUnit, weightUnit)
+  val columns = List(name, measureUnit)
   /**
    * Add new user
    */
   def addNew(theName: String,
-    theLengthUnit: String = "cm",
-    theWeightUnit: String = "kg"): User = {
+    theMeasureUnit: ValueUnit.Measures = ValueUnit.Measures(
+      ValueUnit.Length.Measure.CM,
+      ValueUnit.Weight.Measure.KG,
+      ValueUnit.Temperature.Measure.Cels
+    )): User = {
     addNew(
       name(theName),
-      lengthUnit(theLengthUnit),
-      weightUnit(theWeightUnit)
+      measureUnit(theMeasureUnit)
     )
   }
 }
