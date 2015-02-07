@@ -21,26 +21,6 @@ object Report {
   case class Condition(moon: Int, tide: Condition.Tide.Value, weather: Option[Condition.Weather]) {
     lazy val asJson = Json toJson this
   }
-
-  trait ValueUnit[U] {
-    val value: Double
-    val unit: U
-    override def toString: String = f"${value}%1.1f${unit}"
-  }
-  object ValueUnit {
-    case class LengthValue(value: Double, unit: MeasureUnit.Length.Value) extends ValueUnit[MeasureUnit.Length.Value]
-    object LengthValue {
-      implicit val json = Json.format[LengthValue]
-    }
-    case class WeightValue(value: Double, unit: MeasureUnit.Weight.Value) extends ValueUnit[MeasureUnit.Weight.Value]
-    object WeightValue {
-      implicit val json = Json.format[WeightValue]
-    }
-    case class TemperatureValue(value: Double, unit: MeasureUnit.Temperature.Value) extends ValueUnit[MeasureUnit.Temperature.Value]
-    object TemperatureValue {
-      implicit val json = Json.format[TemperatureValue]
-    }
-  }
   object Condition {
     object Tide extends Enumeration {
       val Flood = Value("Flood")
@@ -51,7 +31,7 @@ object Report {
         (__).read[String].map(Tide.withName),
         Writes { (t: Tide.Value) => JsString(t.toString) })
     }
-    case class Weather(name: String, temperature: ValueUnit.TemperatureValue, iconUrl: String)
+    case class Weather(name: String, temperature: ValueUnit.Temperature, iconUrl: String)
     object Weather {
       implicit val weatherFormat = Json.format[Weather]
     }
@@ -67,14 +47,14 @@ object Report {
   case class Fishes(
     name: String,
     count: Int,
-    weight: Option[ValueUnit.WeightValue] = None,
-    length: Option[ValueUnit.LengthValue] = None) {
+    weight: Option[ValueUnit.Weight] = None,
+    length: Option[ValueUnit.Length] = None) {
   }
   object Fishes {
     object SizeValue {
       implicit val json = Json.format[SizeValue]
     }
-    case class SizeValue(weight: Option[ValueUnit.WeightValue], length: Option[ValueUnit.LengthValue]) {
+    case class SizeValue(weight: Option[ValueUnit.Weight], length: Option[ValueUnit.Length]) {
       override def toString = List(weight, length).flatten.map(_.toString) match {
         case Nil  => ""
         case list => list.mkString(", ")

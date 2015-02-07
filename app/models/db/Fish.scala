@@ -4,8 +4,8 @@ import scala.collection.JavaConversions._
 
 import com.amazonaws.services.dynamodbv2.model._
 
-import models.Report.ValueUnit.{ LengthValue, WeightValue }
 import models.Report.Fishes.SizeValue
+import models.ValueUnit.{ Length, Weight }
 
 case class FishSize(MAP: Map[String, AttributeValue]) extends TimestampedTable.ObjType[FishSize] {
   val TABLE = FishSize
@@ -26,7 +26,7 @@ object FishSize extends AutoIDTable[FishSize]("FISH_SIZE") {
    * Add new fish size
    */
   def addNew(thePhoto: Photo, theName: String, theCount: Long,
-    theWeight: Option[WeightValue] = None, theLength: Option[LengthValue] = None): FishSize = addNew(
+    theWeight: Option[Weight] = None, theLength: Option[Length] = None): FishSize = addNew(
     photo(Option(thePhoto)),
     name(theName),
     count(theCount),
