@@ -4,19 +4,19 @@ import scala.collection.JavaConversions._
 
 import com.amazonaws.services.dynamodbv2.model._
 
-import models.MeasureUnit
+import models.ValueUnit
 
 case class User(MAP: Map[String, AttributeValue]) extends TimestampedTable.ObjType[User] {
   val TABLE = User
 
   lazy val name: String = build(_.name)
-  lazy val measureUnit: MeasureUnit = build(_.measureUnit)
+  lazy val measureUnit: ValueUnit.Measures = build(_.measureUnit)
   /**
    * Change properties (like a copy) and update Database
    */
   def update(
     name: String = this.name,
-    measureUnit: MeasureUnit = this.measureUnit): Option[User] = {
+    measureUnit: ValueUnit.Measures = this.measureUnit): Option[User] = {
     val map = List(
       diff(_.name, name),
       diff(_.measureUnit, measureUnit)
@@ -26,17 +26,17 @@ case class User(MAP: Map[String, AttributeValue]) extends TimestampedTable.ObjTy
 }
 object User extends AutoIDTable[User]("USER") {
   val name = Column[String]("NAME", (_.name), (_.getString.get), attrString)
-  val measureUnit = Column[MeasureUnit]("MEASURE_UNIT", (_.measureUnit), (_.getJson.get.as[MeasureUnit]), { v => attrJson(v.asJson) })
+  val measureUnit = Column[ValueUnit.Measures]("MEASURE_UNIT", (_.measureUnit), (_.getJson.get.as[ValueUnit.Measures]), (_.asJson))
   // All columns
   val columns = List(name, measureUnit)
   /**
    * Add new user
    */
   def addNew(theName: String,
-    theMeasureUnit: MeasureUnit = MeasureUnit(
-      MeasureUnit.Length.CM,
-      MeasureUnit.Weight.KG,
-      MeasureUnit.Temperature.Cels
+    theMeasureUnit: ValueUnit.Measures = ValueUnit.Measures(
+      ValueUnit.Length.Measure.CM,
+      ValueUnit.Weight.Measure.KG,
+      ValueUnit.Temperature.Measure.Cels
     )): User = {
     addNew(
       name(theName),

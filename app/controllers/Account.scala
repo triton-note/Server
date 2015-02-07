@@ -11,7 +11,7 @@ import play.api.mvc.{ Action, Controller }
 
 import org.fathens.play.util.Exception.allCatch
 
-import models.{ MeasureUnit, Settings }
+import models.{ ValueUnit, Settings }
 import models.db.{ SocialConnection, VolatileToken }
 import service.{ Facebook, GooglePlus }
 
@@ -126,7 +126,7 @@ object Account extends Controller {
   }
 
   def changeUnit(ticket: String) = Action.async(parse.json(
-    (__).read[MeasureUnit]
+    (__).read[ValueUnit.Measures]
   )) { implicit request =>
     Future {
       ticket.asTokenOfUser[TicketValue] match {

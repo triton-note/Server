@@ -53,8 +53,8 @@ package object controllers {
     } yield (vt, value, user)
   }
   implicit class FishDB(fish: Report.Fishes) {
-    def same(o: FishSize): Boolean = o.name == fish.name && o.count == fish.count && o.length == fish.length.map(_.tupled) && o.weight == fish.weight.map(_.tupled)
-    def add(photo: Photo): FishSize = FishSize.addNew(photo, fish.name, fish.count, fish.weight.map(_.tupled), fish.length.map(_.tupled))
+    def same(o: FishSize): Boolean = o.name == fish.name && o.count == fish.count && o.size.length == fish.length && o.size.weight == fish.weight
+    def add(photo: Photo): FishSize = FishSize.addNew(photo, fish.name, fish.count, fish.weight, fish.length)
   }
   implicit class PhotoFile(file: Storage.S3File) {
     def asPhoto: Option[Photos] = {
