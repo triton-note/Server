@@ -38,7 +38,7 @@ object CatchReport extends AutoIDTable[CatchReport]("CATCH_REPORT") {
   val user = Column[Option[User]]("USER", (_.user), (_.get(User)), attrObjID)
   val timestamp = Column[Date]("TIMESTAMP", (_.timestamp), (_.getDate.get), attrDate)
   val location = Column[String]("LOCATION", (_.location), (_.getString.get), attrString)
-  val condition = Column[Report.Condition]("CONDITION", (_.condition), (_.getJson.get.as[Report.Condition]), { v => attrJson(v.asJson) })
+  val condition = Column[Report.Condition]("CONDITION", (_.condition), (_.getJson.get.as[Report.Condition]), (_.asJson))
   val latitude = Column[Double]("LATITUDE", (_.geoinfo.latitude.toDouble), (_.getDouble.get), attrDouble)
   val longitude = Column[Double]("LONGITUDE", (_.geoinfo.longitude.toDouble), (_.getDouble.get), attrDouble)
   // All columns

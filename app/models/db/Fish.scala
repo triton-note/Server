@@ -19,7 +19,7 @@ object FishSize extends AutoIDTable[FishSize]("FISH_SIZE") {
   val photo = Column[Option[Photo]]("PHOTO", (_.photo), (_.get(Photo)), attrObjID)
   val name = Column[String]("NAME", (_.name), (_.getString.get), attrString)
   val count = Column[Long]("COUNT", (_.count), (_.getLong.get), attrLong)
-  val size = Column[SizeValue]("SIZE", (_.size), (_.getJson.get.as[SizeValue]), { v => attrJson(v.asJson) })
+  val size = Column[SizeValue]("SIZE", (_.size), (_.getJson.get.as[SizeValue]), (_.asJson))
   // All columns
   val columns = List(photo, name, count, size)
   /**

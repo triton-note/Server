@@ -26,7 +26,7 @@ case class User(MAP: Map[String, AttributeValue]) extends TimestampedTable.ObjTy
 }
 object User extends AutoIDTable[User]("USER") {
   val name = Column[String]("NAME", (_.name), (_.getString.get), attrString)
-  val measureUnit = Column[ValueUnit.Measures]("MEASURE_UNIT", (_.measureUnit), (_.getJson.get.as[ValueUnit.Measures]), { v => attrJson(v.asJson) })
+  val measureUnit = Column[ValueUnit.Measures]("MEASURE_UNIT", (_.measureUnit), (_.getJson.get.as[ValueUnit.Measures]), (_.asJson))
   // All columns
   val columns = List(name, measureUnit)
   /**
