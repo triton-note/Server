@@ -13,17 +13,16 @@ import play.api.mvc.RequestHeader
 
 import org.fathens.play.util.Exception.allCatch
 
-import models.Settings
 import models.db.{ CatchReport, Photo, SocialConnection, User => UserDB }
 
 object Facebook {
   case class AccessKey(token: String)
   case class ObjectId(id: String)
-  lazy val appName = System.getenv("FACEBOOK_APP_NAME")
-  lazy val actionName = System.getenv("FACEBOOK_CATCH_ACTION")
-  lazy val objectName = System.getenv("FACEBOOK_CATCH_OBJECT")
+  lazy val appName = Settings.FACEBOOK_APP_NAME
+  lazy val actionName = Settings.FACEBOOK_CATCH_ACTION
+  lazy val objectName = Settings.FACEBOOK_CATCH_OBJECT
   object fb {
-    lazy val host = System.getenv("FACEBOOK_HOST")
+    lazy val host = Settings.FACEBOOK_HOST
     val client = WS.client
     def /(path: String) = client url f"${host}/${path}"
   }

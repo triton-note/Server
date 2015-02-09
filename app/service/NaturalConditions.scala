@@ -27,9 +27,9 @@ import models.Report.Condition.{ Tide, Weather }
 
 object NaturalConditions {
   object OpenWeatherMap {
-    lazy val URL = System.getenv("OPENWEATHERMAP_URL")
-    lazy val API_KEY = System.getenv("OPENWEATHERMAP_APPID")
-    lazy val ICON = System.getenv("OPENWEATHERMAP_ICON_URL")
+    lazy val URL = Settings.OPENWEATHERMAP_URL
+    lazy val API_KEY = Settings.OPENWEATHERMAP_APPID
+    lazy val ICON = Settings.OPENWEATHERMAP_ICON_URL
     def icon(id: String) = f"${ICON}/${id}.png"
 
     /**

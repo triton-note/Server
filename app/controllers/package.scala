@@ -6,8 +6,9 @@ import org.fathens.play.util.Exception.allCatch
 
 import com.sksamuel.scrimage.{ Format, Image => ScrImage }
 
-import models.{ Report, Settings, Storage }
+import models.{ Report, Storage }
 import models.db.{ FishSize, Image, ImageRelation, Photo, User, VolatileToken }
+import service.Settings
 
 package object controllers {
   object TicketValue {
