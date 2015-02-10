@@ -5,3 +5,8 @@ build:
             name: test
             code: |-
                 sbt test
+deploy:
+    steps:
+        - sawatani/playframework-aws_eb@0.1.0:
+            application_name: TritonNote
+

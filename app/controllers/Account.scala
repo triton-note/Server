@@ -11,9 +11,9 @@ import play.api.mvc.{ Action, Controller }
 
 import org.fathens.play.util.Exception.allCatch
 
-import models.{ ValueUnit, Settings }
+import models.ValueUnit
 import models.db.{ SocialConnection, VolatileToken }
-import service.{ Facebook, GooglePlus }
+import service.{ Facebook, GooglePlus, Settings }
 
 object Account extends Controller {
   object Way {

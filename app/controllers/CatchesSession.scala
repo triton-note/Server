@@ -8,9 +8,9 @@ import play.api.libs.json._
 import play.api.libs.json.Json.toJsFieldJsValueWrapper
 import play.api.mvc.{ Action, Controller }
 
-import models.{ GeoInfo, Report, Settings, Storage, Upload }
+import models.{ GeoInfo, Report, Storage, Upload }
 import models.db.{ CatchReport, Image, Photo, VolatileToken }
-import service.{ Facebook, InferenceCatches }
+import service.{ Facebook, InferenceCatches, Settings }
 
 object CatchesSession extends Controller {
   object SessionValue {

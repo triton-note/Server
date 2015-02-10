@@ -15,8 +15,8 @@ import com.google.api.services.plus.model.{ ItemScope, Moment, Person }
 import models.db.{ Image, Photo, SocialConnection, User }
 
 object GooglePlus {
-  val applicationName = System.getenv("GOOGLEPLUS_APPLICATION_NAME")
-  val apiKey = System.getenv("GOOGLEPLUS_API_KEY")
+  val applicationName = Settings.GOOGLEPLUS_APPLICATION_NAME
+  val apiKey = Settings.GOOGLEPLUS_API_KEY
 
   object ActivityTypes {
     val AddActivity = "https://schemas.google.com/AddActivity"
