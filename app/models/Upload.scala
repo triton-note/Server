@@ -11,7 +11,7 @@ import play.api.libs.json.Json.toJsFieldJsValueWrapper
 
 import org.apache.commons.codec.binary.Base64
 
-import service.AWS
+import service.{ AWS, Settings }
 
 object Upload {
   case class Start(

@@ -5,14 +5,14 @@ import scala.concurrent.Future
 import play.api.libs.concurrent.Execution.Implicits.defaultContext
 import play.api.mvc.{ Action, Controller }
 
-import models.Settings
 import models.db.{ CatchReport, FishSize, Photo }
+import service.Settings
 
 object ModelView extends Controller {
-  val appId = System.getenv("FACEBOOK_APP_ID")
-  val appName = System.getenv("FACEBOOK_APP_NAME")
-  val actionName = System.getenv("FACEBOOK_CATCH_ACTION")
-  val objectName = System.getenv("FACEBOOK_CATCH_OBJECT")
+  val appId = Settings.FACEBOOK_APP_ID
+  val appName = Settings.FACEBOOK_APP_NAME
+  val actionName = Settings.FACEBOOK_CATCH_ACTION
+  val objectName = Settings.FACEBOOK_CATCH_OBJECT
 
   def catchReport(id: String) = Action.async { implicit request =>
     def qs(key: String) = request.queryString.get(key).toSeq.flatten.headOption
