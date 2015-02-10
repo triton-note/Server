@@ -6,7 +6,7 @@ object AWS {
   lazy val region = Settings.AWS_REGION
   lazy val credential = {
     val id = Settings.AWS_ACCESS_KEY_ID
-    val key = Settings.AWS_SECRET_ACCESS_KEY
+    val key = Settings.AWS_SECRET_KEY
     new BasicAWSCredentials(id, key)
   }
   object DynamoDB {
@@ -27,7 +27,7 @@ object AWS {
     object ClientSide {
       lazy val targetUrl = f"https://${bucketName}.s3.amazonaws.com/"
       lazy val accessKey = Settings.AWS_ACCESS_KEY_ID_CLIENTSIDE
-      lazy val seacretKey = Settings.AWS_SECRET_ACCESS_KEY_CLIENTSIDE
+      lazy val seacretKey = Settings.AWS_SECRET_KEY_CLIENTSIDE
       val acl = "bucket-owner-full-control"
     }
   }
