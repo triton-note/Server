@@ -1,4 +1,4 @@
-box: sawatani/sbt_java8@0.1.1
+box: sawatani/sbt_java8
 build:
     steps:
         - script:
@@ -7,5 +7,5 @@ build:
                 sbt test
 deploy:
     steps:
-        - sawatani/playframework-aws_eb@0.2.1
+        - sawatani/playframework-aws_eb
 
