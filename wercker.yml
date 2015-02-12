@@ -1,4 +1,4 @@
-box: sawatani/SBT_OpenJDK
+box: takebayashi/sbt
 build:
     steps:
         - script:
