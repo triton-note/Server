@@ -1,3 +1,5 @@
+GET    /                                 controllers.Default.redirect(to = "http://www.fathens.org/triton-note.html")
+
 GET    /assets/*file                     controllers.Assets.at(path="/public", file)
 
 # Login
