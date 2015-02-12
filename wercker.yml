@@ -5,6 +5,9 @@ build:
             name: test
             code: |-
                 sbt test
+    after-steps:
+        - fly1tkg/github-build-notify@0.0.2:
+            token: $GITHUB_STATUS_TOKEN
 deploy:
     steps:
         - sawatani/playframework-aws_eb
