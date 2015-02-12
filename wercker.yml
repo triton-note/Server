@@ -1,4 +1,4 @@
-box: sawatani/sbt_java8
+box: sawatani/SBT_OpenJDK
 build:
     steps:
         - script:
