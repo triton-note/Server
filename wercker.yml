@@ -10,5 +10,11 @@ build:
             token: $GITHUB_STATUS_TOKEN
 deploy:
     steps:
-        - sawatani/playframework-aws_eb
+        - sawatani/playframework-aws_eb:
+            java_opts: $JAVA_OPTS
+            region: $AWS_REGION
+            application-name: $APPLICATION_NAME
+            environment-name: $ENVIRONMENT_NAME
+            access-key: $AWS_ACCESS_KEY_ID
+            secret-key: $AWS_SECRET_KEY
 
