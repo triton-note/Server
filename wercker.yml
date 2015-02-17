@@ -5,6 +5,10 @@ build:
             name: test
             code: |-
                 sbt test
+        - script:
+            name: packaging
+            code: |-
+                sbt dist
     after-steps:
         - fly1tkg/github-build-notify@0.0.2:
             token: $GITHUB_STATUS_TOKEN
