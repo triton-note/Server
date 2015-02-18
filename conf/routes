@@ -12,7 +12,8 @@ POST   /report/new-session/:ticket       controllers.CatchesSession.start(ticket
 POST   /report/photo/:session            controllers.CatchesSession.photo(session: String)
 GET    /report/infer/:session            controllers.CatchesSession.infer(session: String)
 POST   /report/submit/:session           controllers.CatchesSession.submit(session: String)
-POST   /report/publish/:session          controllers.CatchesSession.publish(session: String)
+
+POST   /report/publish/:ticket           controllers.ReportSync.publish(ticket: String)
 
 # Report loading
 POST   /report/load/:ticket              controllers.ReportSync.load(ticket: String)
