@@ -13,7 +13,7 @@ POST   /report/photo/:session            controllers.CatchesSession.photo(sessio
 GET    /report/infer/:session            controllers.CatchesSession.infer(session: String)
 POST   /report/submit/:session           controllers.CatchesSession.submit(session: String)
 
-GET    /report/publish/:ticket           controllers.ReportSync.publish(ticket: String)
+POST   /report/publish/:ticket           controllers.ReportSync.publish(ticket: String)
 
 # Report loading
 POST   /report/load/:ticket              controllers.ReportSync.load(ticket: String)
