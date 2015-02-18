@@ -56,8 +56,8 @@ object ModelView extends Controller {
           "og:type" -> "place",
           "og:url" -> routes.ModelView.spot(id).absoluteURL(request.secure),
           "og:title" -> report.location,
-          "place:location:latitude" -> report.geoinfo.latitude.toString,
-          "place:location:longitude" -> report.geoinfo.longitude.toString
+          "place:location:latitude" -> f"${report.geoinfo.latitude.toDouble}%3.10f",
+          "place:location:longitude" -> f"${report.geoinfo.longitude.toDouble}%3.10f"
         )
         Ok(views.html.spot(report.location, report.geoinfo, props))
       }
