@@ -54,11 +54,16 @@ object ReportSync extends Controller {
     ticket.asTokenOfUser[TicketValue] match {
       case None => Future(TicketExpired)
       case Some((vt, value, user)) => Future {
-        CatchReport.get(id).flatMap(convert) match {
+        CatchReport.get(id) match {
           case None => BadRequest(f"Report NotFound: ${id}")
-          case Some(report) => Ok {
-            Json.obj(
-              "report" -> report)
+          case Some(cr) => if (cr.user.map(_.id != user.id) getOrElse true)
+            BadRequest(f"report(${cr.id}) is not owned by user(${user.id})")
+          else convert(cr) match {
+            case None => BadRequest(f"Failed to convert report: ${id}")
+            case Some(report) => Ok {
+              Json.obj(
+                "report" -> report)
+            }
           }
         }
       }
@@ -76,43 +81,44 @@ object ReportSync extends Controller {
         case Some((vt, value, user)) =>
           report.id.flatMap(CatchReport.get) match {
             case None => BadRequest(f"Invalid id: ${report.id.orNull}")
-            case Some(src) =>
-              CatchReport.update(src.id, List(
-                src.diff(_.timestamp, report.dateAt),
-                src.diff(_.location, report.location.name),
-                src.diff(_.condition, report.condition),
-                src.diff(_.latitude, report.location.geoinfo.latitude.toDouble),
-                src.diff(_.longitude, report.location.geoinfo.longitude.toDouble)
-              ).flatten.toMap) match {
-                case None => InternalServerError("Failed to update report")
-                case Some(doneCR) =>
-                  doneCR.topComment.flatMap { comment =>
-                    Comment.update(comment.id, List(
-                      comment.diff(_.text, report.comment)
-                    ).flatten.toMap)
-                  }
-                  Photo.findBy(doneCR) match {
-                    case thePhoto :: Nil =>
-                      def reduce(left: List[FishSize], adding: List[Report.Fishes], deleting: List[FishSize] = Nil): (List[FishSize], List[Report.Fishes]) = left match {
-                        case Nil => (deleting, adding)
-                        case fish :: next => adding.partition(_ same fish) match {
-                          case (Nil, nextAdding) => reduce(next, nextAdding, fish :: deleting)
-                          case (_, nextAdding)   => reduce(next, nextAdding, deleting)
-                        }
+            case Some(src) => if (src.user.map(_.id != user.id) getOrElse true)
+              BadRequest(f"report(${report.id}) is not owned by user(${user.id})")
+            else CatchReport.update(src.id, List(
+              src.diff(_.timestamp, report.dateAt),
+              src.diff(_.location, report.location.name),
+              src.diff(_.condition, report.condition),
+              src.diff(_.latitude, report.location.geoinfo.latitude.toDouble),
+              src.diff(_.longitude, report.location.geoinfo.longitude.toDouble)
+            ).flatten.toMap) match {
+              case None => InternalServerError("Failed to update report")
+              case Some(doneCR) =>
+                doneCR.topComment.flatMap { comment =>
+                  Comment.update(comment.id, List(
+                    comment.diff(_.text, report.comment)
+                  ).flatten.toMap)
+                }
+                Photo.findBy(doneCR) match {
+                  case thePhoto :: Nil =>
+                    def reduce(left: List[FishSize], adding: List[Report.Fishes], deleting: List[FishSize] = Nil): (List[FishSize], List[Report.Fishes]) = left match {
+                      case Nil => (deleting, adding)
+                      case fish :: next => adding.partition(_ same fish) match {
+                        case (Nil, nextAdding) => reduce(next, nextAdding, fish :: deleting)
+                        case (_, nextAdding)   => reduce(next, nextAdding, deleting)
                       }
-                      reduce(FishSize.findBy(thePhoto), report.fishes.toList) match {
-                        case (dbFish, rpFish) =>
-                          val dones = List(
-                            dbFish.par.map(_.delete).filter(_ == true),
-                            rpFish.par.map(_ add thePhoto)
-                          ).par.map(_.size)
-                          Logger info f"Update ${FishSize.tableName}: ${dones(0)} deleted, ${dones(1)} added"
-                          Ok
-                      }
-                    case Nil  => InternalServerError(f"Not Found photo for ${doneCR}")
-                    case many => InternalServerError(f"Too Many photo for ${doneCR}: ${many}")
-                  }
-              }
+                    }
+                    reduce(FishSize.findBy(thePhoto), report.fishes.toList) match {
+                      case (dbFish, rpFish) =>
+                        val dones = List(
+                          dbFish.par.map(_.delete).filter(_ == true),
+                          rpFish.par.map(_ add thePhoto)
+                        ).par.map(_.size)
+                        Logger info f"Update ${FishSize.tableName}: ${dones(0)} deleted, ${dones(1)} added"
+                        Ok
+                    }
+                  case Nil  => InternalServerError(f"Not Found photo for ${doneCR}")
+                  case many => InternalServerError(f"Too Many photo for ${doneCR}: ${many}")
+                }
+            }
           }
       }
     }
@@ -129,7 +135,9 @@ object ReportSync extends Controller {
         case Some((vt, value, user)) =>
           CatchReport.get(id) match {
             case None => BadRequest(f"Invalid report-id: ${id}")
-            case Some(cr) => Photo.findBy(cr) match {
+            case Some(cr) => if (cr.user.map(_.id != user.id) getOrElse true)
+              BadRequest(f"report(${id}) is not owned by user(${user.id})")
+            else Photo.findBy(cr) match {
               case thePhoto :: Nil => thePhoto.image match {
                 case None => InternalServerError(f"Not Found image for ${thePhoto}")
                 case Some(theImage) =>
@@ -155,18 +163,21 @@ object ReportSync extends Controller {
     Future {
       ticket.asTokenOfUser[TicketValue] match {
         case None => Future(TicketExpired)
-        case Some((vt, value, user)) => CatchReport get reportId match {
-          case None => Future(BadRequest(f"Invalid report-id: ${reportId}"))
-          case Some(report) => way match {
-            case "facebook" =>
-              implicit val key = Facebook.AccessKey(token)
-              Facebook.Report.publish(report).map(_ match {
-                case Some(id) => Ok
-                case None     => InternalServerError(f"Failed to publish to ${way}")
-              })
-            case _ => Future(NotImplemented(f"No way for Publishing '${way}'"))
+        case Some((vt, value, user)) =>
+          CatchReport get reportId match {
+            case None => Future(BadRequest(f"Invalid report-id: ${reportId}"))
+            case Some(report) => if (report.user.map(_.id != user.id) getOrElse true)
+              Future(BadRequest(f"report(${reportId}) is not owned by user(${user.id})"))
+            else way match {
+              case "facebook" =>
+                implicit val key = Facebook.AccessKey(token)
+                Facebook.Report.publish(report).map(_ match {
+                  case Some(id) => Ok
+                  case None     => InternalServerError(f"Failed to publish to ${way}")
+                })
+              case _ => Future(NotImplemented(f"No way for Publishing '${way}'"))
+            }
           }
-        }
       }
     }.flatMap(identity)
   }
