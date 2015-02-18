@@ -118,7 +118,7 @@ object Facebook {
   object Report {
     def publish(report: CatchReport)(implicit accessKey: AccessKey, request: RequestHeader): Future[Option[ObjectId]] = {
       def model(f: controllers.routes.ModelView.type => play.api.mvc.Call) =
-        Seq(f(controllers.routes.ModelView).absoluteURL(request.secure))
+        Seq(f(controllers.routes.ModelView).absoluteURL(true))
       val params = {
         val images = Photo.findBy(report).flatMap(_.image)
         Map(
