@@ -15,7 +15,7 @@ class IntegrationSpec extends Specification {
 """
   def a1 = {
     running(TestServer(3333), HTMLUNIT) { browser =>
-      browser.goTo("http://localhost:3333/")
+      browser.goTo("http://localhost:3333/boum")
       browser.pageSource must contain("Action not found")
     }
   }

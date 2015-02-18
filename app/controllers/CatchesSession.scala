@@ -10,22 +10,17 @@ import play.api.mvc.{ Action, Controller }
 
 import models.{ GeoInfo, Report, Storage, Upload }
 import models.db.{ CatchReport, Image, Photo, VolatileToken }
-import service.{ Facebook, InferenceCatches, Settings }
+import service.{ InferenceCatches, Settings }
 
 object CatchesSession extends Controller {
   object SessionValue {
-    case class Publishing(way: String, token: String)
-    object Publishing {
-      implicit val publishingFormat = Json.format[Publishing]
-    }
     implicit val sessionOptionFormat = Json.format[SessionValue]
   }
   case class SessionValue(
     userId: String,
     geoinfo: Option[GeoInfo],
     imageId: Option[String] = None,
-    committed: Option[String] = None,
-    publishing: Option[SessionValue.Publishing] = None) {
+    committed: Option[String] = None) {
     override def toString = Json.toJson(this).toString
   }
   def mkFolder(session: String) = List("photo", Image.Kind.ORIGINAL.toString, session).mkString("/")
@@ -120,32 +115,5 @@ object CatchesSession extends Controller {
           ok getOrElse BadRequest("Any image is not saved yet")
       }
     }
-  }
-
-  def publish(session: String) = Action.async(parse.json(
-    (__ \ "publishing").read[SessionValue.Publishing]
-  )) { implicit request =>
-    val publish = request.body
-    Future {
-      session.asTokenOfUser[SessionValue] match {
-        case None => Future(SessionExpired)
-        case Some((vt, value, user)) =>
-          val ok = for {
-            reportId <- value.committed
-            report <- CatchReport get reportId
-          } yield {
-            publish.way match {
-              case "facebook" =>
-                implicit val key = Facebook.AccessKey(publish.token)
-                Facebook.Report.publish(report).map(_ match {
-                  case Some(id) => Ok
-                  case None     => InternalServerError(f"Failed to publish to ${publish.way}")
-                })
-              case _ => Future(NotImplemented(f"No way for Publishing '${publish.way}'"))
-            }
-          }
-          ok getOrElse Future(BadRequest("Image or Report is not submitted yet"))
-      }
-    }.flatMap(identity)
   }
 }

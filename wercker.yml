@@ -1,12 +1,25 @@
-box: sawatani/sbt_java8@0.1.1
+box: sawatani/SBT_OpenJDK7
 build:
     steps:
         - script:
             name: test
             code: |-
                 sbt test
+        - script:
+            name: packaging
+            code: |-
+                sbt dist
+    after-steps:
+        - fly1tkg/github-build-notify@0.0.2:
+            token: $GITHUB_STATUS_TOKEN
 deploy:
     steps:
-        - sawatani/playframework-aws_eb@0.1.0:
-            application_name: TritonNote
+        - sawatani/playframework-aws_eb:
+            java_version: 7
+            java_opts: $JAVA_OPTS
+            region: $AWS_REGION
+            application-name: $APPLICATION_NAME
+            environment-name: $ENVIRONMENT_NAME
+            access-key: $AWS_ACCESS_KEY_ID
+            secret-key: $AWS_SECRET_KEY
 

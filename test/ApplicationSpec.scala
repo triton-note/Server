@@ -13,14 +13,10 @@ import play.api.test.Helpers._
 class ApplicationSpec extends Specification {
   def is = s2"""
   異常な Request には 404 を返す             $e1
-  トップページはない                         $t1
   
   """
 
   def e1 = running(FakeApplication()) {
     route(FakeRequest(GET, "/boum")) must beNone
-  }
-  def t1 = running(FakeApplication()) {
-    route(FakeRequest(GET, "/")) must beNone
   }
 }
