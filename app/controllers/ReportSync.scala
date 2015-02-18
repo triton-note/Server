@@ -11,6 +11,7 @@ import play.api.mvc.{ Action, Controller }
 
 import models.Report
 import models.db.{ CatchReport, Comment, FishSize, Photo }
+import service.Facebook
 
 object ReportSync extends Controller {
 
@@ -143,5 +144,30 @@ object ReportSync extends Controller {
           }
       }
     }
+  }
+
+  def publish(ticket: String) = Action.async(parse.json((
+    (__ \ "id").read[String] and
+    (__ \ "way").read[String] and
+    (__ \ "token").read[String]
+  ).tupled)) { implicit request =>
+    val (reportId, way, token) = request.body
+    Future {
+      ticket.asTokenOfUser[TicketValue] match {
+        case None => Future(TicketExpired)
+        case Some((vt, value, user)) => CatchReport get reportId match {
+          case None => Future(BadRequest(f"Invalid report-id: ${reportId}"))
+          case Some(report) => way match {
+            case "facebook" =>
+              implicit val key = Facebook.AccessKey(token)
+              Facebook.Report.publish(report).map(_ match {
+                case Some(id) => Ok
+                case None     => InternalServerError(f"Failed to publish to ${way}")
+              })
+            case _ => Future(NotImplemented(f"No way for Publishing '${way}'"))
+          }
+        }
+      }
+    }.flatMap(identity)
   }
 }
