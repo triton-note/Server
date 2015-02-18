@@ -123,20 +123,24 @@ object ReportSync extends Controller {
     val id = request.body
     Logger debug f"Deleting report: id=${id}"
     Future {
-      CatchReport.get(id) match {
-        case None => BadRequest(f"Invalid id: ${id}")
-        case Some(cr) => Photo.findBy(cr) match {
-          case thePhoto :: Nil => thePhoto.image match {
-            case None => InternalServerError(f"Not Found image for ${thePhoto}")
-            case Some(theImage) =>
-              val fishes = FishSize.findBy(thePhoto)
-              val targets = cr :: thePhoto :: theImage :: (fishes: List[{ def delete: Boolean }])
-              Logger debug f"Deleting: ${targets}"
-              if (targets.par.map(_.delete).forall(_ == false)) InternalServerError("Failed to delete any items") else Ok
+      ticket.asTokenOfUser[TicketValue] match {
+        case None => TicketExpired
+        case Some((vt, value, user)) =>
+          CatchReport.get(id) match {
+            case None => BadRequest(f"Invalid report-id: ${id}")
+            case Some(cr) => Photo.findBy(cr) match {
+              case thePhoto :: Nil => thePhoto.image match {
+                case None => InternalServerError(f"Not Found image for ${thePhoto}")
+                case Some(theImage) =>
+                  val fishes = FishSize.findBy(thePhoto)
+                  val targets = cr :: thePhoto :: theImage :: (fishes: List[{ def delete: Boolean }])
+                  Logger debug f"Deleting: ${targets}"
+                  if (targets.par.map(_.delete).forall(_ == false)) InternalServerError("Failed to delete any items") else Ok
+              }
+              case Nil  => InternalServerError(f"Not Found photo for ${cr}")
+              case many => InternalServerError(f"Too Many photo for ${cr}: ${many}")
+            }
           }
-          case Nil  => InternalServerError(f"Not Found photo for ${cr}")
-          case many => InternalServerError(f"Too Many photo for ${cr}: ${many}")
-        }
       }
     }
   }
