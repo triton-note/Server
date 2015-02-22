@@ -1,6 +1,6 @@
 package service
 
-import models.{ GeoInfo, Report, Storage }
+import models.{ GeoInfo, Report }
 
 object InferenceCatches {
   /**

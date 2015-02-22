@@ -5,7 +5,7 @@ import scala.concurrent.duration._
 
 import com.amazonaws.services.dynamodbv2.model._
 
-import models.Storage
+import service.Storage
 
 case class Photo(MAP: Map[String, AttributeValue]) extends TimestampedTable.ObjType[Photo] {
   val TABLE = Photo

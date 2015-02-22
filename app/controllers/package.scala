@@ -8,9 +8,9 @@ import com.drew.imaging.ImageMetadataReader
 import com.drew.metadata.exif.ExifIFD0Directory
 import com.sksamuel.scrimage.{ Format, Image => ScrImage }
 
-import models.{ Report, Storage }
+import models.Report
 import models.db.{ FishSize, Image, ImageRelation, Photo, User, VolatileToken }
-import service.Settings
+import service.{ Settings, Storage }
 
 package object controllers {
   object TicketValue {

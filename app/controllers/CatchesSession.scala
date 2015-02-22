@@ -8,9 +8,9 @@ import play.api.libs.json._
 import play.api.libs.json.Json.toJsFieldJsValueWrapper
 import play.api.mvc.{ Action, Controller }
 
-import models.{ GeoInfo, Report, Storage, Upload }
+import models.{ GeoInfo, Report }
 import models.db.{ CatchReport, Image, Photo, VolatileToken }
-import service.{ InferenceCatches, Settings }
+import service.{ InferenceCatches, Settings, Storage }
 
 object CatchesSession extends Controller {
   object SessionValue {
@@ -38,7 +38,7 @@ object CatchesSession extends Controller {
           val session = VolatileToken.addNew(Settings.Session.timeoutUpload, Option(value.toString))
           Ok(Json.obj(
             "session" -> session.id,
-            "upload" -> Upload.start(mkFolder(session.id))
+            "upload" -> Storage.Upload.start(mkFolder(session.id))
           ))
       }
     }
