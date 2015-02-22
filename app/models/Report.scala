@@ -4,6 +4,8 @@ import java.util.Date
 
 import play.api.libs.json._
 
+import service.Storage.S3File
+
 case class Report(
   id: Option[String],
   comment: String,
@@ -38,9 +40,9 @@ object Report {
     implicit val json = Json.format[Condition]
   }
   case class Photo(
-    original: String,
-    mainview: String,
-    thumbnail: String)
+    original: S3File,
+    mainview: S3File,
+    thumbnail: S3File)
   object Photo {
     implicit val photoFormat = Json.format[Photo]
   }

@@ -22,15 +22,6 @@ package object controllers {
     token: String) {
     override def toString = Json.toJson(this).toString
   }
-  case class Photos(
-    original: Image,
-    mainview: Image,
-    thumbnail: Image) {
-    def asURL = Report.Photo(
-      original.url(Settings.Image.urlExpiration).toString,
-      mainview.url(Settings.Image.urlExpiration).toString,
-      thumbnail.url(Settings.Image.urlExpiration).toString)
-  }
   /**
    * Token に紐付けして保存してある情報を JSON と読み書きする
    */
@@ -60,7 +51,7 @@ package object controllers {
     def add(photo: Photo): FishSize = FishSize.addNew(photo, fish.name, fish.count, fish.weight, fish.length)
   }
   implicit class PhotoFile(file: Storage.S3File) {
-    def asPhoto: Option[Photos] = {
+    def asPhoto: Option[Report.Photo] = {
       def resize(src: Image, image: ScrImage, max: Int, relation: ImageRelation.Relation.Value) = {
         val rotated = allCatch.opt {
           val metadata = ImageMetadataReader.readMetadata(src.file.read)
@@ -89,16 +80,16 @@ package object controllers {
         o <- allCatch opt Image.addNewWithFile(file.path, i.width, i.height)
         m <- allCatch opt resize(o, i, Settings.Image.sizeMainview, ImageRelation.Relation.MAIN_VIEW)
         t <- allCatch opt resize(o, i, Settings.Image.sizeThumbnail, ImageRelation.Relation.THUMBNAIL)
-      } yield Photos(o, m, t)
+      } yield Report.Photo(o.file, m.file, t.file)
     }
   }
   implicit class PhotoGroup(photo: Photo) {
-    def group: Option[Photos] = {
+    def group: Option[Report.Photo] = {
       for {
         o <- photo.image
         m <- ImageRelation.findBy(o, ImageRelation.Relation.MAIN_VIEW).flatMap(_.imageDst).headOption
         t <- ImageRelation.findBy(o, ImageRelation.Relation.THUMBNAIL).flatMap(_.imageDst).headOption
-      } yield Photos(o, m, t)
+      } yield Report.Photo(o.file, m.file, t.file)
     }
   }
 

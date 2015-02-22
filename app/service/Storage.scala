@@ -10,7 +10,7 @@ import scala.concurrent.duration._
 import play.api.Logger
 import play.api.libs.{ Codecs, Crypto }
 import play.api.libs.concurrent.Execution.Implicits.defaultContext
-import play.api.libs.functional.syntax.{ functionalCanBuildApplicative, toFunctionalBuilderOps, unlift }
+import play.api.libs.functional.syntax._
 import play.api.libs.json._
 import play.api.libs.json.Json.toJsFieldJsValueWrapper
 
@@ -29,8 +29,13 @@ object Storage {
   }
   object S3File {
     implicit val photostorageFormat = Format[Storage.S3File](
-      __.read[String].map(Storage file _),
-      Writes(Json toJson _.path)
+      (__ \ "path").read[String].map(Storage file _),
+      Writes { s =>
+        Json.obj(
+          "path" -> s.path,
+          "volatileUrl" -> s.generateURL(Settings.Image.urlExpiration).toString
+        )
+      }
     )
   }
   class S3File(val paths: List[String]) {

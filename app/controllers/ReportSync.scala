@@ -26,7 +26,7 @@ object ReportSync extends Controller {
         cr.timestamp,
         Report.Location(cr.location, cr.geoinfo),
         cr.condition,
-        photo.group.map(_.asURL),
+        photo.group,
         fishes)
     }
   }

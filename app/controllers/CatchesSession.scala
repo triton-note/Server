@@ -56,10 +56,10 @@ object CatchesSession extends Controller {
           case None => SessionExpired
           case Some((vt, value, user)) => file.asPhoto match {
             case None => InternalServerError("Failed to save photo")
-            case Some(photo) => vt json value.copy(imageId = Some(photo.original.id)) match {
+            case Some(photo) => vt json value.copy(imageId = Some(photo.original.path)) match {
               case None => InternalServerError("Failed to save session value")
               case Some(_) => Ok(Json.obj(
-                "url" -> photo.asURL
+                "url" -> photo
               ))
             }
           }
