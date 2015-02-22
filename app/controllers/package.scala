@@ -4,6 +4,8 @@ import play.api.mvc.Results.BadRequest
 
 import org.fathens.play.util.Exception.allCatch
 
+import com.drew.imaging.ImageMetadataReader
+import com.drew.metadata.exif.ExifIFD0Directory
 import com.sksamuel.scrimage.{ Format, Image => ScrImage }
 
 import models.{ Report, Storage }
@@ -60,10 +62,20 @@ package object controllers {
   implicit class PhotoFile(file: Storage.S3File) {
     def asPhoto: Option[Photos] = {
       def resize(src: Image, image: ScrImage, max: Int, relation: ImageRelation.Relation.Value) = {
-        val (width, height) = (image.width, image.height)
+        val rotated = {
+          val metadata = ImageMetadataReader.readMetadata(src.file.read)
+          val dic = metadata.getDirectory(classOf[ExifIFD0Directory])
+          dic.getInt(ExifIFD0Directory.TAG_ORIENTATION) match {
+            case 3 => image.rotateLeft.rotateLeft
+            case 6 => image.rotateLeft
+            case 8 => image.rotateRight
+            case _ => image
+          }
+        }
+        val (width, height) = (rotated.width, rotated.height)
         val (w, h) = if (width > height) (max, height * max / width) else (width * max / height, max)
         Logger debug f"Resizing image for ${relation}: (${width} x ${height}) -> (${w} x ${h})"
-        val scaled = image.scaleTo(w, h)
+        val scaled = rotated.scaleTo(w, h)
         val path = file.paths.reverse match {
           case name :: parent :: left => List("photo", Image.Kind.REDUCED.toString, parent, relation.toString).mkString("/")
           case _                      => throw new IllegalArgumentException(f"Unexpected file path: ${file.paths}")
@@ -73,8 +85,7 @@ package object controllers {
         dst
       }
       for {
-        io <- allCatch opt ScrImage(file.read)
-        i <- Option(io)
+        i <- allCatch.opt { Option(ScrImage(file.read)) }.flatten
         o <- allCatch opt Image.addNewWithFile(file.path, i.width, i.height)
         m <- allCatch opt resize(o, i, Settings.Image.sizeMainview, ImageRelation.Relation.MAIN_VIEW)
         t <- allCatch opt resize(o, i, Settings.Image.sizeThumbnail, ImageRelation.Relation.THUMBNAIL)
