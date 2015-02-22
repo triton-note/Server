@@ -67,8 +67,8 @@ package object controllers {
           val dic = metadata.getDirectory(classOf[ExifIFD0Directory])
           dic.getInt(ExifIFD0Directory.TAG_ORIENTATION) match {
             case 3 => image.rotateLeft.rotateLeft
-            case 6 => image.rotateRight
-            case 8 => image.rotateLeft
+            case 6 => image.rotateLeft
+            case 8 => image.rotateRight
             case _ => image
           }
         }
