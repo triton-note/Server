@@ -13,9 +13,9 @@ object ValueUnit {
     object Measure extends Enumeration {
       val CM = Value("cm")
       val INCH = Value("inch")
-      implicit val json = Format(
+      implicit val json = Format[Measure.Value](
         (__).read[String].map(Measure.withName),
-        Writes { (t: Measure.Value) => JsString(t.toString) })
+        Writes { Json toJson _.toString })
     }
     implicit val json = Json.format[Length]
   }
@@ -24,9 +24,9 @@ object ValueUnit {
     object Measure extends Enumeration {
       val KG = Value("kg")
       val POND = Value("pond")
-      implicit val json = Format(
+      implicit val json = Format[Measure.Value](
         (__).read[String].map(Measure.withName),
-        Writes { (t: Measure.Value) => JsString(t.toString) })
+        Writes { Json toJson _.toString })
     }
     implicit val json = Json.format[Weight]
   }
@@ -35,9 +35,9 @@ object ValueUnit {
     object Measure extends Enumeration {
       val Cels = Value("Cels")
       val Fahr = Value("Fahr")
-      implicit val json = Format(
+      implicit val json = Format[Measure.Value](
         (__).read[String].map(Measure.withName),
-        Writes { (t: Measure.Value) => JsString(t.toString) })
+        Writes { Json toJson _.toString })
     }
     implicit val json = Json.format[Temperature]
   }

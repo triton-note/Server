@@ -9,7 +9,7 @@ import play.api.libs.json._
 
 import com.amazonaws.services.dynamodbv2.model._
 
-import models.db.{ CatchReport, FishSize, Photo, TableRoot, User }
+import models.db.{ CatchReport, FishSize, Photo, TableRoot, User => UserDB }
 import service.AWS.DynamoDB.client
 
 object Distributions {
@@ -46,11 +46,11 @@ object Distributions {
     }
     con()
   }
-  def catches(userOption: Option[User], limit: Int = 100): Seq[Catch] = {
+  def catches(userOption: Option[UserDB], limit: Int = 100): Seq[Catch] = {
     def others: Stream[CatchReport] = making(CatchReport) { last =>
       client.scan(new ScanRequest(CatchReport.tableName).withLimit(limit).withExclusiveStartKey(last.orNull))
     }
-    def byUser(user: User): Stream[CatchReport] = making(CatchReport) { last =>
+    def byUser(user: UserDB): Stream[CatchReport] = making(CatchReport) { last =>
       client.query(new QueryRequest(CatchReport.tableName).withLimit(limit).withExclusiveStartKey(last.orNull).
         withIndexName("USER-TIMESTAMP-index").
         withKeyConditions(Map(
