@@ -62,7 +62,7 @@ package object controllers {
   implicit class PhotoFile(file: Storage.S3File) {
     def asPhoto: Option[Photos] = {
       def resize(src: Image, image: ScrImage, max: Int, relation: ImageRelation.Relation.Value) = {
-        val rotated = {
+        val rotated = allCatch.opt {
           val metadata = ImageMetadataReader.readMetadata(src.file.read)
           val dic = metadata.getDirectory(classOf[ExifIFD0Directory])
           dic.getInt(ExifIFD0Directory.TAG_ORIENTATION) match {
@@ -71,7 +71,7 @@ package object controllers {
             case 8 => image.rotateRight
             case _ => image
           }
-        }
+        } getOrElse image
         val (width, height) = (rotated.width, rotated.height)
         val (w, h) = if (width > height) (max, height * max / width) else (width * max / height, max)
         Logger debug f"Resizing image for ${relation}: (${width} x ${height}) -> (${w} x ${h})"
