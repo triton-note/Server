@@ -1,5 +1,6 @@
 import scala.collection.JavaConversions._
 
+import play.api.Logger
 import play.api.libs.json._
 
 import org.fathens.play.util.Exception.allCatch
@@ -22,11 +23,13 @@ package object models {
     def save(content: T): Option[T] = {
       val item = new Item().withPrimaryKey(ID, content.id).withJSON(CONTENT, (Json toJson content).toString)
       val result = optCatch(_ putItem item)
+      Logger trace f"Save: ${TABLE.getTableName}(${content.id}) => ${result}"
       result.map(_ => content)
     }
     def get(id: String): Option[T] = {
       val getter = new GetItemSpec().withPrimaryKey(ID, id).withAttributesToGet(CONTENT)
       val result = optCatch(_ getItem getter)
+      Logger trace f"Get: ${TABLE.getTableName}(${id}) => ${result}"
       result.map(_ getJSON CONTENT).flatMap { text =>
         allCatch.opt(Json parse text).map(_.as[T])
       }
@@ -34,6 +37,7 @@ package object models {
     def delete(id: String): Boolean = {
       val key = new PrimaryKey(ID, id)
       val result = optCatch(_ deleteItem key)
+      Logger trace f"Deleted: ${TABLE.getTableName}(${id}) => ${result}"
       result.isDefined
     }
     def scan(alpha: ScanSpec => ScanSpec = identity): Stream[T] = {
