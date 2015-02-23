@@ -15,19 +15,19 @@ import service.{ Facebook, Settings }
 
 object Account extends Controller {
   def login(way: String) = Action.async(parse.json(
-    (__ \ "token").read[String]
+    (__ \ "accessKey").read[String]
   )) { implicit request =>
-    val token = request.body
+    val accessKey = request.body
     Logger info f"Authorizing ${way}"
     allCatch opt User.SocialConnection.Service.withName(way) match {
       case None => Future(BadRequest(f"Invalid social service: ${way}"))
       case Some(service) => (service match {
-        case User.SocialConnection.Service.FACEBOOK => Facebook.User(Facebook.AccessKey(token))
+        case User.SocialConnection.Service.FACEBOOK => Facebook.User(Facebook.AccessKey(accessKey))
         case _                                      => Future(None)
       }) map { u =>
         Logger debug f"Authorized user from $way: $u"
         u map { user =>
-          val ticket = TicketValue(user.id, way, token)
+          val ticket = TicketValue(user.id, way, accessKey)
           val vt = VolatileToken.create(ticket, Settings.Session.timeoutTicket)
           Ok(vt.id)
         } getOrElse Unauthorized

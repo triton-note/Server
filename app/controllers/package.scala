@@ -18,7 +18,7 @@ package object controllers {
   case class TicketValue(
     userId: String,
     way: String,
-    token: String)
+    accessKey: String)
   object TicketValue {
     implicit val ticketFormat = Json.format[TicketValue]
   }
@@ -30,7 +30,7 @@ package object controllers {
   implicit class TokenOfUser(token: String) {
     def asToken[T <: { val userId: String }](implicit reads: Reads[T]) = for {
       vt <- VolatileToken get token
-      value <- vt.data.asOpt[T]
+      value <- vt.content.asOpt[T]
     } yield (vt, value)
   }
 

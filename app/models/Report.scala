@@ -12,14 +12,14 @@ case class Report(
   comment: Option[String],
   dateAt: Date,
   location: Report.Location,
-  condition: Report.Condition,
+  naturalCondition: Report.Condition,
   photo: Option[Report.Photo],
   fishes: Seq[Report.Fishes]) {
   def save: Option[Report] = Report.save(this)
   def delete: Boolean = Report.delete(id)
 }
 object Report {
-  case class Location(name: String, geoinfo: GeoInfo)
+  case class Location(nominal: String, geoinfo: GeoInfo)
   object Location {
     implicit val locationFormat = Json.format[Location]
   }
@@ -36,7 +36,7 @@ object Report {
         (__).read[String].map(Tide.withName),
         Writes { (t: Tide.Value) => JsString(t.toString) })
     }
-    case class Weather(name: String, temperature: ValueUnit.Temperature, iconUrl: String)
+    case class Weather(nominal: String, temperature: ValueUnit.Temperature, iconUrl: String)
     object Weather {
       implicit val weatherFormat = Json.format[Weather]
     }
@@ -55,22 +55,12 @@ object Report {
     }
   }
   case class Fishes(
-    name: String,
-    count: Int,
-    weight: Option[ValueUnit.Weight] = None,
-    length: Option[ValueUnit.Length] = None) {
+    nominal: String,
+    quantity: Int,
+    sizeWeight: Option[ValueUnit.Weight] = None,
+    sizeLength: Option[ValueUnit.Length] = None) {
   }
   object Fishes {
-    object SizeValue {
-      implicit val json = Json.format[SizeValue]
-    }
-    case class SizeValue(weight: Option[ValueUnit.Weight], length: Option[ValueUnit.Length]) {
-      override def toString = List(weight, length).flatten.map(_.toString) match {
-        case Nil  => ""
-        case list => list.mkString(", ")
-      }
-      lazy val asJson = Json toJson this
-    }
     implicit val catchesFormat = Json.format[Fishes]
   }
   implicit val reportFormat = Json.format[Report]

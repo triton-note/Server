@@ -3,12 +3,12 @@ package models
 import play.api.libs.json._
 
 trait ValueUnit[U] {
-  val value: Double
-  val unit: U
-  override def toString: String = f"${value}%1.1f${unit}"
+  val numValue: Double
+  val measure: U
+  override def toString: String = f"${numValue}%1.1f${measure}"
 }
 object ValueUnit {
-  case class Length(value: Double, unit: ValueUnit.Length.Measure.Value) extends ValueUnit[ValueUnit.Length.Measure.Value]
+  case class Length(numValue: Double, measure: ValueUnit.Length.Measure.Value) extends ValueUnit[ValueUnit.Length.Measure.Value]
   object Length {
     object Measure extends Enumeration {
       val CM = Value("cm")
@@ -19,7 +19,7 @@ object ValueUnit {
     }
     implicit val json = Json.format[Length]
   }
-  case class Weight(value: Double, unit: ValueUnit.Weight.Measure.Value) extends ValueUnit[ValueUnit.Weight.Measure.Value]
+  case class Weight(numValue: Double, measure: ValueUnit.Weight.Measure.Value) extends ValueUnit[ValueUnit.Weight.Measure.Value]
   object Weight {
     object Measure extends Enumeration {
       val KG = Value("kg")
@@ -30,7 +30,7 @@ object ValueUnit {
     }
     implicit val json = Json.format[Weight]
   }
-  case class Temperature(value: Double, unit: ValueUnit.Temperature.Measure.Value) extends ValueUnit[ValueUnit.Temperature.Measure.Value]
+  case class Temperature(numValue: Double, measure: ValueUnit.Temperature.Measure.Value) extends ValueUnit[ValueUnit.Temperature.Measure.Value]
   object Temperature {
     object Measure extends Enumeration {
       val Cels = Value("Cels")

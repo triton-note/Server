@@ -2,7 +2,7 @@ package models
 
 import play.api.libs.json._
 
-case class User(id: String, name: String, measureUnit: ValueUnit.Measures, connections: Set[User.SocialConnection]) {
+case class User(id: String, username: String, measureUnit: ValueUnit.Measures, connections: Set[User.SocialConnection]) {
   def save: Option[User] = User.save(this)
   /**
    * Connect to specified social service
