@@ -1,6 +1,7 @@
 package models
 
 import java.util.Date
+import scala.collection.JavaConversions._
 
 import play.api.libs.json._
 
@@ -74,6 +75,7 @@ object Report {
   def get(id: String): Option[Report] = DB get id
   def delete(id: String): Boolean = DB delete id
   def findBy(userId: String, count: Int, last: Option[String]): Stream[Report] = {
-    null
+    val values = Map(":user" -> userId)
+    DB.paging(count, last)(_.withFilterExpression(f"${DB.json("userId")} = :user").withValueMap(values))
   }
 }

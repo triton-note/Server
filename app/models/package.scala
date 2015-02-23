@@ -40,6 +40,10 @@ package object models {
       Logger trace f"Deleted: ${TABLE.getTableName}(${id}) => ${result}"
       result.isDefined
     }
+    def paging(limit: Int, last: Option[String] = None)(implicit alpha: ScanSpec => ScanSpec): Stream[T] = {
+      val start = last.map(key => new PrimaryKey(ID, key)).orNull
+      scan(alpha(_).withMaxResultSize(limit).withExclusiveStartKey(start))
+    }
     def scan(alpha: ScanSpec => ScanSpec = identity): Stream[T] = {
       val spec = alpha(new ScanSpec())
       for {
