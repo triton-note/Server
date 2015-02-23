@@ -22,11 +22,12 @@ object ReportSync extends Controller {
   ).tupled)) { implicit request =>
     val (count, last) = request.body
     Logger debug f"Loading reports: count(${count}) from ${last}"
-    ticket.asTokenOfUser[TicketValue] match {
-      case None => Future(TicketExpired)
-      case Some((vt, value, user)) => Future {
-        val reports = Report.findBy(user, count, last)
-        Ok(Json toJson reports)
+    Future {
+      ticket.asToken[TicketValue] match {
+        case None => TicketExpired
+        case Some((vt, ticket)) =>
+          val reports = Report.findBy(ticket.userId, count, last)
+          Ok(Json toJson reports)
       }
     }
   }
@@ -36,13 +37,13 @@ object ReportSync extends Controller {
   ))) { implicit request =>
     val id = request.body
     Logger debug f"Reading report:${id}"
-    ticket.asTokenOfUser[TicketValue] match {
-      case None => Future(TicketExpired)
-      case Some((vt, value, user)) => Future {
-        Report.get(id) match {
+    Future {
+      ticket.asToken[TicketValue] match {
+        case None => TicketExpired
+        case Some((vt, ticket)) => Report.get(id) match {
           case None => BadRequest(f"Report NotFound: ${id}")
-          case Some(report) => if (report.userId != user.id)
-            BadRequest(f"report(${report.id}) is not owned by user(${user.id})")
+          case Some(report) => if (report.userId != ticket.userId)
+            BadRequest(f"report(${report.id}) is not owned by user(${ticket.userId})")
           else Ok {
             Json.obj(
               "report" -> report)
@@ -58,13 +59,13 @@ object ReportSync extends Controller {
     val report = request.body
     Logger debug f"Updating ${report}"
     Future {
-      ticket.asTokenOfUser[TicketValue] match {
+      ticket.asToken[TicketValue] match {
         case None => TicketExpired
-        case Some((vt, value, user)) =>
+        case Some((vt, ticket)) =>
           Report.get(report.id) match {
             case None => BadRequest(f"Invalid id: ${report.id}")
-            case Some(src) => if (src.userId != user.id)
-              BadRequest(f"report(${report.id}) is not owned by user(${user.id})")
+            case Some(src) => if (src.userId != ticket.userId)
+              BadRequest(f"report(${report.id}) is not owned by user(${ticket.userId})")
             else report.save match {
               case None        => InternalServerError("Failed to update report")
               case Some(saved) => Ok
@@ -80,13 +81,13 @@ object ReportSync extends Controller {
     val id = request.body
     Logger debug f"Deleting report: id=${id}"
     Future {
-      ticket.asTokenOfUser[TicketValue] match {
+      ticket.asToken[TicketValue] match {
         case None => TicketExpired
-        case Some((vt, value, user)) =>
+        case Some((vt, ticket)) =>
           Report.get(id) match {
             case None => BadRequest(f"Invalid report-id: ${id}")
-            case Some(report) => if (report.userId != user.id)
-              BadRequest(f"report(${id}) is not owned by user(${user.id})")
+            case Some(report) => if (report.userId != ticket.userId)
+              BadRequest(f"report(${id}) is not owned by user(${ticket.userId})")
             else if (report.delete) Ok
             else InternalServerError(f"Failed to remove report: ${id}")
           }
@@ -104,13 +105,13 @@ object ReportSync extends Controller {
       allCatch opt User.SocialConnection.Service.withName(way) match {
         case None => Future(BadRequest(f"Invalid social service: ${way}"))
         case Some(service) => service match {
-          case User.SocialConnection.Service.FACEBOOK => ticket.asTokenOfUser[TicketValue] match {
+          case User.SocialConnection.Service.FACEBOOK => ticket.asToken[TicketValue] match {
             case None => Future(TicketExpired)
-            case Some((vt, value, user)) =>
+            case Some((vt, ticket)) =>
               Report get reportId match {
                 case None => Future(BadRequest(f"Invalid report-id: ${reportId}"))
-                case Some(report) => if (report.userId != user.id)
-                  Future(BadRequest(f"report(${reportId}) is not owned by user(${user.id})"))
+                case Some(report) => if (report.userId != ticket.userId)
+                  Future(BadRequest(f"report(${reportId}) is not owned by user(${ticket.userId})"))
                 else {
                   implicit val key = Facebook.AccessKey(token)
                   Facebook.Report.publish(report).map(_ match {

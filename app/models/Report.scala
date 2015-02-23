@@ -84,7 +84,7 @@ object Report {
   def get(id: String): Option[Report] = {
     None
   }
-  def findBy(user: User, count: Int, last: Option[String]): Stream[Report] = {
+  def findBy(userId: String, count: Int, last: Option[String]): Stream[Report] = {
     null
   }
 }

@@ -15,24 +15,23 @@ package object controllers {
   val TicketExpired = BadRequest("Ticket Expired")
   val SessionExpired = BadRequest("Session Expired")
 
-  object TicketValue {
-    implicit val ticketFormat = Json.format[TicketValue]
-  }
   case class TicketValue(
     userId: String,
     way: String,
-    token: String) {
-    override def toString = Json.toJson(this).toString
+    token: String)
+  object TicketValue {
+    implicit val ticketFormat = Json.format[TicketValue]
   }
+  implicit def ticketAsJson(ticket: TicketValue) = Json toJson ticket
+
   /**
    * 文字列を token として扱い、ユーザIDが含まれている事を確認する拡張
    */
   implicit class TokenOfUser(token: String) {
-    def asTokenOfUser[T <: { val userId: String }](implicit reads: Reads[T]) = for {
+    def asToken[T <: { val userId: String }](implicit reads: Reads[T]) = for {
       vt <- VolatileToken get token
       value <- vt.data.asOpt[T]
-      user <- User get value.userId
-    } yield (vt, value, user)
+    } yield (vt, value)
   }
 
   /**

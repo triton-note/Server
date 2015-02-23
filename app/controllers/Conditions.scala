@@ -21,9 +21,9 @@ object Conditions extends Controller {
   ).tupled)) { implicit request =>
     val (date, geoinfo) = request.body
     Logger debug f"Getting conditions: ${geoinfo} at ${date}"
-    ticket.asTokenOfUser[TicketValue] match {
+    ticket.asToken[TicketValue] match {
       case None => Future(TicketExpired)
-      case Some((vt, value, user)) =>
+      case Some((vt, ticket)) =>
         NaturalConditions.at(date, geoinfo).map { condition =>
           Ok(Json toJson condition)
         }

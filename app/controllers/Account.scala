@@ -27,9 +27,9 @@ object Account extends Controller {
       }) map { u =>
         Logger debug f"Authorized user from $way: $u"
         u map { user =>
-          val value = TicketValue(user.id, way, token)
-          val ticket = VolatileToken.create(Json toJson value, Settings.Session.timeoutTicket)
-          Ok(ticket.id)
+          val ticket = TicketValue(user.id, way, token)
+          val vt = VolatileToken.create(ticket, Settings.Session.timeoutTicket)
+          Ok(vt.id)
         } getOrElse Unauthorized
       }
     }
@@ -42,15 +42,18 @@ object Account extends Controller {
     val (way, token) = request.body
     allCatch opt User.SocialConnection.Service.withName(way) match {
       case None => Future(BadRequest(f"Invalid social service: ${way}"))
-      case Some(service) => ticket.asTokenOfUser[TicketValue] match {
+      case Some(service) => ticket.asToken[TicketValue] match {
         case None => Future(TicketExpired)
-        case Some((vt, value, user)) => (service match {
-          case User.SocialConnection.Service.FACEBOOK => Facebook.User.connect(user)(Facebook.AccessKey(token))
-          case _                                      => Future(None)
-        }) map { so =>
-          so match {
-            case Some(social) => Ok
-            case None         => BadRequest
+        case Some((vt, ticket)) => User get ticket.userId match {
+          case None => Future(BadRequest(f"User not found: ${ticket.userId}"))
+          case Some(user) => (service match {
+            case User.SocialConnection.Service.FACEBOOK => Facebook.User.connect(user)(Facebook.AccessKey(token))
+            case _                                      => Future(None)
+          }) map { so =>
+            so match {
+              case Some(social) => Ok
+              case None         => BadRequest
+            }
           }
         }
       }
@@ -64,17 +67,20 @@ object Account extends Controller {
       val way = request.body
       allCatch opt User.SocialConnection.Service.withName(way) match {
         case None => BadRequest(f"Invalid social service: ${way}")
-        case Some(service) => ticket.asTokenOfUser[TicketValue] match {
+        case Some(service) => ticket.asToken[TicketValue] match {
           case None => TicketExpired
-          case Some((vt, value, user)) => user.connections.find(_.service == service).filter(_.connected) match {
-            case None => BadRequest(f"Not connected: ${service}")
-            case Some(social) =>
-              val add = social.copy(connected = true)
-              val left = user.connections.filter(_.service != service)
-              user.copy(connections = left + add).save match {
-                case None    => InternalServerError(f"Failed to disconnect ${social}")
-                case Some(_) => Ok
-              }
+          case Some((vt, ticket)) => User get ticket.userId match {
+            case None => BadRequest(f"User not found: ${ticket.userId}")
+            case Some(user) => user.connections.find(_.service == service).filter(_.connected) match {
+              case None => BadRequest(f"Not connected: ${service}")
+              case Some(social) =>
+                val add = social.copy(connected = true)
+                val left = user.connections.filter(_.service != service)
+                user.copy(connections = left + add).save match {
+                  case None    => InternalServerError(f"Failed to disconnect ${social}")
+                  case Some(_) => Ok
+                }
+            }
           }
         }
       }
@@ -83,10 +89,12 @@ object Account extends Controller {
 
   def loadUnit(ticket: String) = Action.async { implicit request =>
     Future {
-      ticket.asTokenOfUser[TicketValue] match {
+      ticket.asToken[TicketValue] match {
         case None => TicketExpired
-        case Some((vt, value, user)) =>
-          Ok(user.measureUnit.asJson)
+        case Some((vt, ticket)) => User get ticket.userId match {
+          case None       => BadRequest(f"User not found: ${ticket.userId}")
+          case Some(user) => Ok(user.measureUnit.asJson)
+        }
       }
     }
   }
@@ -95,14 +103,17 @@ object Account extends Controller {
     (__).read[ValueUnit.Measures]
   )) { implicit request =>
     Future {
-      ticket.asTokenOfUser[TicketValue] match {
+      ticket.asToken[TicketValue] match {
         case None => TicketExpired
-        case Some((vt, value, user)) =>
-          val measureUnit = request.body
-          user.copy(measureUnit = measureUnit).save match {
-            case None     => InternalServerError(f"Failed to update user: ${user.id}")
-            case Some(ok) => Ok
-          }
+        case Some((vt, ticket)) => User get ticket.userId match {
+          case None => BadRequest(f"User not found: ${ticket.userId}")
+          case Some(user) =>
+            val measureUnit = request.body
+            user.copy(measureUnit = measureUnit).save match {
+              case None     => InternalServerError(f"Failed to update user: ${user.id}")
+              case Some(ok) => Ok
+            }
+        }
       }
     }
   }

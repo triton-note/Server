@@ -29,7 +29,6 @@ object User {
         }
       }
       val FACEBOOK = SocialService("facebook")
-      val GOOGLE = SocialService("google")
       implicit val json = Format[Service.Value](
         (__).read[String].map(Service.withName),
         Writes { Json toJson _.toString })
