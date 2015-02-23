@@ -25,8 +25,8 @@ object Distributions {
   }
 
   def catches(userOption: Option[User], limit: Int = 100): Stream[Catch] = {
-    def others = Report.table.scan(contents).toStream
-    def byUser(user: User) = Report.table.scan(contents.withFilterExpression("")).toStream
+    def others = Report.DB.TABLE.scan(contents).toStream
+    def byUser(user: User) = Report.DB.TABLE.scan(contents.withFilterExpression("")).toStream
     for {
       item <- userOption match {
         case None    => others

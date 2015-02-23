@@ -15,16 +15,10 @@ case class Report(
   condition: Report.Condition,
   photo: Option[Report.Photo],
   fishes: Seq[Report.Fishes]) {
-  def save: Option[Report] = {
-    Option(this)
-  }
-  def delete: Boolean = {
-    false
-  }
+  def save: Option[Report] = Report.save(this)
+  def delete: Boolean = Report.delete(id)
 }
 object Report {
-  def table = getTable("REPORT")
-  
   case class Location(name: String, geoinfo: GeoInfo)
   object Location {
     implicit val locationFormat = Json.format[Location]
@@ -81,9 +75,14 @@ object Report {
   }
   implicit val reportFormat = Json.format[Report]
   
-  def get(id: String): Option[Report] = {
-    None
-  }
+  /**
+   *  Connect to DynamoDB Table
+   */
+  lazy val DB = new TableDelegate("REPORT")
+  
+  def save(report: Report): Option[Report] = DB save report
+  def get(id: String): Option[Report] = DB get id
+  def delete(id: String): Boolean = DB delete id
   def findBy(userId: String, count: Int, last: Option[String]): Stream[Report] = {
     null
   }

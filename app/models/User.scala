@@ -3,9 +3,10 @@ package models
 import play.api.libs.json._
 
 case class User(id: String, name: String, measureUnit: ValueUnit.Measures, connections: Set[User.SocialConnection]) {
-  def save: Option[User] = {
-    Option(this)
-  }
+  def save: Option[User] = User.save(this)
+  /**
+   * Connect to specified social service
+   */
   def connect(service: User.SocialConnection.Service.Value, id: String): Option[User] = {
     val (found, left) = connections.partition(_.service == service)
     found.headOption match {
@@ -37,10 +38,14 @@ object User {
   }
   implicit val json = Json.format[User]
 
+  /**
+   *  Connect to DynamoDB Table
+   */
+  lazy val DB = new TableDelegate("USER")
+
   def create(name: String, measureUnit: ValueUnit.Measures, connections: User.SocialConnection*) = {
     User(generateId, name, measureUnit, connections.toSet).save.get
   }
-  def get(id: String): Option[User] = {
-    None
-  }
+  def save(user: User): Option[User] = DB save user
+  def get(id: String): Option[User] = DB get id
 }
