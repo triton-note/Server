@@ -33,8 +33,8 @@ object Distributions {
       fish <- report.fishes
     } yield Catch(
       userOption.map(_ => report.id),
-      fish.name,
-      fish.count,
+      fish.nominal,
+      fish.quantity,
       report.dateAt,
       report.location.geoinfo)
   }

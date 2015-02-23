@@ -29,10 +29,10 @@
     </tr>
   @for(fish <- fishes) {
     <tr class="body">
-      <th class="name">@fish.name</th>
-      <td class="count">@fish.count</td>
-      <td class="size">@fish.length</td>
-      <td class="size">@fish.weight</td>
+      <th class="name">@fish.nominal</th>
+      <td class="count">@fish.quantity</td>
+      <td class="size">@fish.sizeLength</td>
+      <td class="size">@fish.sizeWeight</td>
     </tr>
   }
   </table>
