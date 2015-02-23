@@ -44,6 +44,10 @@ package object models {
         t <- json.asOpt[T]
       } yield t
     }
+    /**
+     * Create path on json value
+     */
+    def json(path: String*) = (CONTENT :: path.toList).mkString(".")
   }
 
   def scanLast(maxSize: Int, last: Option[String]) =
