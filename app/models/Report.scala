@@ -7,15 +7,24 @@ import play.api.libs.json._
 import service.Storage.S3File
 
 case class Report(
-  id: Option[String],
-  comment: String,
+  id: String,
+  userId: String,
+  comment: Option[String],
   dateAt: Date,
   location: Report.Location,
   condition: Report.Condition,
   photo: Option[Report.Photo],
   fishes: Seq[Report.Fishes]) {
+  def save: Option[Report] = {
+    Option(this)
+  }
+  def delete: Boolean = {
+    false
+  }
 }
 object Report {
+  def table = getTable("REPORT")
+  
   case class Location(name: String, geoinfo: GeoInfo)
   object Location {
     implicit val locationFormat = Json.format[Location]
@@ -45,6 +54,11 @@ object Report {
     thumbnail: S3File)
   object Photo {
     implicit val photoFormat = Json.format[Photo]
+    
+    object Kind extends Enumeration {
+      val ORIGINAL = Value("original")
+      val REDUCED = Value("reduced")
+    }
   }
   case class Fishes(
     name: String,
@@ -66,4 +80,11 @@ object Report {
     implicit val catchesFormat = Json.format[Fishes]
   }
   implicit val reportFormat = Json.format[Report]
+  
+  def get(id: String): Option[Report] = {
+    None
+  }
+  def findBy(user: User, count: Int, last: Option[String]): Stream[Report] = {
+    null
+  }
 }

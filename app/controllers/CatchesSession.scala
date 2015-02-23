@@ -8,22 +8,19 @@ import play.api.libs.json._
 import play.api.libs.json.Json.toJsFieldJsValueWrapper
 import play.api.mvc.{ Action, Controller }
 
-import models.{ GeoInfo, Report }
-import models.db.{ CatchReport, Image, Photo, VolatileToken }
+import models.{ GeoInfo, Report, VolatileToken }
 import service.{ InferenceCatches, Settings, Storage }
 
 object CatchesSession extends Controller {
-  object SessionValue {
-    implicit val sessionOptionFormat = Json.format[SessionValue]
-  }
   case class SessionValue(
     userId: String,
     geoinfo: Option[GeoInfo],
-    imageId: Option[String] = None,
-    committed: Option[String] = None) {
-    override def toString = Json.toJson(this).toString
+    imagePath: Option[String] = None) {
   }
-  def mkFolder(session: String) = List("photo", Image.Kind.ORIGINAL.toString, session).mkString("/")
+  object SessionValue {
+    implicit val json = Json.format[SessionValue]
+  }
+  def mkFolder(session: String) = List("photo", Report.Photo.Kind.ORIGINAL, session).mkString("/")
 
   def start(ticket: String) = Action.async(parse.json(
     (__ \ "geoinfo").readNullable[GeoInfo])
@@ -35,7 +32,7 @@ object CatchesSession extends Controller {
         case None => TicketExpired
         case Some((vt, _, user)) =>
           val value = SessionValue(user.id, geoinfo)
-          val session = VolatileToken.addNew(Settings.Session.timeoutUpload, Option(value.toString))
+          val session = VolatileToken.create(Json toJson value, Settings.Session.timeoutUpload)
           Ok(Json.obj(
             "session" -> session.id,
             "upload" -> Storage.Upload.start(mkFolder(session.id))
@@ -54,9 +51,9 @@ object CatchesSession extends Controller {
         case Nil => BadRequest("No uploaded files")
         case file :: Nil => session.asTokenOfUser[SessionValue] match {
           case None => SessionExpired
-          case Some((vt, value, user)) => file.asPhoto match {
+          case Some((vt, value, user)) => asPhoto(file) match {
             case None => InternalServerError("Failed to save photo")
-            case Some(photo) => vt json value.copy(imageId = Some(photo.original.path)) match {
+            case Some(photo) => vt.copy(data = Json toJson value.copy(imagePath = Some(photo.original.path))).save match {
               case None => InternalServerError("Failed to save session value")
               case Some(_) => Ok(Json.obj(
                 "url" -> photo
@@ -76,10 +73,10 @@ object CatchesSession extends Controller {
         case None => SessionExpired
         case Some((vt, value, user)) =>
           val ok = for {
-            imageId <- value.imageId
-            image <- Image get imageId
+            path <- value.imagePath
+            image = Storage file path
           } yield {
-            val (location, fishes) = InferenceCatches.infer(image.file, value.geoinfo)
+            val (location, fishes) = InferenceCatches.infer(image, value.geoinfo)
             Ok(Json.obj(
               "location" -> location,
               "fishes" -> fishes
@@ -100,16 +97,14 @@ object CatchesSession extends Controller {
         case None => SessionExpired
         case Some((vt, value, user)) =>
           val ok = for {
-            imageId <- value.imageId
-            image <- Image get imageId
+            path <- value.imagePath
+            image = Storage file path
           } yield {
-            val report = CatchReport.addNew(user, given.location.geoinfo, given.location.name, given.dateAt, given.condition)
-            val photo = Photo.addNew(report, image)
-            val comment = report.addComment(given.comment)(user)
-            val photos = given.fishes.map(_ add photo)
-            vt json value.copy(committed = Some(report.id)) match {
-              case None    => InternalServerError("Failed to save session value")
-              case Some(_) => Ok(report.id)
+            given.copy(userId = user.id).save match {
+              case None => InternalServerError(f"Failed to save report: ${given}")
+              case Some(saved) =>
+                vt.delete
+                Ok(saved.id)
             }
           }
           ok getOrElse BadRequest("Any image is not saved yet")

@@ -1,4 +1,4 @@
-@(title: String, fishes: Seq[models.db.FishSize], images: Seq[String], props: Map[String, String])
+@(title: String, fishes: Seq[models.Report.Fishes], images: Option[String], props: Map[String, String])
 
 <!DOCTYPE html>
 <html>
@@ -30,8 +30,9 @@
   @for(fish <- fishes) {
     <tr class="body">
       <th class="name">@fish.name</th>
-      <td class="size">@fish.size</td>
       <td class="count">@fish.count</td>
+      <td class="size">@fish.length</td>
+      <td class="size">@fish.weight</td>
     </tr>
   }
   </table>

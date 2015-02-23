@@ -6,7 +6,7 @@ import play.api.libs.concurrent.Akka
 import play.api.libs.concurrent.Execution.Implicits.defaultContext
 import play.api.mvc.{ Filter, RequestHeader, Result, WithFilters }
 
-import models.db.VolatileToken
+import models.VolatileToken
 
 object Global extends WithFilters(AccessLog) {
   override def onStart(app: Application) {
