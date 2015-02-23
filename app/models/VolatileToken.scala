@@ -2,9 +2,13 @@ package models
 
 import java.util.Date
 
+import scala.collection.JavaConversions._
 import scala.concurrent.duration._
 
 import play.api.libs.json._
+
+import controllers.CatchesSession
+import service.Storage
 
 case class VolatileToken(id: String, expiration: Date, data: JsValue) {
   def save: Option[VolatileToken] = VolatileToken.save(this)
@@ -12,7 +16,6 @@ case class VolatileToken(id: String, expiration: Date, data: JsValue) {
 }
 object VolatileToken {
   implicit val json = Json.format[VolatileToken]
-  val tableName = "VOLATILE_TOKEN"
 
   /**
    *  Connect to DynamoDB Table
@@ -27,6 +30,14 @@ object VolatileToken {
   def save(vt: VolatileToken): Option[VolatileToken] = DB save vt
   def delete(id: String): Boolean = DB delete id
   def deleteExpired: Int = {
-    0
+    val values = Map(":now" -> new java.lang.Long(new Date().getTime))
+    val deleted = DB.scan(_.withFilterExpression(DB.CONTENT + ".expiration <= :now").withValueMap(values)).filter { vt =>
+      for {
+        session <- vt.data.asOpt[CatchesSession.SessionValue]
+        path <- session.imagePath
+      } Storage.file(path).delete
+      vt.delete
+    }
+    deleted.length
   }
 }

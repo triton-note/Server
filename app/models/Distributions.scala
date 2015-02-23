@@ -7,8 +7,6 @@ import scala.collection.JavaConversions._
 
 import play.api.libs.json._
 
-import org.fathens.play.util.Exception.allCatch
-
 object Distributions {
   case class Catch(
     reportId: Option[String],
@@ -25,15 +23,13 @@ object Distributions {
   }
 
   def catches(userOption: Option[User], limit: Int = 100): Stream[Catch] = {
-    def others = Report.DB.TABLE.scan(contents).toStream
-    def byUser(user: User) = Report.DB.TABLE.scan(contents.withFilterExpression("")).toStream
+    def others = Report.DB.scan()
+    def byUser(user: User) = Report.DB.scan(_.withFilterExpression(""))
     for {
-      item <- userOption match {
+      report <- userOption match {
         case None    => others
         case Some(u) => byUser(u)
       }
-      json <- allCatch.opt(Json parse item.getJSON("CONTENT")).toStream
-      report <- json.asOpt[Report].toStream
       fish <- report.fishes
     } yield Catch(
       userOption.map(_ => report.id),
