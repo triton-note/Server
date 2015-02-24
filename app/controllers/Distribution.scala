@@ -3,10 +3,9 @@ package controllers
 import scala.concurrent.Future
 
 import play.api.libs.concurrent.Execution.Implicits.defaultContext
-import play.api.libs.json._
 import play.api.mvc.{ Action, Controller }
 
-import models.{ Distributions, User }
+import models.Distributions
 
 object Distribution extends Controller {
   def mine(ticket: String) = Action.async {
@@ -15,7 +14,7 @@ object Distribution extends Controller {
         case None => TicketExpired
         case Some((vt, ticket)) =>
           val catches = Distributions.catches(Some(ticket.userId))
-          Ok(Json toJson catches)
+          Ok(catches.asJson)
       }
     }
   }
@@ -25,7 +24,7 @@ object Distribution extends Controller {
         case None => TicketExpired
         case Some((vt, ticket)) =>
           val catches = Distributions.catches(None)
-          Ok(Json toJson catches)
+          Ok(catches.asJson)
       }
     }
   }
@@ -35,7 +34,7 @@ object Distribution extends Controller {
         case None => TicketExpired
         case Some((vt, ticket)) =>
           val names = Distributions.names
-          Ok(Json toJson names)
+          Ok(names.asJson)
       }
     }
   }

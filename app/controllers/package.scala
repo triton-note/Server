@@ -20,7 +20,7 @@ package object controllers {
     way: String,
     accessKey: String)
   object TicketValue {
-    implicit val ticketFormat = Json.format[TicketValue]
+    implicit val json = Json.format[TicketValue]
   }
   implicit def ticketAsJson(ticket: TicketValue) = Json toJson ticket
 
@@ -32,6 +32,10 @@ package object controllers {
       vt <- VolatileToken get token
       value <- vt.content.asOpt[T]
     } yield (vt, value)
+  }
+  
+  implicit class AsJson[J](o: J)(implicit $writer: Writes[J]) {
+    def asJson = Json toJson o
   }
 
   /**

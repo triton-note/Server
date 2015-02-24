@@ -27,7 +27,7 @@ object ReportSync extends Controller {
         case None => TicketExpired
         case Some((vt, ticket)) =>
           val reports = Report.findBy(ticket.userId, count, last)
-          Ok(Json toJson reports)
+          Ok(reports.asJson)
       }
     }
   }

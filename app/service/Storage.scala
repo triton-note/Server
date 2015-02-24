@@ -87,7 +87,7 @@ object Storage {
       url: String,
       params: Params)
     object Start {
-      implicit val startFormat = Json.format[Start]
+      implicit val json = Json.format[Start]
     }
 
     case class Params(

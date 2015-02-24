@@ -42,10 +42,8 @@ object ValueUnit {
     implicit val json = Json.format[Temperature]
   }
 
+  case class Measures(length: ValueUnit.Length.Measure.Value, weight: ValueUnit.Weight.Measure.Value, temperature: ValueUnit.Temperature.Measure.Value)
   object Measures {
     implicit val json = Json.format[Measures]
-  }
-  case class Measures(length: ValueUnit.Length.Measure.Value, weight: ValueUnit.Weight.Measure.Value, temperature: ValueUnit.Temperature.Measure.Value) {
-    lazy val asJson = Json toJson this
   }
 }

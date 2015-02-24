@@ -25,7 +25,7 @@ object Conditions extends Controller {
       case None => Future(TicketExpired)
       case Some((vt, ticket)) =>
         NaturalConditions.at(date, geoinfo).map { condition =>
-          Ok(Json toJson condition)
+          Ok(condition.asJson)
         }
     }
   }

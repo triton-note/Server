@@ -19,7 +19,6 @@ object CatchesSession extends Controller {
   object SessionValue {
     implicit val json = Json.format[SessionValue]
   }
-  implicit def sessionAsJson(session: SessionValue) = Json toJson session
 
   def mkFolder(session: String) = List("photo", Report.Photo.Image.Kind.ORIGINAL, session).mkString("/")
 
@@ -33,7 +32,7 @@ object CatchesSession extends Controller {
         case None => TicketExpired
         case Some((vt, ticket)) =>
           val session = SessionValue(ticket.userId, geoinfo)
-          val vt = VolatileToken.create(session, Settings.Session.timeoutUpload)
+          val vt = VolatileToken.create(session.asJson, Settings.Session.timeoutUpload)
           Ok(Json.obj(
             "session" -> vt.id,
             "upload" -> Storage.Upload.start(mkFolder(vt.id))
@@ -54,7 +53,7 @@ object CatchesSession extends Controller {
           case None => SessionExpired
           case Some((vt, session)) => asPhoto(file) match {
             case None => InternalServerError("Failed to save photo")
-            case Some(photo) => vt.copy(content = session.copy(imagePath = Some(photo.original.file.path))).save match {
+            case Some(photo) => vt.copy(content = session.copy(imagePath = Some(photo.original.file.path)).asJson).save match {
               case None => InternalServerError("Failed to save session value")
               case Some(_) => Ok(Json.obj(
                 "url" -> photo
