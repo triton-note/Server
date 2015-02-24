@@ -20,7 +20,7 @@ case class Report(
   def delete: Boolean = Report.delete(id)
 }
 object Report {
-  case class Location(nominal: String, geoinfo: GeoInfo)
+  case class Location(monaker: String, geoinfo: GeoInfo)
   object Location {
     implicit val locationFormat = Json.format[Location]
   }
@@ -37,7 +37,7 @@ object Report {
         (__).read[String].map(Tide.withName),
         Writes { (t: Tide.Value) => JsString(t.toString) })
     }
-    case class Weather(nominal: String, temperature: ValueUnit.Temperature, iconUrl: String)
+    case class Weather(monaker: String, temperature: ValueUnit.Temperature, iconUrl: String)
     object Weather {
       implicit val weatherFormat = Json.format[Weather]
     }
@@ -56,7 +56,7 @@ object Report {
     }
   }
   case class Fishes(
-    nominal: String,
+    monaker: String,
     quantity: Int,
     sizeWeight: Option[ValueUnit.Weight] = None,
     sizeLength: Option[ValueUnit.Length] = None) {

@@ -20,7 +20,7 @@ object ModelView extends Controller {
       val ok = for {
         report <- Report.get(id)
       } yield {
-        val title = f"Catches at ${report.fishes.headOption.map(_.nominal).mkString}"
+        val title = f"Catches at ${report.fishes.headOption.map(_.monaker).mkString}"
         val imageUrls = report.photo.map(_.original).map(_ generateURL Settings.Image.urlExpiration).map(_.toString)
         val props = Map(
           "fb:app_id" -> appId,
@@ -33,7 +33,7 @@ object ModelView extends Controller {
               case Nil => ""
               case list  => list.mkString("(", ", ", ")")
             }
-            f"${fish.nominal}${size} x ${fish.quantity}"
+            f"${fish.monaker}${size} x ${fish.quantity}"
           }.mkString("\n")
         )
         Ok(views.html.catchReport(title, report.fishes, imageUrls, props))
@@ -50,11 +50,11 @@ object ModelView extends Controller {
           "fb:app_id" -> appId,
           "og:type" -> "place",
           "og:url" -> routes.ModelView.spot(id).absoluteURL(true),
-          "og:title" -> report.location.nominal,
+          "og:title" -> report.location.monaker,
           "place:location:latitude" -> f"${report.location.geoinfo.latitude.toDouble}%3.10f",
           "place:location:longitude" -> f"${report.location.geoinfo.longitude.toDouble}%3.10f"
         )
-        Ok(views.html.spot(report.location.nominal, report.location.geoinfo, props))
+        Ok(views.html.spot(report.location.monaker, report.location.geoinfo, props))
       }
       ok getOrElse BadRequest
     }
