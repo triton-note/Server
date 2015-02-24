@@ -1,5 +1,7 @@
 package models
 
+import scala.collection.JavaConversions._
+
 import play.api.libs.json._
 
 case class User(id: String, username: String, measureUnit: ValueUnit.Measures, connections: Set[User.SocialConnection]) {
@@ -24,12 +26,7 @@ object User {
   case class SocialConnection(service: SocialConnection.Service.Value, accountId: String, connected: Boolean)
   object SocialConnection {
     object Service extends Enumeration {
-      case class SocialService(name: String) extends Val {
-        def find(socialId: String): Option[User] = {
-          None
-        }
-      }
-      val FACEBOOK = SocialService("facebook")
+      val FACEBOOK = Value("facebook")
       implicit val json = Format[Service.Value](
         (__).read[String].map(Service.withName),
         Writes { Json toJson _.toString })
@@ -48,4 +45,7 @@ object User {
   }
   def save(user: User): Option[User] = DB save user
   def get(id: String): Option[User] = DB get id
+  def findBy(social: SocialConnection.Service.Value)(socialId: String): Option[User] = {
+    DB.stream()(_.withFilterExpression(f"${DB.json("connections", "accountId")} = :acountId").withValueMap(Map(":accountId" -> socialId))).headOption
+  }
 }

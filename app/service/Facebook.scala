@@ -62,7 +62,7 @@ object Facebook {
           id <- (json \ "id").asOpt[String]
         } yield {
           Logger debug f"Getting User of facebook by id: ${id}"
-          Account.SocialConnection.Service.FACEBOOK.find(id) match {
+          Account.findBy(Account.SocialConnection.Service.FACEBOOK)(id) match {
             case Some(user) => Right(user)
             case None       => Left(id)
           }
