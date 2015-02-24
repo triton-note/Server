@@ -57,7 +57,4 @@ package object models {
      */
     def json(path: String*) = (CONTENT :: path.toList).mkString(".")
   }
-
-  def scanLast(maxSize: Int, last: Option[String]) =
-    new ScanSpec().withMaxPageSize(maxSize).withExclusiveStartKey(last.map(new PrimaryKey("ID", _)).orNull)
 }
