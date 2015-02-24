@@ -22,8 +22,8 @@ POST   /report/update             controllers.ReportSync.update
 POST   /report/remove             controllers.ReportSync.remove
 
 # Account Settings
-POST   /account/unit/load         controllers.Account.loadUnit
-POST   /account/unit/change       controllers.Account.changeUnit
+POST   /account/measures/load         controllers.Account.loadMeasures
+POST   /account/measures/update       controllers.Account.updateMeasures
 
 # Distributions of Catches
 POST   /distribution/mine         controllers.Distribution.mine

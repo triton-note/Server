@@ -87,7 +87,7 @@ object Account extends Controller {
     }
   }
 
-  def loadUnit = Action.async(parse.json(
+  def loadMeasures = Action.async(parse.json(
     (__ \ "ticket").read[String]
   )) { implicit request =>
     val ticket = request.body
@@ -102,7 +102,7 @@ object Account extends Controller {
     }
   }
 
-  def changeUnit = Action.async(parse.json((
+  def updateMeasures = Action.async(parse.json((
     (__ \ "ticket").read[String] and
     (__ \ "measures").read[ValueUnit.Measures]
   ).tupled)) { implicit request =>
