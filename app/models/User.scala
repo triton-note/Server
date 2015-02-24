@@ -4,6 +4,8 @@ import scala.collection.JavaConversions._
 
 import play.api.libs.json._
 
+import com.amazonaws.services.dynamodbv2.document.utils.ValueMap
+
 case class User(id: String, username: String, measureUnit: ValueUnit.Measures, connections: Set[User.SocialConnection]) {
   def save: Option[User] = User.save(this)
   /**
@@ -45,7 +47,14 @@ object User {
   }
   def save(user: User): Option[User] = DB save user
   def get(id: String): Option[User] = DB get id
-  def findBy(social: SocialConnection.Service.Value)(socialId: String): Option[User] = {
-    DB.stream()(_.withFilterExpression(f"${DB.json("connections", "accountId")} = :acountId").withValueMap(Map(":accountId" -> socialId))).headOption
+  def findBy(social: SocialConnection.Service.type => SocialConnection.Service.Value)(socialId: String): Option[User] = {
+    DB.stream()(_
+      .withFilterExpression(f"contains(${DB.json("connections")}, :part)")
+      .withValueMap(Map(
+        ":part" -> new ValueMap()
+          .withString("service", social(SocialConnection.Service).toString)
+          .withString("accountId", socialId)
+          .withBoolean("connected", true)))
+    ).headOption
   }
 }
