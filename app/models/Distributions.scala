@@ -22,24 +22,25 @@ object Distributions {
     implicit val nameCountFormat = Json.format[NameCount]
   }
 
-  def catches(userOption: Option[User], limit: Int = 100): Stream[Catch] = {
-    def others = Report.DB.scan()
-    def byUser(user: User) = Report.DB.scan(_.withFilterExpression(""))
+  def catches(userId: Option[String], limit: Int = 100): Stream[Catch] = {
+    def mkStream(p: Option[String] => Stream[Report]): Stream[Report] = {
+      p(None)
+    }
     for {
-      report <- userOption match {
-        case None    => others
-        case Some(u) => byUser(u)
+      report <- userId match {
+        case None    => mkStream { Report.DB.paging(limit, _) }
+        case Some(u) => mkStream { Report.findBy(u, limit, _) }
       }
       fish <- report.fishes
     } yield Catch(
-      userOption.map(_ => report.id),
+      userId.map(_ => report.id),
       fish.monaker,
       fish.quantity,
       report.dateAt,
       report.location.geoinfo)
   }
-  def names(limit: Int = 100): Stream[NameCount] = {
-    val fishes = catches(None, limit)
+  def names: Stream[NameCount] = {
+    val fishes = catches(None)
     @tailrec
     def countUp(list: Stream[Catch], counter: Map[String, Int] = Map()): Map[String, Int] = {
       if (list.isEmpty) counter

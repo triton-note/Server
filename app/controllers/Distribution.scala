@@ -13,12 +13,9 @@ object Distribution extends Controller {
     Future {
       ticket.asToken[TicketValue] match {
         case None => TicketExpired
-        case Some((vt, ticket)) => User get ticket.userId match {
-          case None => BadRequest(f"User not found: ${ticket.userId}")
-          case Some(user) =>
-            val catches = Distributions.catches(Some(user))
-            Ok(Json toJson catches)
-        }
+        case Some((vt, ticket)) =>
+          val catches = Distributions.catches(Some(ticket.userId))
+          Ok(Json toJson catches)
       }
     }
   }
@@ -37,7 +34,7 @@ object Distribution extends Controller {
       ticket.asToken[TicketValue] match {
         case None => TicketExpired
         case Some((vt, ticket)) =>
-          val names = Distributions.names()
+          val names = Distributions.names
           Ok(Json toJson names)
       }
     }
