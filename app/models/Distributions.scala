@@ -10,14 +10,14 @@ import play.api.libs.json._
 object Distributions {
   case class Catch(
     reportId: Option[String],
-    name: String,
-    count: Int,
-    date: Date,
+    monaker: String,
+    quantity: Int,
+    dateAt: Date,
     geoinfo: GeoInfo)
   object Catch {
     implicit val json = Json.format[Catch]
   }
-  case class NameCount(name: String, count: Int)
+  case class NameCount(monaker: String, quantity: Int)
   object NameCount {
     implicit val json = Json.format[NameCount]
   }
@@ -42,13 +42,13 @@ object Distributions {
     def countUp(list: Stream[Catch], counter: Map[String, Int] = Map()): Map[String, Int] = {
       if (list.isEmpty) counter
       else {
-        val name = list.head.name
-        val count = ((counter get name) getOrElse 0) + 1
-        countUp(list.tail, counter + (name -> count))
+        val monaker = list.head.monaker
+        val quantity = ((counter get monaker) getOrElse 0) + 1
+        countUp(list.tail, counter + (monaker -> quantity))
       }
     }
     for {
-      (name, count) <- countUp(fishes).toStream
-    } yield NameCount(name, count)
+      (monaker, quantity) <- countUp(fishes).toStream
+    } yield NameCount(monaker, quantity)
   }
 }
