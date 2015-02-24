@@ -1,6 +1,7 @@
 package models
 
 import java.util.Date
+
 import scala.collection.JavaConversions._
 
 import play.api.libs.json._
@@ -84,8 +85,13 @@ object Report {
   }
   def get(id: String): Option[Report] = DB get id
   def delete(id: String): Boolean = DB delete id
+  /**
+   * 特定のユーザの Report を指定された数だけ取り出す。
+   * 前回の最後の Report の id を指定するとその次から取り出す。
+   * count に 0 を指定するとすべて取り出す。
+   */
   def findBy(userId: String, count: Int, last: Option[String]): Stream[Report] = {
-    val values = Map(":user" -> userId)
-    DB.paging(count, last)(_.withFilterExpression(f"${DB.json("userId")} = :user").withValueMap(values))
+    val scaner = if (count < 1) DB.stream()_ else DB.paging(count, last)_
+    scaner(_.withFilterExpression(f"${DB.json("userId")} = :user").withValueMap(Map(":user" -> userId)))
   }
 }

@@ -22,14 +22,11 @@ object Distributions {
     implicit val nameCountFormat = Json.format[NameCount]
   }
 
-  def catches(userId: Option[String], limit: Int = 100): Stream[Catch] = {
-    def mkStream(p: Option[String] => Stream[Report]): Stream[Report] = {
-      p(None)
-    }
+  def catches(userId: Option[String]): Stream[Catch] = {
     for {
       report <- userId match {
-        case None    => mkStream { Report.DB.paging(limit, _) }
-        case Some(u) => mkStream { Report.findBy(u, limit, _) }
+        case None    => Report.DB.stream()()
+        case Some(u) => Report.findBy(u, 0, None)
       }
       fish <- report.fishes
     } yield Catch(

@@ -14,7 +14,7 @@ package object models {
   def generateId = play.api.libs.Crypto.generateToken
 
   class TableDelegate[T <: { val id: String }](name: String)(implicit $writer: Format[T]) {
-    val TABLE = db.getTable(f"TritonNote-${name}")
+    lazy val TABLE = db.getTable(f"TritonNote-${name}")
     val ID = "ID"
     val CONTENT = "CONTENT"
 
@@ -40,17 +40,27 @@ package object models {
       Logger trace f"Deleted: ${TABLE.getTableName}(${id}) => ${result}"
       result.isDefined
     }
-    def paging(limit: Int, last: Option[String] = None)(implicit alpha: ScanSpec => ScanSpec): Stream[T] = {
+    def paging(limit: Int, last: Option[String])(alpha: ScanSpec => ScanSpec): Stream[T] = {
       val start = last.map(key => new PrimaryKey(ID, key)).orNull
-      scan(alpha(_).withMaxResultSize(limit).withExclusiveStartKey(start))
-    }
-    def scan(alpha: ScanSpec => ScanSpec = identity): Stream[T] = {
-      val spec = alpha(new ScanSpec())
+      Logger trace f"Paging: ${TABLE.getTableName}: pageSize=${limit}: from=${start}"
+      val spec = alpha(new ScanSpec).withMaxResultSize(limit).withExclusiveStartKey(start)
       for {
         item <- TABLE.scan(spec).toStream
         json <- allCatch opt { Json parse item.getJSON(CONTENT) }
         t <- json.asOpt[T]
       } yield t
+    }
+    def stream(pageSize: Int = 100)(alpha: ScanSpec => ScanSpec = identity): Stream[T] = {
+      def mkStream(p: Option[String] => Stream[T]): Stream[T] = {
+        def db(a: Stream[T]): Stream[Stream[T]] = a #:: {
+          a.lastOption match {
+            case Some(t) => db(p(Some(t.id)))
+            case _       => Stream.empty
+          }
+        }
+        db(p(None)).flatten
+      }
+      mkStream { paging(pageSize, _)(alpha) }
     }
     /**
      * Create path on json value
