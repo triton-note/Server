@@ -2,13 +2,18 @@ package controllers
 
 import scala.concurrent.Future
 
+import play.api.libs.functional.syntax._
+import play.api.libs.json._
 import play.api.libs.concurrent.Execution.Implicits.defaultContext
 import play.api.mvc.{ Action, Controller }
 
 import models.Distributions
 
 object Distribution extends Controller {
-  def mine(ticket: String) = Action.async {
+  def mine = Action.async(parse.json(
+    (__ \ "ticket").read[String]
+  )) { implicit request =>
+    val ticket = request.body
     Future {
       ticket.asToken[TicketValue] match {
         case None => TicketExpired
@@ -18,7 +23,10 @@ object Distribution extends Controller {
       }
     }
   }
-  def others(ticket: String) = Action.async {
+  def others = Action.async(parse.json(
+    (__ \ "ticket").read[String]
+  )) { implicit request =>
+    val ticket = request.body
     Future {
       ticket.asToken[TicketValue] match {
         case None => TicketExpired
@@ -28,7 +36,10 @@ object Distribution extends Controller {
       }
     }
   }
-  def names(ticket: String) = Action.async {
+  def names = Action.async(parse.json(
+    (__ \ "ticket").read[String]
+  )) { implicit request =>
+    val ticket = request.body
     Future {
       ticket.asToken[TicketValue] match {
         case None => TicketExpired

@@ -15,11 +15,12 @@ import service.NaturalConditions
 
 object Conditions extends Controller {
 
-  def get(ticket: String) = Action.async(parse.json((
+  def get = Action.async(parse.json((
+    (__ \ "ticket").read[String] and
     (__ \ "date").read[Date] and
     (__ \ "geoinfo").read[GeoInfo]
   ).tupled)) { implicit request =>
-    val (date, geoinfo) = request.body
+    val (ticket, date, geoinfo) = request.body
     Logger debug f"Getting conditions: ${geoinfo} at ${date}"
     ticket.asToken[TicketValue] match {
       case None => Future(TicketExpired)

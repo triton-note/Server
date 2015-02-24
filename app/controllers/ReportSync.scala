@@ -16,11 +16,12 @@ import service.Facebook
 
 object ReportSync extends Controller {
 
-  def load(ticket: String) = Action.async(parse.json((
+  def load = Action.async(parse.json((
+    (__ \ "ticket").read[String] and
     (__ \ "count").read[Int] and
     (__ \ "last").readNullable[String]
   ).tupled)) { implicit request =>
-    val (count, last) = request.body
+    val (ticket, count, last) = request.body
     Logger debug f"Loading reports: count(${count}) from ${last}"
     Future {
       ticket.asToken[TicketValue] match {
@@ -32,10 +33,11 @@ object ReportSync extends Controller {
     }
   }
 
-  def read(ticket: String) = Action.async(parse.json((
+  def read = Action.async(parse.json((
+    (__ \ "ticket").read[String] and
     (__ \ "id").read[String]
-  ))) { implicit request =>
-    val id = request.body
+  ).tupled)) { implicit request =>
+    val (ticket, id) = request.body
     Logger debug f"Reading report:${id}"
     Future {
       ticket.asToken[TicketValue] match {
@@ -53,10 +55,11 @@ object ReportSync extends Controller {
     }
   }
 
-  def update(ticket: String) = Action.async(parse.json((
+  def update = Action.async(parse.json((
+    (__ \ "ticket").read[String] and
     (__ \ "report").read[Report]
-  ))) { implicit request =>
-    val report = request.body
+  ).tupled)) { implicit request =>
+    val (ticket, report) = request.body
     Logger debug f"Updating ${report}"
     Future {
       ticket.asToken[TicketValue] match {
@@ -75,10 +78,11 @@ object ReportSync extends Controller {
     }
   }
 
-  def remove(ticket: String) = Action.async(parse.json((
+  def remove = Action.async(parse.json((
+    (__ \ "ticket").read[String] and
     (__ \ "id").read[String]
-  ))) { implicit request =>
-    val id = request.body
+  ).tupled)) { implicit request =>
+    val (ticket, id) = request.body
     Logger debug f"Deleting report: id=${id}"
     Future {
       ticket.asToken[TicketValue] match {
@@ -95,12 +99,12 @@ object ReportSync extends Controller {
     }
   }
 
-  def publish(ticket: String) = Action.async(parse.json((
+  def publish(way: String) = Action.async(parse.json((
+    (__ \ "ticket").read[String] and
     (__ \ "id").read[String] and
-    (__ \ "way").read[String] and
-    (__ \ "token").read[String]
+    (__ \ "accessKey").read[String]
   ).tupled)) { implicit request =>
-    val (reportId, way, token) = request.body
+    val (ticket, reportId, accessKey) = request.body
     Future {
       allCatch opt User.SocialConnection.Service.withName(way) match {
         case None => Future(BadRequest(f"Invalid social service: ${way}"))
@@ -113,7 +117,7 @@ object ReportSync extends Controller {
                 case Some(report) => if (report.userId != ticket.userId)
                   Future(BadRequest(f"report(${reportId}) is not owned by user(${ticket.userId})"))
                 else {
-                  implicit val key = Facebook.AccessKey(token)
+                  implicit val key = Facebook.AccessKey(accessKey)
                   Facebook.Report.publish(report).map(_ match {
                     case Some(id) => Ok
                     case None     => InternalServerError(f"Failed to publish to ${way}")

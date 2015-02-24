@@ -4,8 +4,8 @@ import scala.concurrent.Future
 
 import play.api.Logger
 import play.api.libs.concurrent.Execution.Implicits.defaultContext
+import play.api.libs.functional.syntax._
 import play.api.libs.json._
-import play.api.libs.json.Json.toJsFieldJsValueWrapper
 import play.api.mvc.{ Action, Controller }
 
 import models.{ GeoInfo, Report, VolatileToken }
@@ -22,10 +22,11 @@ object CatchesSession extends Controller {
 
   def mkFolder(session: String) = List("photo", Report.Photo.Image.Kind.ORIGINAL, session).mkString("/")
 
-  def start(ticket: String) = Action.async(parse.json(
-    (__ \ "geoinfo").readNullable[GeoInfo])
-  ) { implicit request =>
-    val geoinfo = request.body
+  def start = Action.async(parse.json((
+    (__ \ "ticket").read[String] and
+    (__ \ "geoinfo").readNullable[GeoInfo]
+  ).tupled)) { implicit request =>
+    val (ticket, geoinfo) = request.body
     Logger debug f"Starting session by ${ticket} on ${geoinfo}"
     Future {
       ticket.asToken[TicketValue] match {
@@ -41,13 +42,14 @@ object CatchesSession extends Controller {
     }
   }
 
-  def photo(session: String) = Action.async(parse.json(
+  def photo = Action.async(parse.json((
+    (__ \ "session").read[String] and
     (__ \ "names").read[Set[String]]
-  )) { implicit request =>
-    val files = request.body.map(Storage.file(mkFolder(session), _))
-    Logger debug f"Saving head of ${files}"
+  ).tupled)) { implicit request =>
+    val (session, names) = request.body
+    Logger debug f"Saving head of ${names}"
     Future {
-      files.toList match {
+      names.map(Storage.file(mkFolder(session), _)).toList match {
         case Nil => BadRequest("No uploaded files")
         case file :: Nil => session.asToken[SessionValue] match {
           case None => SessionExpired
@@ -66,7 +68,10 @@ object CatchesSession extends Controller {
     }
   }
 
-  def infer(session: String) = Action.async { implicit request =>
+  def infer = Action.async(parse.json(
+    (__ \ "session").read[String]
+  )) { implicit request =>
+    val session = request.body
     Logger debug f"Inferring of photo on session: ${session}"
     Future {
       session.asToken[SessionValue] match {
@@ -87,10 +92,11 @@ object CatchesSession extends Controller {
     }
   }
 
-  def submit(session: String) = Action.async(parse.json(
+  def submit = Action.async(parse.json((
+    (__ \ "session").read[String] and
     (__ \ "report").read[Report]
-  )) { implicit request =>
-    val given = request.body
+  ).tupled)) { implicit request =>
+    val (session, given) = request.body
     Logger debug f"Sumit report: ${given}"
     Future {
       session.asToken[SessionValue] match {
