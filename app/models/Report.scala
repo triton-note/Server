@@ -49,7 +49,7 @@ object Report {
     thumbnail: S3File)
   object Photo {
     implicit val photoFormat = Json.format[Photo]
-    
+
     object Kind extends Enumeration {
       val ORIGINAL = Value("original")
       val REDUCED = Value("reduced")
@@ -65,13 +65,23 @@ object Report {
     implicit val catchesFormat = Json.format[Fishes]
   }
   implicit val reportFormat = Json.format[Report]
-  
+
   /**
    *  Connect to DynamoDB Table
    */
   lazy val DB = new TableDelegate("REPORT")
-  
-  def save(report: Report): Option[Report] = DB save report
+
+  def save(report: Report): Option[Report] = {
+    val fixComment = (a: Report) => {
+      val v = a.comment.filter(_.length > 0)
+      if (v == a.comment) a else a.copy(comment = v)
+    }
+    val fixId = (a: Report) => {
+      val v = Option(a.id).filter(_.length > 0) getOrElse generateId
+      if (v == a.id) a else a.copy(id = v)
+    }
+    DB save (fixId compose fixComment)(report)
+  }
   def get(id: String): Option[Report] = DB get id
   def delete(id: String): Boolean = DB delete id
   def findBy(userId: String, count: Int, last: Option[String]): Stream[Report] = {
