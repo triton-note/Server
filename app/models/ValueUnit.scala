@@ -42,7 +42,7 @@ object ValueUnit {
     implicit val json = Json.format[Temperature]
   }
 
-  case class Measures(length: ValueUnit.Length.Measure.Value, weight: ValueUnit.Weight.Measure.Value, temperature: ValueUnit.Temperature.Measure.Value)
+  case class Measures(lengthMeasure: ValueUnit.Length.Measure.Value, weightMeasure: ValueUnit.Weight.Measure.Value, temperatureMeasure: ValueUnit.Temperature.Measure.Value)
   object Measures {
     implicit val json = Json.format[Measures]
   }
