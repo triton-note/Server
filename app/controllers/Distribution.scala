@@ -36,7 +36,7 @@ object Distribution extends Controller {
       }
     }
   }
-  def names = Action.async(parse.json(
+  def monakers = Action.async(parse.json(
     (__ \ "ticket").read[String]
   )) { implicit request =>
     val ticket = request.body
@@ -44,8 +44,8 @@ object Distribution extends Controller {
       ticket.asToken[TicketValue] match {
         case None => TicketExpired
         case Some((vt, ticket)) =>
-          val names = Distributions.names
-          Ok(names.asJson)
+          val monakers = Distributions.monakers
+          Ok(monakers.asJson)
       }
     }
   }

@@ -36,7 +36,7 @@ object Distributions {
       report.dateAt,
       report.location.geoinfo)
   }
-  def names: Stream[NameCount] = {
+  def monakers: Stream[NameCount] = {
     val fishes = catches(None)
     @tailrec
     def countUp(list: Stream[Catch], counter: Map[String, Int] = Map()): Map[String, Int] = {
