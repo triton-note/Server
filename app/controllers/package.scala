@@ -54,17 +54,17 @@ package object controllers {
       Logger debug f"Resizing image for ${relation}: (${width} x ${height}) -> (${w} x ${h})"
       val scaled = rotated.scaleTo(w, h)
       val path = file.paths.reverse match {
-        case name :: parent :: left => List("photo", Report.Photo.Kind.REDUCED, parent, relation).mkString("/")
+        case name :: parent :: left => List("photo", Report.Photo.Image.Kind.REDUCED, parent, relation).mkString("/")
         case _                      => throw new IllegalArgumentException(f"Unexpected file path: ${file.paths}")
       }
       val dstFile = Storage.file(path)
       scaled.writer(Format.JPEG).write(dstFile.newWriter)
-      dstFile
+      Report.Photo.Image(dstFile)
     }
     for {
       i <- allCatch.opt { Option(Image(file.read)) }.flatten
       m <- allCatch opt resize(i, Settings.Image.sizeMainview, "mainview")
       t <- allCatch opt resize(i, Settings.Image.sizeThumbnail, "thumbnail")
-    } yield Report.Photo(file, m, t)
+    } yield Report.Photo(Report.Photo.Image(file), m, t)
   }
 }

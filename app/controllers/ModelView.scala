@@ -21,7 +21,7 @@ object ModelView extends Controller {
         report <- Report.get(id)
       } yield {
         val title = f"Catches at ${report.fishes.headOption.map(_.monaker).mkString}"
-        val imageUrls = report.photo.map(_.original).map(_ generateURL Settings.Image.urlExpiration).map(_.toString)
+        val imageUrls = report.photo.map(_.original).map(_.file generateURL Settings.Image.urlExpiration).map(_.toString)
         val props = Map(
           "fb:app_id" -> appId,
           "og:type" -> f"${appName}:${objectName}",

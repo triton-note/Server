@@ -27,17 +27,6 @@ object Storage {
     Logger.trace(f"Creating S3File: $list")
     new S3File(list)
   }
-  object S3File {
-    implicit val photostorageFormat = Format[Storage.S3File](
-      (__ \ "path").read[String].map(Storage file _),
-      Writes { s =>
-        Json.obj(
-          "path" -> s.path,
-          "volatileUrl" -> s.generateURL(Settings.Image.urlExpiration).toString
-        )
-      }
-    )
-  }
   class S3File(val paths: List[String]) {
     lazy val path = paths.mkString("/")
     lazy val name = paths.last

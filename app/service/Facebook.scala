@@ -118,7 +118,6 @@ object Facebook {
       def model(f: controllers.routes.ModelView.type => play.api.mvc.Call) =
         Seq(f(controllers.routes.ModelView).absoluteURL(true))
       val params = {
-        val images = report.photo //Photo.findBy(report).flatMap(_.image)
         Map(
           "fb:explicitly_shared" -> Seq("true"),
           "message" -> report.comment.toSeq,
@@ -126,9 +125,9 @@ object Facebook {
           objectName -> model(_ catchReport report.id)
         ) ++ {
             for {
-              (image, index) <- images.zipWithIndex
+              (photo, index) <- report.photo.zipWithIndex
               (key, value) <- Map(
-                "url" -> image.original.generateURL(Settings.Pulish.timer),
+                "url" -> photo.original.file.generateURL(Settings.Pulish.timer),
                 "user_generated" -> true
               )
             } yield f"image[${index}][${key}]" -> Seq(value.toString)

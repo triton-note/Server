@@ -21,7 +21,7 @@ object CatchesSession extends Controller {
   }
   implicit def sessionAsJson(session: SessionValue) = Json toJson session
 
-  def mkFolder(session: String) = List("photo", Report.Photo.Kind.ORIGINAL, session).mkString("/")
+  def mkFolder(session: String) = List("photo", Report.Photo.Image.Kind.ORIGINAL, session).mkString("/")
 
   def start(ticket: String) = Action.async(parse.json(
     (__ \ "geoinfo").readNullable[GeoInfo])
@@ -54,7 +54,7 @@ object CatchesSession extends Controller {
           case None => SessionExpired
           case Some((vt, session)) => asPhoto(file) match {
             case None => InternalServerError("Failed to save photo")
-            case Some(photo) => vt.copy(content = session.copy(imagePath = Some(photo.original.path))).save match {
+            case Some(photo) => vt.copy(content = session.copy(imagePath = Some(photo.original.file.path))).save match {
               case None => InternalServerError("Failed to save session value")
               case Some(_) => Ok(Json.obj(
                 "url" -> photo

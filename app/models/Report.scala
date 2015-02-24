@@ -5,8 +5,9 @@ import java.util.Date
 import scala.collection.JavaConversions._
 
 import play.api.libs.json._
+import play.api.libs.json.Json.toJsFieldJsValueWrapper
 
-import service.Storage.S3File
+import service.{ Settings, Storage }
 
 case class Report(
   id: String,
@@ -45,16 +46,27 @@ object Report {
     implicit val json = Json.format[Condition]
   }
   case class Photo(
-    original: S3File,
-    mainview: S3File,
-    thumbnail: S3File)
+    original: Photo.Image,
+    mainview: Photo.Image,
+    thumbnail: Photo.Image)
   object Photo {
-    implicit val photoFormat = Json.format[Photo]
-
-    object Kind extends Enumeration {
-      val ORIGINAL = Value("original")
-      val REDUCED = Value("reduced")
+    case class Image(file: Storage.S3File)
+    object Image {
+      implicit val json = Format[Image](
+        (__ \ "path").read[String].map(Storage file _).map(Image.apply),
+        Writes { image =>
+          Json.obj(
+            "path" -> image.file.path,
+            "volatileUrl" -> image.file.generateURL(Settings.Image.urlExpiration).toString
+          )
+        }
+      )
+      object Kind extends Enumeration {
+        val ORIGINAL = Value("original")
+        val REDUCED = Value("reduced")
+      }
     }
+    implicit val photoFormat = Json.format[Photo]
   }
   case class Fishes(
     monaker: String,
