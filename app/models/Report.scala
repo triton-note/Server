@@ -33,7 +33,7 @@ object Report {
       val Ebb = Value("Ebb")
       val Low = Value("Low")
       implicit val tideFormat = Format[Tide.Value](
-        __.read(Reads.verifying[String](Tide.values.map(_.toString).contains)).map(Tide.withName),
+        Reads.verifying[String](values.map(_.toString).contains).map(withName),
         Writes { Json toJson _.toString })
     }
     case class Weather(nominal: String, temperature: ValueUnit.Temperature, iconUrl: String)
