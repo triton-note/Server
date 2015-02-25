@@ -15,11 +15,11 @@ object Distributions {
     date: Date,
     geoinfo: GeoInfo)
   object Catch {
-    implicit val catchFormat = Json.format[Catch]
+    implicit val json = Json.format[Catch]
   }
   case class NameCount(name: String, count: Int)
   object NameCount {
-    implicit val nameCountFormat = Json.format[NameCount]
+    implicit val json = Json.format[NameCount]
   }
 
   def catches(userId: Option[String]): Stream[Catch] = {

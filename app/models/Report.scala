@@ -24,7 +24,7 @@ case class Report(
 object Report {
   case class Location(name: String, geoinfo: GeoInfo)
   object Location {
-    implicit val locationFormat = Json.format[Location]
+    implicit val json = Json.format[Location]
   }
   case class Condition(moon: Int, tide: Condition.Tide.Value, weather: Option[Condition.Weather])
   object Condition {
@@ -39,7 +39,7 @@ object Report {
     }
     case class Weather(nominal: String, temperature: ValueUnit.Temperature, iconUrl: String)
     object Weather {
-      implicit val weatherFormat = Json.format[Weather]
+      implicit val json = Json.format[Weather]
     }
     implicit val json = Json.format[Condition]
   }
@@ -64,7 +64,7 @@ object Report {
         val REDUCED = Value("reduced")
       }
     }
-    implicit val photoFormat = Json.format[Photo]
+    implicit val json = Json.format[Photo]
   }
   case class Fishes(
     name: String,
@@ -73,9 +73,9 @@ object Report {
     length: Option[ValueUnit.Length] = None) {
   }
   object Fishes {
-    implicit val catchesFormat = Json.format[Fishes]
+    implicit val json = Json.format[Fishes]
   }
-  implicit val reportFormat = Json.format[Report]
+  implicit val json = Json.format[Report]
 
   /**
    *  Connect to DynamoDB Table

@@ -98,7 +98,7 @@ object Storage {
       signature: String,
       contentType: String)
     object Params {
-      implicit val paramsFormat: Format[Params] = (
+      implicit val json: Format[Params] = (
         (__ \ "key").format[String] and
         (__ \ "AWSAccessKeyId").format[String] and
         (__ \ "acl").format[String] and
