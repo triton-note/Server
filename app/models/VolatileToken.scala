@@ -12,7 +12,13 @@ import service.Storage
 
 case class VolatileToken(id: String, expiration: Date, data: JsValue) {
   def save: Option[VolatileToken] = VolatileToken.save(this)
-  def delete = VolatileToken.delete(id)
+  def delete = {
+    for {
+      session <- data.asOpt[CatchesSession.SessionValue]
+      path <- session.imagePath
+    } Storage.file(path).delete
+    VolatileToken.delete(id)
+  }
 }
 object VolatileToken {
   implicit val json = Json.format[VolatileToken]
@@ -30,7 +36,7 @@ object VolatileToken {
   def save(vt: VolatileToken): Option[VolatileToken] = DB save vt
   def delete(id: String): Boolean = DB delete id
   def deleteExpired: Int = {
-    val deleted = DB.scan(_
+    DB.scan(_
       .withFilterExpression(f"CONTENT.#n1 <= :v1")
       .withNameMap(Map(
         "#n1" -> "expiration"
@@ -38,13 +44,6 @@ object VolatileToken {
       .withValueMap(Map(
         ":v1" -> new java.lang.Long(new Date().getTime)
       ))
-    ).filter { vt =>
-      for {
-        session <- vt.data.asOpt[CatchesSession.SessionValue]
-        path <- session.imagePath
-      } Storage.file(path).delete
-      vt.delete
-    }
-    deleted.length
+    ).filter(_.delete).length
   }
 }
