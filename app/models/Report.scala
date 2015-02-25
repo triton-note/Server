@@ -5,7 +5,6 @@ import java.util.Date
 import scala.collection.JavaConversions._
 
 import play.api.libs.json._
-import play.api.libs.json.Json.toJsFieldJsValueWrapper
 
 import service.{ Settings, Storage }
 
@@ -33,9 +32,9 @@ object Report {
       val High = Value("High")
       val Ebb = Value("Ebb")
       val Low = Value("Low")
-      implicit val tideFormat = Format(
-        (__).read[String].map(Tide.withName),
-        Writes { (t: Tide.Value) => JsString(t.toString) })
+      implicit val tideFormat = Format[Tide.Value](
+        __.read(Reads.verifying[String](Tide.values.map(_.toString).contains)).map(Tide.withName),
+        Writes { Json toJson _.toString })
     }
     case class Weather(nominal: String, temperature: ValueUnit.Temperature, iconUrl: String)
     object Weather {

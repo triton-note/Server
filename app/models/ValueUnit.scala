@@ -14,7 +14,7 @@ object ValueUnit {
       val CM = Value("cm")
       val INCH = Value("inch")
       implicit val json = Format[Measure.Value](
-        (__).read[String].map(Measure.withName),
+        __.read(Reads.verifying[String](Measure.values.map(_.toString).contains)).map(Measure.withName),
         Writes { Json toJson _.toString })
     }
     implicit val json = Json.format[Length]
@@ -25,7 +25,7 @@ object ValueUnit {
       val KG = Value("kg")
       val POND = Value("pond")
       implicit val json = Format[Measure.Value](
-        (__).read[String].map(Measure.withName),
+        __.read(Reads.verifying[String](Measure.values.map(_.toString).contains)).map(Measure.withName),
         Writes { Json toJson _.toString })
     }
     implicit val json = Json.format[Weight]
@@ -36,7 +36,7 @@ object ValueUnit {
       val Cels = Value("Cels")
       val Fahr = Value("Fahr")
       implicit val json = Format[Measure.Value](
-        (__).read[String].map(Measure.withName),
+        __.read(Reads.verifying[String](Measure.values.map(_.toString).contains)).map(Measure.withName),
         Writes { Json toJson _.toString })
     }
     implicit val json = Json.format[Temperature]
