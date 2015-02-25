@@ -30,8 +30,15 @@ object VolatileToken {
   def save(vt: VolatileToken): Option[VolatileToken] = DB save vt
   def delete(id: String): Boolean = DB delete id
   def deleteExpired: Int = {
-    val values = Map(":now" -> new java.lang.Long(new Date().getTime))
-    val deleted = DB.stream()(_.withFilterExpression(f"${DB.json("expiration")} <= :now").withValueMap(values)).filter { vt =>
+    val deleted = DB.stream()(_
+      .withFilterExpression(f"#n1 <= :v1")
+      .withNameMap(Map(
+        "#n1" -> DB.json("expiration")
+      ))
+      .withValueMap(Map(
+        ":v1" -> new java.lang.Long(new Date().getTime)
+      ))
+    ).filter { vt =>
       for {
         session <- vt.data.asOpt[CatchesSession.SessionValue]
         path <- session.imagePath

@@ -102,6 +102,13 @@ object Report {
    */
   def findBy(userId: String, count: Int, last: Option[String]): Stream[Report] = {
     val scaner = if (count < 1) DB.stream()_ else DB.paging(count, last)_
-    scaner(_.withFilterExpression(f"${DB.json("userId")} = :user").withValueMap(Map(":user" -> userId)))
+    scaner(_
+      .withFilterExpression(f"#n1 = :v1")
+      .withNameMap(Map(
+        "#n1" -> DB.json("userId")
+      ))
+      .withValueMap(Map(
+        ":v1" -> userId)
+      ))
   }
 }

@@ -49,12 +49,16 @@ object User {
   def get(id: String): Option[User] = DB get id
   def findBy(social: SocialConnection.Service.type => SocialConnection.Service.Value)(socialId: String): Option[User] = {
     DB.stream()(_
-      .withFilterExpression(f"contains(${DB.json("connections")}, :part)")
+      .withFilterExpression(f"contains(#n1, :v1)")
+      .withNameMap(Map(
+        "#n1" -> DB.json("connections")
+      ))
       .withValueMap(Map(
-        ":part" -> new ValueMap()
+        ":v1" -> new ValueMap()
           .withString("service", social(SocialConnection.Service).toString)
           .withString("accountId", socialId)
-          .withBoolean("connected", true)))
+          .withBoolean("connected", true)
+      ))
     ).headOption
   }
 }
