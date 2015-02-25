@@ -10,7 +10,7 @@ import play.api.libs.json._
 import controllers.CatchesSession
 import service.Storage
 
-case class VolatileToken(id: String, expiration: Date, content: JsValue) {
+case class VolatileToken(id: String, expiration: Date, data: JsValue) {
   def save: Option[VolatileToken] = VolatileToken.save(this)
   def delete = VolatileToken.delete(id)
 }
@@ -33,7 +33,7 @@ object VolatileToken {
     val values = Map(":now" -> new java.lang.Long(new Date().getTime))
     val deleted = DB.stream()(_.withFilterExpression(f"${DB.json("expiration")} <= :now").withValueMap(values)).filter { vt =>
       for {
-        session <- vt.content.asOpt[CatchesSession.SessionValue]
+        session <- vt.data.asOpt[CatchesSession.SessionValue]
         path <- session.imagePath
       } Storage.file(path).delete
       vt.delete

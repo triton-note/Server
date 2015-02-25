@@ -28,7 +28,7 @@ POST   /account/measures/update   controllers.Account.updateMeasures
 # Distributions of Catches
 POST   /distribution/mine         controllers.Distribution.mine
 POST   /distribution/others       controllers.Distribution.others
-POST   /distribution/monakers     controllers.Distribution.monakers
+POST   /distribution/names        controllers.Distribution.names
 
 # Natural Conditions
 POST   /conditions/get            controllers.Conditions.get

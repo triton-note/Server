@@ -10,16 +10,16 @@ import play.api.libs.json._
 object Distributions {
   case class Catch(
     reportId: Option[String],
-    monaker: String,
-    quantity: Int,
-    dateAt: Date,
+    name: String,
+    count: Int,
+    date: Date,
     geoinfo: GeoInfo)
   object Catch {
-    implicit val json = Json.format[Catch]
+    implicit val catchFormat = Json.format[Catch]
   }
-  case class NameCount(monaker: String, quantity: Int)
+  case class NameCount(name: String, count: Int)
   object NameCount {
-    implicit val json = Json.format[NameCount]
+    implicit val nameCountFormat = Json.format[NameCount]
   }
 
   def catches(userId: Option[String]): Stream[Catch] = {
@@ -31,24 +31,24 @@ object Distributions {
       fish <- report.fishes
     } yield Catch(
       userId.map(_ => report.id),
-      fish.monaker,
-      fish.quantity,
+      fish.name,
+      fish.count,
       report.dateAt,
       report.location.geoinfo)
   }
-  def monakers: Stream[NameCount] = {
+  def names: Stream[NameCount] = {
     val fishes = catches(None)
     @tailrec
     def countUp(list: Stream[Catch], counter: Map[String, Int] = Map()): Map[String, Int] = {
       if (list.isEmpty) counter
       else {
-        val monaker = list.head.monaker
-        val quantity = ((counter get monaker) getOrElse 0) + 1
-        countUp(list.tail, counter + (monaker -> quantity))
+        val name = list.head.name
+        val count = ((counter get name) getOrElse 0) + 1
+        countUp(list.tail, counter + (name -> count))
       }
     }
     for {
-      (monaker, quantity) <- countUp(fishes).toStream
-    } yield NameCount(monaker, quantity)
+      (name, count) <- countUp(fishes).toStream
+    } yield NameCount(name, count)
   }
 }

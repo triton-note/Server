@@ -30,7 +30,7 @@ package object controllers {
   implicit class TokenOfUser(token: String) {
     def asToken[T <: { val userId: String }](implicit reads: Reads[T]) = for {
       vt <- VolatileToken get token
-      value <- vt.content.asOpt[T]
+      value <- vt.data.asOpt[T]
     } yield (vt, value)
   }
   
