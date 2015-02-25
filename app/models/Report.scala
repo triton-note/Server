@@ -106,7 +106,7 @@ object Report {
    * 前回の最後の Report の id を指定するとその次から取り出す。
    * limit に 0 を指定するとすべて取り出す。
    */
-  def findBy(userId: String, limit: Int = 0, last: Option[String] = None): Stream[Report] = {
+  def findBy(userId: String, limit: Int = 0, last: Option[Report] = None): Stream[Report] = {
     DB.query("USER_ID-DATE_AT-index")(
       { s: QuerySpec =>
         if (limit < 1) s else {
@@ -114,7 +114,7 @@ object Report {
           s.withMaxResultSize(limit)
         }
       } andThen { s =>
-        last.flatMap(get) match {
+        last match {
           case None => s
           case Some(report) => s.withExclusiveStartKey(
             new KeyAttribute("ID", report.id),

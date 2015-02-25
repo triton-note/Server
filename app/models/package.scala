@@ -18,25 +18,23 @@ package object models {
     val ID = "ID"
     val CONTENT = "CONTENT"
 
-    private def optCatch[A](p: Table => A): Option[A] = allCatch.opt(Option(p(TABLE))).flatten
+    private def withTable[A](p: Table => A): Option[A] = allCatch.opt(Option(p(TABLE))).flatten
 
-    implicit def itemsToT(items: java.lang.Iterable[Item]): Stream[T] = {
-      for {
-        item <- items.iterator().toStream
-        json <- allCatch opt { Json parse item.getJSON(CONTENT) }
-        t <- json.asOpt[T]
-      } yield t
-    }
+    implicit def itemsToT(items: java.lang.Iterable[Item]): Stream[T] = for {
+      item <- items.iterator().toStream
+      json <- allCatch opt { Json parse item.getJSON(CONTENT) }
+      t <- json.asOpt[T]
+    } yield t
 
     def save(content: T)(implicit alpha: Item => Item): Option[T] = {
       val item = alpha(new Item().withPrimaryKey(ID, content.id).withJSON(CONTENT, (Json toJson content).toString))
-      val result = optCatch(_ putItem item)
+      val result = withTable(_ putItem item)
       Logger trace f"Save: ${TABLE.getTableName}(${content.id}) => ${result}"
       result.map(_ => content)
     }
     def get(id: String): Option[T] = {
       val getter = new GetItemSpec().withPrimaryKey(ID, id).withAttributesToGet(CONTENT)
-      val result = optCatch(_ getItem getter)
+      val result = withTable(_ getItem getter)
       Logger trace f"Get: ${TABLE.getTableName}(${id}) => ${result}"
       result.map(_ getJSON CONTENT).flatMap { text =>
         allCatch.opt(Json parse text).map(_.as[T])
@@ -44,7 +42,7 @@ package object models {
     }
     def delete(id: String): Boolean = {
       val key = new PrimaryKey(ID, id)
-      val result = optCatch(_ deleteItem key)
+      val result = withTable(_ deleteItem key)
       Logger trace f"Deleted: ${TABLE.getTableName}(${id}) => ${result}"
       result.isDefined
     }
