@@ -35,7 +35,7 @@ object ValueUnit {
     object Measure extends Enumeration {
       val Cels = Value("Cels")
       val Fahr = Value("Fahr")
-      implicit val json = Format[Measure.Value](
+      implicit val json = Format[Value](
         Reads.verifying[String](values.map(_.toString).contains).map(withName),
         Writes { Json toJson _.toString })
     }

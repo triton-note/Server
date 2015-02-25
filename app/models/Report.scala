@@ -32,7 +32,7 @@ object Report {
       val High = Value("High")
       val Ebb = Value("Ebb")
       val Low = Value("Low")
-      implicit val tideFormat = Format[Tide.Value](
+      implicit val json = Format[Value](
         Reads.verifying[String](values.map(_.toString).contains).map(withName),
         Writes { Json toJson _.toString })
     }

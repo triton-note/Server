@@ -29,7 +29,7 @@ object User {
   object SocialConnection {
     object Service extends Enumeration {
       val FACEBOOK = Value("facebook")
-      implicit val json = Format[Service.Value](
+      implicit val json = Format[Value](
         Reads.verifying[String](values.map(_.toString).contains).map(withName),
         Writes { Json toJson _.toString })
     }
