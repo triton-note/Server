@@ -30,10 +30,10 @@ object VolatileToken {
   def save(vt: VolatileToken): Option[VolatileToken] = DB save vt
   def delete(id: String): Boolean = DB delete id
   def deleteExpired: Int = {
-    val deleted = DB.stream()(_
-      .withFilterExpression(f"#n1 <= :v1")
+    val deleted = DB.scan(_
+      .withFilterExpression(f"CONTENT.#n1 <= :v1")
       .withNameMap(Map(
-        "#n1" -> DB.json("expiration")
+        "#n1" -> "expiration"
       ))
       .withValueMap(Map(
         ":v1" -> new java.lang.Long(new Date().getTime)

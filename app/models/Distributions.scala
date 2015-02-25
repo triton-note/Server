@@ -25,8 +25,8 @@ object Distributions {
   def catches(userId: Option[String]): Stream[Catch] = {
     for {
       report <- userId match {
-        case None    => Report.DB.stream()()
-        case Some(u) => Report.findBy(u, 0, None)
+        case None    => Report.DB.scan()
+        case Some(u) => Report.findBy(u)
       }
       fish <- report.fishes
     } yield Catch(

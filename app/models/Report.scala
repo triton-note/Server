@@ -2,9 +2,11 @@ package models
 
 import java.util.Date
 
-import scala.collection.JavaConversions._
-
+import play.api.Logger
 import play.api.libs.json._
+
+import com.amazonaws.services.dynamodbv2.document.KeyAttribute
+import com.amazonaws.services.dynamodbv2.document.spec.QuerySpec
 
 import service.{ Settings, Storage }
 
@@ -81,33 +83,46 @@ object Report {
    */
   lazy val DB = new TableDelegate("REPORT")
 
-  def save(report: Report): Option[Report] = {
-    val fixComment = (a: Report) => {
-      val v = a.comment.filter(_.length > 0)
-      if (v == a.comment) a else a.copy(comment = v)
+  def save(given: Report): Option[Report] = {
+    val report = {
+      val fixComment = (a: Report) => {
+        val v = a.comment.filter(_.length > 0)
+        if (v == a.comment) a else a.copy(comment = v)
+      }
+      val fixId = (a: Report) => {
+        val v = Option(a.id).filter(_.length > 0) getOrElse generateId
+        if (v == a.id) a else a.copy(id = v)
+      }
+      (fixId compose fixComment)(given)
     }
-    val fixId = (a: Report) => {
-      val v = Option(a.id).filter(_.length > 0) getOrElse generateId
-      if (v == a.id) a else a.copy(id = v)
-    }
-    DB save (fixId compose fixComment)(report)
+    DB.save(report)(_
+      .withString("USER_ID", report.userId)
+      .withNumber("DATE_AT", report.dateAt.getTime))
   }
   def get(id: String): Option[Report] = DB get id
   def delete(id: String): Boolean = DB delete id
   /**
    * 特定のユーザの Report を指定された数だけ取り出す。
    * 前回の最後の Report の id を指定するとその次から取り出す。
-   * count に 0 を指定するとすべて取り出す。
+   * limit に 0 を指定するとすべて取り出す。
    */
-  def findBy(userId: String, count: Int, last: Option[String]): Stream[Report] = {
-    val scaner = if (count < 1) DB.stream()_ else DB.paging(count, last)_
-    scaner(_
-      .withFilterExpression(f"#n1 = :v1")
-      .withNameMap(Map(
-        "#n1" -> DB.json("userId")
-      ))
-      .withValueMap(Map(
-        ":v1" -> userId)
-      ))
+  def findBy(userId: String, limit: Int = 0, last: Option[String] = None): Stream[Report] = {
+    DB.query("USER_ID-DATE_AT-index")(
+      { s: QuerySpec =>
+        if (limit < 1) s else {
+          Logger trace f"Paging ${DB.TABLE.getTableName}: pageSize: ${limit}: last: ${last}"
+          s.withMaxResultSize(limit)
+        }
+      } andThen { s =>
+        last.flatMap(get) match {
+          case None => s
+          case Some(report) => s.withExclusiveStartKey(
+            new KeyAttribute("ID", report.id),
+            new KeyAttribute("USER_ID", report.userId),
+            new KeyAttribute("DATE_AT", new java.lang.Long(report.dateAt.getTime))
+          )
+        }
+      } andThen (_.withHashKey("USER_ID", userId))
+    )
   }
 }

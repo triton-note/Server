@@ -48,10 +48,10 @@ object User {
   def save(user: User): Option[User] = DB save user
   def get(id: String): Option[User] = DB get id
   def findBy(social: SocialConnection.Service.type => SocialConnection.Service.Value)(socialId: String): Option[User] = {
-    DB.stream()(_
-      .withFilterExpression(f"contains(#n1, :v1)")
+    DB.scan(_
+      .withFilterExpression(f"contains(CONTENT.#n1, :v1)")
       .withNameMap(Map(
-        "#n1" -> DB.json("connections")
+        "#n1" -> "connections"
       ))
       .withValueMap(Map(
         ":v1" -> new ValueMap()

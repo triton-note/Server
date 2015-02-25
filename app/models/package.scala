@@ -6,7 +6,7 @@ import play.api.libs.json._
 import org.fathens.play.util.Exception.allCatch
 
 import com.amazonaws.services.dynamodbv2.document.{ DynamoDB, Item, PrimaryKey, Table }
-import com.amazonaws.services.dynamodbv2.document.spec.{ GetItemSpec, ScanSpec }
+import com.amazonaws.services.dynamodbv2.document.spec.{ GetItemSpec, QuerySpec, ScanSpec }
 
 package object models {
   lazy val db = new DynamoDB(service.AWS.DynamoDB.client)
@@ -20,8 +20,16 @@ package object models {
 
     private def optCatch[A](p: Table => A): Option[A] = allCatch.opt(Option(p(TABLE))).flatten
 
-    def save(content: T): Option[T] = {
-      val item = new Item().withPrimaryKey(ID, content.id).withJSON(CONTENT, (Json toJson content).toString)
+    implicit def itemsToT(items: java.lang.Iterable[Item]): Stream[T] = {
+      for {
+        item <- items.iterator().toStream
+        json <- allCatch opt { Json parse item.getJSON(CONTENT) }
+        t <- json.asOpt[T]
+      } yield t
+    }
+
+    def save(content: T)(implicit alpha: Item => Item): Option[T] = {
+      val item = alpha(new Item().withPrimaryKey(ID, content.id).withJSON(CONTENT, (Json toJson content).toString))
       val result = optCatch(_ putItem item)
       Logger trace f"Save: ${TABLE.getTableName}(${content.id}) => ${result}"
       result.map(_ => content)
@@ -40,31 +48,12 @@ package object models {
       Logger trace f"Deleted: ${TABLE.getTableName}(${id}) => ${result}"
       result.isDefined
     }
-    def paging(limit: Int, last: Option[String])(alpha: ScanSpec => ScanSpec): Stream[T] = {
-      val start = last.map(key => new PrimaryKey(ID, key)).orNull
-      Logger trace f"Paging: ${TABLE.getTableName}: pageSize=${limit}: from=${start}"
-      val spec = alpha(new ScanSpec).withMaxResultSize(limit).withExclusiveStartKey(start)
-      for {
-        item <- TABLE.scan(spec).toStream
-        json <- allCatch opt { Json parse item.getJSON(CONTENT) }
-        t <- json.asOpt[T]
-      } yield t
+    def scan(alpha: ScanSpec => ScanSpec = identity): Stream[T] = {
+      TABLE scan alpha(new ScanSpec)
     }
-    def stream(pageSize: Int = 100)(alpha: ScanSpec => ScanSpec = identity): Stream[T] = {
-      def mkStream(p: Option[String] => Stream[T]): Stream[T] = {
-        def db(a: Stream[T]): Stream[Stream[T]] = a #:: {
-          a.lastOption match {
-            case Some(t) => db(p(Some(t.id)))
-            case _       => Stream.empty
-          }
-        }
-        db(p(None)).flatten
-      }
-      mkStream { paging(pageSize, _)(alpha) }
+    def query(indexName: String)(alpha: QuerySpec => QuerySpec): Stream[T] = {
+      Logger trace f"Querying: ${TABLE.getTableName}:${indexName}"
+      TABLE.getIndex(indexName) query alpha(new QuerySpec)
     }
-    /**
-     * Create path on json value
-     */
-    def json(path: String*) = (CONTENT :: path.toList).mkString(".")
   }
 }
