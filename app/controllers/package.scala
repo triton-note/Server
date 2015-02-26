@@ -8,21 +8,15 @@ import com.drew.imaging.ImageMetadataReader
 import com.drew.metadata.exif.ExifIFD0Directory
 import com.sksamuel.scrimage.{ Format, Image }
 
-import models.{ Report, User, VolatileToken }
+import models.{ Report, VolatileToken }
 import service.{ Settings, Storage }
 
 package object controllers {
-  val TicketExpired = BadRequest("Ticket Expired")
-  val SessionExpired = BadRequest("Session Expired")
-
-  case class TicketValue(
-    userId: String,
-    way: String,
-    accessKey: String)
+  case class TicketValue(userId: String)
   object TicketValue {
     implicit val json = Json.format[TicketValue]
   }
-  implicit def ticketAsJson(ticket: TicketValue) = Json toJson ticket
+  val TicketExpired = BadRequest("Ticket Expired")
 
   /**
    * 文字列を token として扱い、ユーザIDが含まれている事を確認する拡張
@@ -33,7 +27,7 @@ package object controllers {
       value <- vt.data.asOpt[T]
     } yield (vt, value)
   }
-  
+
   implicit class AsJson[J](o: J)(implicit $writer: Writes[J]) {
     def asJson = Json toJson o
   }

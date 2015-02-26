@@ -19,6 +19,7 @@ object CatchesSession extends Controller {
   object SessionValue {
     implicit val json = Json.format[SessionValue]
   }
+  val SessionExpired = BadRequest("Session Expired")
 
   def mkFolder(session: String) = List("photo", Report.Photo.Image.Kind.ORIGINAL, session).mkString("/")
 
