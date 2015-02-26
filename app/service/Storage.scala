@@ -55,6 +55,7 @@ object Storage {
       }
     }
     def delete: Boolean = {
+      Logger info f"Deleting file: ${this}"
       (allCatch opt s3.deleteObject(bucketName, path)).isDefined
     }
     def read: java.io.InputStream = {
