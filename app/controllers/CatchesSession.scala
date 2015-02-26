@@ -110,7 +110,7 @@ object CatchesSession extends Controller {
             given.copy(userId = session.userId).save match {
               case None => InternalServerError(f"Failed to save report: ${given}")
               case Some(saved) =>
-                vt.delete
+                vt.copy(data = "".asJson).delete
                 Ok(saved.id)
             }
           }
