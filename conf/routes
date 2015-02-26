@@ -1,40 +1,38 @@
-GET    /                                 controllers.Default.redirect(to = "http://www.fathens.org/triton-note.html")
+GET    /                          controllers.Default.redirect(to = "http://www.fathens.org/triton-note.html")
 
-GET    /assets/*file                     controllers.Assets.at(path="/public", file)
+GET    /assets/*file              controllers.Assets.at(path="/public", file)
 
 # Login
-POST   /login/:way                       controllers.Account.login(way: String)
-POST   /account/connect/:ticket          controllers.Account.connect(ticket: String)
-POST   /account/disconnect/:ticket       controllers.Account.disconnect(ticket: String)
+POST   /login/:way                controllers.Account.login(way: String)
+POST   /account/connect/:way      controllers.Account.connect(way: String)
+POST   /account/disconnect/:way   controllers.Account.disconnect(way: String)
 
 # Report posting
-POST   /report/new-session/:ticket       controllers.CatchesSession.start(ticket: String)
-POST   /report/photo/:session            controllers.CatchesSession.photo(session: String)
-GET    /report/infer/:session            controllers.CatchesSession.infer(session: String)
-POST   /report/submit/:session           controllers.CatchesSession.submit(session: String)
+POST   /report/new-session        controllers.CatchesSession.start
+POST   /report/photo              controllers.CatchesSession.photo
+POST   /report/infer              controllers.CatchesSession.infer
+POST   /report/submit             controllers.CatchesSession.submit
 
-POST   /report/publish/:ticket           controllers.ReportSync.publish(ticket: String)
+POST   /report/publish/:way       controllers.ReportSync.publish(way: String)
 
 # Report loading
-POST   /report/load/:ticket              controllers.ReportSync.load(ticket: String)
-POST   /report/read/:ticket              controllers.ReportSync.read(ticket: String)
-POST   /report/update/:ticket            controllers.ReportSync.update(ticket: String)
-POST   /report/remove/:ticket            controllers.ReportSync.remove(ticket: String)
+POST   /report/load               controllers.ReportSync.load
+POST   /report/read               controllers.ReportSync.read
+POST   /report/update             controllers.ReportSync.update
+POST   /report/remove             controllers.ReportSync.remove
 
 # Account Settings
-GET    /account/unit/load/:ticket        controllers.Account.loadUnit(ticket: String)
-POST   /account/unit/change/:ticket      controllers.Account.changeUnit(ticket: String)
-GET    /account/profile/load/:ticket     controllers.Account.loadProfile(ticket: String)
-POST   /account/profile/change/:ticket   controllers.Account.changeProfile(ticket: String)
+POST   /account/measures/load     controllers.Account.loadMeasures
+POST   /account/measures/update   controllers.Account.updateMeasures
 
 # Distributions of Catches
-GET    /distribution/mine/:ticket        controllers.Distribution.mine(ticket: String)
-GET    /distribution/others/:ticket      controllers.Distribution.others(ticket: String)
-GET    /distribution/names/:ticket       controllers.Distribution.names(ticket: String)
+POST   /distribution/mine         controllers.Distribution.mine
+POST   /distribution/others       controllers.Distribution.others
+POST   /distribution/names        controllers.Distribution.names
 
 # Natural Conditions
-POST   /conditions/get/:ticket           controllers.Conditions.get(ticket: String)
+POST   /conditions/get            controllers.Conditions.get
 
 # Showing models
-GET    /model/catch-report/:id           controllers.ModelView.catchReport(id: String)
-GET    /model/spot/:id                   controllers.ModelView.spot(id: String)
+GET    /model/catch-report/:id    controllers.ModelView.catchReport(id: String)
+GET    /model/spot/:id            controllers.ModelView.spot(id: String)

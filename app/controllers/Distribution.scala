@@ -2,40 +2,50 @@ package controllers
 
 import scala.concurrent.Future
 
-import play.api.libs.concurrent.Execution.Implicits.defaultContext
+import play.api.libs.functional.syntax._
 import play.api.libs.json._
+import play.api.libs.concurrent.Execution.Implicits.defaultContext
 import play.api.mvc.{ Action, Controller }
 
 import models.Distributions
 
 object Distribution extends Controller {
-  def mine(ticket: String) = Action.async {
+  def mine = Action.async(parse.json(
+    (__ \ "ticket").read[String]
+  )) { implicit request =>
+    val ticket = request.body
     Future {
-      ticket.asTokenOfUser[TicketValue] match {
+      ticket.asToken[TicketValue] match {
         case None => TicketExpired
-        case Some((vt, value, user)) =>
-          val catches = Distributions.catches(Some(user))
-          Ok(Json toJson catches)
+        case Some((vt, ticket)) =>
+          val catches = Distributions.catches(Some(ticket.userId))
+          Ok(catches.asJson)
       }
     }
   }
-  def others(ticket: String) = Action.async {
+  def others = Action.async(parse.json(
+    (__ \ "ticket").read[String]
+  )) { implicit request =>
+    val ticket = request.body
     Future {
-      ticket.asTokenOfUser[TicketValue] match {
+      ticket.asToken[TicketValue] match {
         case None => TicketExpired
-        case Some((vt, value, user)) =>
+        case Some((vt, ticket)) =>
           val catches = Distributions.catches(None)
-          Ok(Json toJson catches)
+          Ok(catches.asJson)
       }
     }
   }
-  def names(ticket: String) = Action.async {
+  def names = Action.async(parse.json(
+    (__ \ "ticket").read[String]
+  )) { implicit request =>
+    val ticket = request.body
     Future {
-      ticket.asTokenOfUser[TicketValue] match {
+      ticket.asToken[TicketValue] match {
         case None => TicketExpired
-        case Some((vt, value, user)) =>
-          val names = Distributions.names()
-          Ok(Json toJson names)
+        case Some((vt, ticket)) =>
+          val names = Distributions.names
+          Ok(names.asJson)
       }
     }
   }

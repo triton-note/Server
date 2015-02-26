@@ -33,15 +33,15 @@ object NaturalConditionsSpec extends Specification with ScalaCheck {
     val actual = NaturalConditions.tideState(origin, moon)
     val diff: Degrees = (moon - origin).normalize
     val expected = diff.toDouble match {
-      case d if d < 15   => Tide.High
-      case d if d <= 75  => Tide.Flood
-      case d if d < 105  => Tide.Low
-      case d if d <= 165 => Tide.Ebb
-      case d if d < 195  => Tide.High
-      case d if d <= 255 => Tide.Flood
-      case d if d < 285  => Tide.Low
-      case d if d <= 345 => Tide.Ebb
-      case d if d < 360  => Tide.High
+      case d if d < 15   => Tide.HIGH
+      case d if d <= 75  => Tide.FLOOD
+      case d if d < 105  => Tide.LOW
+      case d if d <= 165 => Tide.EBB
+      case d if d < 195  => Tide.HIGH
+      case d if d <= 255 => Tide.FLOOD
+      case d if d < 285  => Tide.LOW
+      case d if d <= 345 => Tide.EBB
+      case d if d < 360  => Tide.HIGH
     }
     actual must_== expected
   }

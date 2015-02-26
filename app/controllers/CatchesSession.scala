@@ -4,62 +4,62 @@ import scala.concurrent.Future
 
 import play.api.Logger
 import play.api.libs.concurrent.Execution.Implicits.defaultContext
+import play.api.libs.functional.syntax._
 import play.api.libs.json._
-import play.api.libs.json.Json.toJsFieldJsValueWrapper
 import play.api.mvc.{ Action, Controller }
 
-import models.{ GeoInfo, Report, Storage, Upload }
-import models.db.{ CatchReport, Image, Photo, VolatileToken }
-import service.{ InferenceCatches, Settings }
+import models.{ GeoInfo, Photo, Report, VolatileToken }
+import service.{ InferenceCatches, Settings, Storage }
 
 object CatchesSession extends Controller {
-  object SessionValue {
-    implicit val sessionOptionFormat = Json.format[SessionValue]
-  }
   case class SessionValue(
     userId: String,
     geoinfo: Option[GeoInfo],
-    imageId: Option[String] = None,
-    committed: Option[String] = None) {
-    override def toString = Json.toJson(this).toString
+    imagePath: Option[String] = None)
+  object SessionValue {
+    implicit val json = Json.format[SessionValue]
   }
-  def mkFolder(session: String) = List("photo", Image.Kind.ORIGINAL.toString, session).mkString("/")
+  val SessionExpired = BadRequest("Session Expired")
 
-  def start(ticket: String) = Action.async(parse.json(
-    (__ \ "geoinfo").readNullable[GeoInfo])
-  ) { implicit request =>
-    val geoinfo = request.body
+  def mkFolder(session: String) = List("photo", Photo.Image.Kind.ORIGINAL, session).mkString("/")
+
+  def start = Action.async(parse.json((
+    (__ \ "ticket").read[String] and
+    (__ \ "geoinfo").readNullable[GeoInfo]
+  ).tupled)) { implicit request =>
+    val (ticket, geoinfo) = request.body
     Logger debug f"Starting session by ${ticket} on ${geoinfo}"
     Future {
-      ticket.asTokenOfUser[TicketValue] match {
+      ticket.asToken[TicketValue] match {
         case None => TicketExpired
-        case Some((vt, _, user)) =>
-          val value = SessionValue(user.id, geoinfo)
-          val session = VolatileToken.addNew(Settings.Session.timeoutUpload, Option(value.toString))
+        case Some((vt, ticket)) =>
+          val session = SessionValue(ticket.userId, geoinfo)
+          val vt = VolatileToken.create(session.asJson, Settings.Session.timeoutUpload)
           Ok(Json.obj(
-            "session" -> session.id,
-            "upload" -> Upload.start(mkFolder(session.id))
+            "session" -> vt.id,
+            "upload" -> Storage.Upload.start(mkFolder(vt.id))
           ))
       }
     }
   }
 
-  def photo(session: String) = Action.async(parse.json(
+  def photo = Action.async(parse.json((
+    (__ \ "session").read[String] and
     (__ \ "names").read[Set[String]]
-  )) { implicit request =>
-    val files = request.body.map(Storage.file(mkFolder(session), _))
-    Logger debug f"Saving head of ${files}"
+  ).tupled)) { implicit request =>
+    val (session, names) = request.body
+    Logger debug f"Saving head of ${names}"
     Future {
-      files.toList match {
+      names.map(Storage.file(mkFolder(session), _)).toList match {
         case Nil => BadRequest("No uploaded files")
-        case file :: Nil => session.asTokenOfUser[SessionValue] match {
+        case file :: Nil => session.asToken[SessionValue] match {
           case None => SessionExpired
-          case Some((vt, value, user)) => file.asPhoto match {
+          case Some((vt, session)) => Photo of file match {
             case None => InternalServerError("Failed to save photo")
-            case Some(photo) => vt json value.copy(imageId = Some(photo.original.id)) match {
+            case Some(photo) => vt.copy(data = session.copy(imagePath = Some(photo.original.file.path)).asJson).save match {
               case None => InternalServerError("Failed to save session value")
               case Some(_) => Ok(Json.obj(
-                "url" -> photo.asURL
+                "url" -> photo
               ))
             }
           }
@@ -69,17 +69,20 @@ object CatchesSession extends Controller {
     }
   }
 
-  def infer(session: String) = Action.async { implicit request =>
+  def infer = Action.async(parse.json(
+    (__ \ "session").read[String]
+  )) { implicit request =>
+    val session = request.body
     Logger debug f"Inferring of photo on session: ${session}"
     Future {
-      session.asTokenOfUser[SessionValue] match {
+      session.asToken[SessionValue] match {
         case None => SessionExpired
-        case Some((vt, value, user)) =>
+        case Some((vt, session)) =>
           val ok = for {
-            imageId <- value.imageId
-            image <- Image get imageId
+            path <- session.imagePath
+            image = Storage file path
           } yield {
-            val (location, fishes) = InferenceCatches.infer(image.file, value.geoinfo)
+            val (location, fishes) = InferenceCatches.infer(image, session.geoinfo)
             Ok(Json.obj(
               "location" -> location,
               "fishes" -> fishes
@@ -90,26 +93,25 @@ object CatchesSession extends Controller {
     }
   }
 
-  def submit(session: String) = Action.async(parse.json(
+  def submit = Action.async(parse.json((
+    (__ \ "session").read[String] and
     (__ \ "report").read[Report]
-  )) { implicit request =>
-    val given = request.body
+  ).tupled)) { implicit request =>
+    val (session, given) = request.body
     Logger debug f"Sumit report: ${given}"
     Future {
-      session.asTokenOfUser[SessionValue] match {
+      session.asToken[SessionValue] match {
         case None => SessionExpired
-        case Some((vt, value, user)) =>
+        case Some((vt, session)) =>
           val ok = for {
-            imageId <- value.imageId
-            image <- Image get imageId
+            path <- session.imagePath
+            image = Storage file path
           } yield {
-            val report = CatchReport.addNew(user, given.location.geoinfo, given.location.name, given.dateAt, given.condition)
-            val photo = Photo.addNew(report, image)
-            val comment = report.addComment(given.comment)(user)
-            val photos = given.fishes.map(_ add photo)
-            vt json value.copy(committed = Some(report.id)) match {
-              case None    => InternalServerError("Failed to save session value")
-              case Some(_) => Ok(report.id)
+            given.copy(userId = session.userId).save match {
+              case None => InternalServerError(f"Failed to save report: ${given}")
+              case Some(saved) =>
+                vt.copy(data = "".asJson).delete
+                Ok(saved.id)
             }
           }
           ok getOrElse BadRequest("Any image is not saved yet")

@@ -13,9 +13,9 @@ object ValueUnit {
     object Measure extends Enumeration {
       val CM = Value("cm")
       val INCH = Value("inch")
-      implicit val json = Format(
-        (__).read[String].map(Measure.withName),
-        Writes { (t: Measure.Value) => JsString(t.toString) })
+      implicit val json = Format[Measure.Value](
+        Reads.verifying[String](values.map(_.toString).contains).map(withName),
+        Writes { Json toJson _.toString })
     }
     implicit val json = Json.format[Length]
   }
@@ -24,9 +24,9 @@ object ValueUnit {
     object Measure extends Enumeration {
       val KG = Value("kg")
       val POND = Value("pond")
-      implicit val json = Format(
-        (__).read[String].map(Measure.withName),
-        Writes { (t: Measure.Value) => JsString(t.toString) })
+      implicit val json = Format[Measure.Value](
+        Reads.verifying[String](values.map(_.toString).contains).map(withName),
+        Writes { Json toJson _.toString })
     }
     implicit val json = Json.format[Weight]
   }
@@ -35,17 +35,15 @@ object ValueUnit {
     object Measure extends Enumeration {
       val Cels = Value("Cels")
       val Fahr = Value("Fahr")
-      implicit val json = Format(
-        (__).read[String].map(Measure.withName),
-        Writes { (t: Measure.Value) => JsString(t.toString) })
+      implicit val json = Format[Value](
+        Reads.verifying[String](values.map(_.toString).contains).map(withName),
+        Writes { Json toJson _.toString })
     }
     implicit val json = Json.format[Temperature]
   }
 
+  case class Measures(length: ValueUnit.Length.Measure.Value, weight: ValueUnit.Weight.Measure.Value, temperature: ValueUnit.Temperature.Measure.Value)
   object Measures {
     implicit val json = Json.format[Measures]
-  }
-  case class Measures(length: ValueUnit.Length.Measure.Value, weight: ValueUnit.Weight.Measure.Value, temperature: ValueUnit.Temperature.Measure.Value) {
-    lazy val asJson = Json toJson this
   }
 }
