@@ -5,18 +5,23 @@ import play.api.libs.functional.syntax._
 import play.api.libs.json._
 
 package object service {
-  implicit val jsonFormatTimeUnit = Format[FiniteDuration](
-    (
-      (__ \ "length").read[Long] and
-      (__ \ "unit").read[String](Reads.verifying[String] { s =>
-        (allCatch opt TimeUnit.valueOf(s)).isDefined
-      }).map(TimeUnit.valueOf)
-    )((l, u) => FiniteDuration(l, u)),
-    Writes { d =>
-      Json.obj(
-        "length" -> d.length,
-        "unit" -> d.unit.toString
-      )
+  implicit val jsonFormatTimeUnit = {
+    def parse(s: String): Option[FiniteDuration] = {
+      for {
+        src <- Option(s)
+        Array(l, u) <- allCatch opt src.split(" +")
+        length <- allCatch opt l.toLong
+        unit <- allCatch opt TimeUnit.valueOf {
+          val up = u.toUpperCase()
+          if (up.endsWith("S")) up else up + "S"
+        }
+      } yield FiniteDuration(length, unit)
     }
-  )
+    Format[FiniteDuration](
+      Reads.verifying[String](parse(_).isDefined).map(parse(_).get),
+      Writes { d =>
+        Json toJson f"${d.length} ${d.unit}"
+      }
+    )
+  }
 }
