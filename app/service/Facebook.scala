@@ -62,7 +62,7 @@ object Facebook {
           id <- (json \ "id").asOpt[String]
         } yield {
           Logger debug f"Getting User of facebook by id: ${id}"
-          Account.findBy(_.FACEBOOK)(id) match {
+          Account.findBy(_.FACEBOOK, id, true) match {
             case Some(user) => Right(user)
             case None       => Left(id)
           }
@@ -82,7 +82,7 @@ object Facebook {
         } yield {
           val user = Account.create(name,
             ValueUnit.Measures(ValueUnit.Length.Measure.CM, ValueUnit.Weight.Measure.KG, ValueUnit.Temperature.Measure.Cels),
-            Account.SocialConnection(Account.SocialConnection.Service.FACEBOOK, id, true))
+            Account.SocialConnection.of(_.FACEBOOK, id, true))
           Logger.info(f"Creating ${user}")
           user
         }
@@ -102,14 +102,18 @@ object Facebook {
      * If User is not created yet, create it.
      * If accessKey is not valid, return None.
      */
-    def apply(implicit accesskey: AccessKey): Future[Option[Account]] = {
+    def apply(implicit accesskey: String): Future[Option[Account]] = {
+      implicit val key = AccessKey(accesskey)
       Logger.debug(f"Login as user with ${accesskey}")
       find flatMap (_ match {
+        case None => Future(None)
         case Some(e) => e match {
           case Right(user) => Future(Some(user))
-          case Left(id)    => create
+          case Left(id) => Account.findBy(_.FACEBOOK, id, false) match {
+            case None       => create
+            case Some(user) => connect(user)
+          }
         }
-        case None => Future(None)
       })
     }
   }
