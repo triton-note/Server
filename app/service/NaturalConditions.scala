@@ -113,10 +113,10 @@ object NaturalConditions {
     }
     Logger debug f"TideMoon origin(${origin}) -> moon(${moon}): ${angle}"
     angle.toDouble match {
-      case d if d < 30             => Tide.High
-      case d if 30 <= d && d <= 90 => Tide.Flood
-      case d if 90 < d && d < 120  => Tide.Low
-      case d if 120 <= d           => Tide.Ebb
+      case d if d < 30             => Tide.HIGH
+      case d if 30 <= d && d <= 90 => Tide.FLOOD
+      case d if 90 < d && d < 120  => Tide.LOW
+      case d if 120 <= d           => Tide.EBB
     }
   }
 

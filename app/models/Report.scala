@@ -30,10 +30,10 @@ object Report {
   case class Condition(moon: Int, tide: Condition.Tide.Value, weather: Option[Condition.Weather])
   object Condition {
     object Tide extends Enumeration {
-      val Flood = Value("Flood")
-      val High = Value("High")
-      val Ebb = Value("Ebb")
-      val Low = Value("Low")
+      val FLOOD = Value("Flood")
+      val HIGH = Value("High")
+      val EBB = Value("Ebb")
+      val LOW = Value("Low")
       implicit val json = Format[Value](
         Reads.verifying[String](values.map(_.toString).contains).map(withName),
         Writes { Json toJson _.toString })
