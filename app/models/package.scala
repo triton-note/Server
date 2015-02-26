@@ -5,16 +5,16 @@ import play.api.libs.json._
 
 import org.fathens.play.util.Exception.allCatch
 
-import com.amazonaws.services.dynamodbv2.document.{ DynamoDB, Item, PrimaryKey, Table }
+import com.amazonaws.services.dynamodbv2.document.{ Item, PrimaryKey, Table }
 import com.amazonaws.services.dynamodbv2.document.spec.{ GetItemSpec, QuerySpec, ScanSpec }
 
-package object models {
-  lazy val db = new DynamoDB(service.AWS.DynamoDB.client)
+import service.AWS.DynamoDB
 
+package object models {
   def generateId = play.api.libs.Crypto.generateToken
 
   class TableDelegate[T <: { val id: String }](name: String)(implicit $writer: Format[T]) {
-    lazy val TABLE = db.getTable(f"TritonNote.${name}")
+    lazy val TABLE = DynamoDB.getTable(f"TritonNote.${name}")
     val ID = "ID"
     val CONTENT = "CONTENT"
 

@@ -1,6 +1,7 @@
 package service
 
 import com.amazonaws.auth.BasicAWSCredentials
+import com.amazonaws.services.dynamodbv2.document.DynamoDB
 
 object AWS {
   lazy val region = Settings.AWS_REGION
@@ -15,6 +16,8 @@ object AWS {
       c.setEndpoint(f"dynamodb.${region}.amazonaws.com")
       c
     }
+    lazy val delegate = new DynamoDB(service.AWS.DynamoDB.client)
+    def getTable(name: String) = delegate.getTable(name)
   }
   object S3 {
     lazy val bucketName = Settings.AWS_S3_BUCKET_NAME
