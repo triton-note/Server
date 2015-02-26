@@ -8,7 +8,7 @@ import play.api.libs.functional.syntax._
 import play.api.libs.json._
 import play.api.mvc.{ Action, Controller }
 
-import models.{ GeoInfo, Report, VolatileToken }
+import models.{ GeoInfo, Photo, Report, VolatileToken }
 import service.{ InferenceCatches, Settings, Storage }
 
 object CatchesSession extends Controller {
@@ -21,7 +21,7 @@ object CatchesSession extends Controller {
   }
   val SessionExpired = BadRequest("Session Expired")
 
-  def mkFolder(session: String) = List("photo", Report.Photo.Image.Kind.ORIGINAL, session).mkString("/")
+  def mkFolder(session: String) = List("photo", Photo.Image.Kind.ORIGINAL, session).mkString("/")
 
   def start = Action.async(parse.json((
     (__ \ "ticket").read[String] and
@@ -54,7 +54,7 @@ object CatchesSession extends Controller {
         case Nil => BadRequest("No uploaded files")
         case file :: Nil => session.asToken[SessionValue] match {
           case None => SessionExpired
-          case Some((vt, session)) => asPhoto(file) match {
+          case Some((vt, session)) => Photo of file match {
             case None => InternalServerError("Failed to save photo")
             case Some(photo) => vt.copy(data = session.copy(imagePath = Some(photo.original.file.path)).asJson).save match {
               case None => InternalServerError("Failed to save session value")

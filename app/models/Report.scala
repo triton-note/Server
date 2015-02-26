@@ -11,8 +11,6 @@ import play.api.libs.json._
 import com.amazonaws.services.dynamodbv2.document.KeyAttribute
 import com.amazonaws.services.dynamodbv2.document.spec.QuerySpec
 
-import service.{ Settings, Storage }
-
 case class Report(
   id: String,
   userId: String,
@@ -20,15 +18,11 @@ case class Report(
   dateAt: Date,
   location: Report.Location,
   naturalCondition: Report.Condition,
-  photo: Option[Report.Photo],
+  photo: Option[Photo],
   fishes: Seq[Report.Fishes]) {
   def save: Option[Report] = Report.save(this)
   def delete: Boolean = {
-    photo.foreach { p =>
-      Future(p.original.file.delete)
-      Future(p.mainview.file.delete)
-      Future(p.thumbnail.file.delete)
-    }
+    Future(photo.foreach(_.delete))
     Report.delete(id)
   }
 }
@@ -53,29 +47,6 @@ object Report {
       implicit val json = Json.format[Weather]
     }
     implicit val json = Json.format[Condition]
-  }
-  case class Photo(
-    original: Photo.Image,
-    mainview: Photo.Image,
-    thumbnail: Photo.Image)
-  object Photo {
-    case class Image(file: Storage.S3File)
-    object Image {
-      implicit val json = Format[Image](
-        (__ \ "path").read[String].map(Storage file _).map(Image.apply),
-        Writes { image =>
-          Json.obj(
-            "path" -> image.file.path,
-            "volatileUrl" -> image.file.generateURL(Settings.Image.urlExpiration).toString
-          )
-        }
-      )
-      object Kind extends Enumeration {
-        val ORIGINAL = Value("original")
-        val REDUCED = Value("reduced")
-      }
-    }
-    implicit val json = Json.format[Photo]
   }
   case class Fishes(
     name: String,
