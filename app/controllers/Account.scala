@@ -71,12 +71,15 @@ object Account extends Controller {
           case None => TicketExpired
           case Some((vt, ticket)) => User get ticket.userId match {
             case None => BadRequest(f"User not found: ${ticket.userId}")
-            case Some(user) => user.connections.partition(_.service == service) match {
-              case (Nil, _) => BadRequest(f"Not connected: ${service}")
-              case (_, left) => user.copy(connections = left).save match {
-                case None    => InternalServerError(f"Failed to disconnect ${service}")
-                case Some(_) => Ok
-              }
+            case Some(user) => user.connections.find(_.service == service).filter(_.connected) match {
+              case None => BadRequest(f"Not connected: ${service}")
+              case Some(social) =>
+                val add = social.copy(connected = true)
+                val left = user.connections.filter(_.service != service)
+                user.copy(connections = left + add).save match {
+                  case None    => InternalServerError(f"Failed to disconnect ${social}")
+                  case Some(_) => Ok
+                }
             }
           }
         }
