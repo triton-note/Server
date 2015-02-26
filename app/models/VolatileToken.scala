@@ -3,8 +3,10 @@ package models
 import java.util.Date
 
 import scala.collection.JavaConversions._
+import scala.concurrent.Future
 import scala.concurrent.duration._
 
+import play.api.libs.concurrent.Execution.Implicits.defaultContext
 import play.api.libs.json._
 
 import controllers.CatchesSession
@@ -13,10 +15,12 @@ import service.Storage
 case class VolatileToken(id: String, expiration: Date, data: JsValue) {
   def save: Option[VolatileToken] = VolatileToken.save(this)
   def delete = {
-    for {
-      session <- data.asOpt[CatchesSession.SessionValue]
-      path <- session.imagePath
-    } Storage.file(path).delete
+    Future {
+      for {
+        session <- data.asOpt[CatchesSession.SessionValue]
+        path <- session.imagePath
+      } Storage.file(path).delete
+    }
     VolatileToken.delete(id)
   }
 }

@@ -2,7 +2,10 @@ package models
 
 import java.util.Date
 
+import scala.concurrent.Future
+
 import play.api.Logger
+import play.api.libs.concurrent.Execution.Implicits.defaultContext
 import play.api.libs.json._
 
 import com.amazonaws.services.dynamodbv2.document.KeyAttribute
@@ -20,7 +23,14 @@ case class Report(
   photo: Option[Report.Photo],
   fishes: Seq[Report.Fishes]) {
   def save: Option[Report] = Report.save(this)
-  def delete: Boolean = Report.delete(id)
+  def delete: Boolean = {
+    photo.foreach { p =>
+      Future(p.original.file.delete)
+      Future(p.mainview.file.delete)
+      Future(p.thumbnail.file.delete)
+    }
+    Report.delete(id)
+  }
 }
 object Report {
   case class Location(name: String, geoinfo: GeoInfo)
