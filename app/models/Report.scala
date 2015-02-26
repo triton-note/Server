@@ -17,7 +17,7 @@ case class Report(
   comment: Option[String],
   dateAt: Date,
   location: Report.Location,
-  naturalCondition: Report.Condition,
+  condition: Report.Condition,
   photo: Option[Photo],
   fishes: Seq[Report.Fishes]) {
   def save: Option[Report] = Report.save(this)
