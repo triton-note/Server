@@ -6,26 +6,22 @@ import play.api.libs.json._
 
 import com.amazonaws.services.dynamodbv2.document.utils.ValueMap
 
-case class User(id: String, username: String, measureUnit: ValueUnit.Measures, connections: Set[User.SocialConnection]) {
+case class User(id: String, username: String, measureUnit: ValueUnit.Measures, connections: List[User.SocialConnection]) {
   def save: Option[User] = User.save(this)
   /**
    * Connect to specified social service
    */
   def connect(service: User.SocialConnection.Service.Value, id: String): Option[User] = {
-    val (found, left) = connections.partition(_.service == service)
-    found.headOption match {
-      case Some(found) if !found.connected =>
-        val add = found.copy(connected = true)
-        copy(connections = left + add).save
-      case None =>
-        val add = User.SocialConnection(service, id, true)
-        copy(connections = left + add).save
+    connections.partition(_.service == service) match {
+      case (Nil, left) =>
+        val add = User.SocialConnection(service, id)
+        copy(connections = add :: left).save
       case _ => Option(this)
     }
   }
 }
 object User {
-  case class SocialConnection(service: SocialConnection.Service.Value, accountId: String, connected: Boolean)
+  case class SocialConnection(service: SocialConnection.Service.Value, accountId: String)
   object SocialConnection {
     object Service extends Enumeration {
       val FACEBOOK = Value("facebook")
@@ -43,7 +39,7 @@ object User {
   lazy val DB = new TableDelegate("USER")
 
   def create(name: String, measureUnit: ValueUnit.Measures, connections: User.SocialConnection*) = {
-    User(generateId, name, measureUnit, connections.toSet).save.get
+    User(generateId, name, measureUnit, connections.toList).save.get
   }
   def save(user: User): Option[User] = DB save user
   def get(id: String): Option[User] = DB get id
@@ -57,7 +53,6 @@ object User {
         ":v1" -> new ValueMap()
           .withString("service", social(SocialConnection.Service).toString)
           .withString("accountId", socialId)
-          .withBoolean("connected", true)
       ))
     ).headOption
   }

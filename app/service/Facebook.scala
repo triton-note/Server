@@ -82,7 +82,7 @@ object Facebook {
         } yield {
           val user = Account.create(name,
             ValueUnit.Measures(ValueUnit.Length.Measure.CM, ValueUnit.Weight.Measure.KG, ValueUnit.Temperature.Measure.Cels),
-            Account.SocialConnection(Account.SocialConnection.Service.FACEBOOK, id, true))
+            Account.SocialConnection(Account.SocialConnection.Service.FACEBOOK, id))
           Logger.info(f"Creating ${user}")
           user
         }
