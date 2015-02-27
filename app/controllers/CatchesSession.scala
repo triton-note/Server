@@ -9,7 +9,7 @@ import play.api.libs.json._
 import play.api.mvc.{ Action, Controller }
 
 import models.{ GeoInfo, Photo, Report, VolatileToken }
-import service.{ InferenceCatches, Settings, Storage }
+import service.{ InferenceCatches, Storage }
 
 object CatchesSession extends Controller {
   case class SessionValue(
@@ -34,7 +34,7 @@ object CatchesSession extends Controller {
         case None => TicketExpired
         case Some((vt, ticket)) =>
           val session = SessionValue(ticket.userId, geoinfo)
-          val vt = VolatileToken.create(session.asJson, Settings.Session.timeoutUpload)
+          val vt = VolatileToken.create(session.asJson, settings.token.session)
           Ok(Json.obj(
             "session" -> vt.id,
             "upload" -> Storage.Upload.start(mkFolder(vt.id))

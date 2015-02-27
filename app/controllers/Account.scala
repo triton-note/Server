@@ -11,7 +11,6 @@ import play.api.mvc.{ Action, Controller }
 import org.fathens.play.util.Exception.allCatch
 
 import models.{ User, ValueUnit, VolatileToken }
-import service.Settings
 
 object Account extends Controller {
   def login(way: String) = Action.async(parse.json(
@@ -28,7 +27,7 @@ object Account extends Controller {
             case Some(user) =>
               Logger debug f"Authorized user from ${way}: ${user}"
               val ticket = TicketValue(user.id)
-              val vt = VolatileToken.create(ticket.asJson, Settings.Session.timeoutTicket)
+              val vt = VolatileToken.create(ticket.asJson, settings.token.ticket)
               Ok(vt.id)
           }
         }

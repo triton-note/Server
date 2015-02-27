@@ -21,7 +21,7 @@ import com.amazonaws.services.s3.model.ObjectMetadata
 
 object Storage {
   lazy val s3 = AWS.S3.client
-  lazy val bucketName = AWS.S3.bucketName
+  lazy val bucketName = settings.AWS.bucketName
   def file(paths: String*) = {
     val list = paths.map(_ split "/").flatten.toList
     Logger.trace(f"Creating S3File: $list")
@@ -119,28 +119,28 @@ object Storage {
       val (policy, signature) = {
         val charset = Charset.forName("UTF-8")
         val src = Json.obj(
-          "expiration" -> expiration(Settings.Image.uploadExpiration),
+          "expiration" -> expiration(settings.image.upload.timeout),
           "conditions" -> Json.arr(
-            Json.obj("bucket" -> AWS.S3.bucketName),
+            Json.obj("bucket" -> bucketName),
             Json.arr("starts-with", "$key", folderPath),
-            Json.obj("acl" -> AWS.S3.ClientSide.acl),
+            Json.obj("acl" -> settings.image.upload.acl),
             Json.obj("Content-Type" -> contentType),
-            Json.arr("content-length-range", 1, Settings.Image.uploadMaxSize)
+            Json.arr("content-length-range", settings.image.upload.minFileSize, settings.image.upload.maxFileSize)
           )
         )
         val base64 = Base64 encodeBase64String src.toString.getBytes(charset)
         val sig = {
-          val hex = Crypto.sign(base64, AWS.S3.ClientSide.seacretKey.getBytes(charset))
+          val hex = Crypto.sign(base64, settings.image.upload.secretKey.getBytes(charset))
           Base64 encodeBase64String Codecs.hexStringToByte(hex)
         }
         (base64, sig)
       }
       Start(
-        AWS.S3.ClientSide.targetUrl,
+        f"https://${settings.AWS.bucketName}.s3.amazonaws.com/",
         Params(
           folderPath + "/${filename}",
-          AWS.S3.ClientSide.accessKey,
-          AWS.S3.ClientSide.acl,
+          settings.image.upload.accessKey,
+          settings.image.upload.acl,
           policy,
           signature,
           contentType

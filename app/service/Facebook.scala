@@ -18,11 +18,8 @@ import models.{ Report, User => Account, ValueUnit }
 object Facebook {
   case class AccessKey(token: String)
   case class ObjectId(id: String)
-  lazy val appName = Settings.FACEBOOK_APP_NAME
-  lazy val actionName = Settings.FACEBOOK_CATCH_ACTION
-  lazy val objectName = Settings.FACEBOOK_CATCH_OBJECT
   object fb {
-    lazy val host = Settings.FACEBOOK_HOST
+    lazy val host = settings.facebook.host
     val client = WS.client
     def /(path: String) = client url f"${host}/${path}"
   }
@@ -121,6 +118,9 @@ object Facebook {
     def publish(report: Report)(implicit accessKey: AccessKey, request: RequestHeader): Future[Option[ObjectId]] = {
       def model(f: controllers.routes.ModelView.type => play.api.mvc.Call) =
         Seq(f(controllers.routes.ModelView).absoluteURL(true))
+      val appName = settings.facebook.appName
+      val actionName = settings.facebook.publish.actionName
+      val objectName = settings.facebook.publish.objectName
       val params = {
         Map(
           "fb:explicitly_shared" -> Seq("true"),
@@ -131,13 +131,13 @@ object Facebook {
             for {
               (photo, index) <- report.photo.zipWithIndex
               (key, value) <- Map(
-                "url" -> photo.original.file.generateURL(Settings.Pulish.timer),
+                "url" -> photo.original.file.generateURL(settings.facebook.publish.imageTimeout),
                 "user_generated" -> true
               )
             } yield f"image[${index}][${key}]" -> Seq(value.toString)
           }
       }
-      (fb / f"me/${appName}:${actionName}").withQueryString(
+      (fb / f"me/${appName}:${settings.facebook.publish.actionName}").withQueryString(
         "access_token" -> accessKey.token
       ).post(params).map(parse.ObjectID)
     }

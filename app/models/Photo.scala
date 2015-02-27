@@ -10,7 +10,7 @@ import com.drew.imaging.ImageMetadataReader
 import com.drew.metadata.exif.ExifIFD0Directory
 import com.sksamuel.scrimage
 
-import service.{ Settings, Storage }
+import service.Storage
 
 case class Photo(
   original: Photo.Image,
@@ -28,7 +28,7 @@ object Photo {
       Writes { image =>
         Json.obj(
           "path" -> image.file.path,
-          "volatileUrl" -> image.file.generateURL(Settings.Image.urlExpiration).toString
+          "volatileUrl" -> image.file.generateURL(settings.image.urlTimeout).toString
         )
       }
     )
@@ -68,8 +68,8 @@ object Photo {
     }
     for {
       i <- allCatch.opt { Option(scrimage.Image(file.read)) }.flatten
-      m <- allCatch opt resize(i, Settings.Image.sizeMainview, "mainview")
-      t <- allCatch opt resize(i, Settings.Image.sizeThumbnail, "thumbnail")
+      m <- allCatch opt resize(i, settings.image.size.mainview, "mainview")
+      t <- allCatch opt resize(i, settings.image.size.thumbnail, "thumbnail")
     } yield Photo(Photo.Image(file), m, t)
   }
 }
