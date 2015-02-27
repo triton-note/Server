@@ -2,6 +2,7 @@ import java.util.concurrent.TimeUnit
 
 import scala.concurrent.duration._
 
+import play.api.data.validation.ValidationError
 import play.api.libs.json._
 
 import org.fathens.play.util.Exception.allCatch
@@ -9,24 +10,26 @@ import org.fathens.play.util.Exception.allCatch
 import settings.Settings
 
 package object settings {
-  implicit val jsonFormatTimeUnit = {
-    def parse(s: String): Option[FiniteDuration] = {
-      for {
-        Array(l, u) <- allCatch opt s.split(" +")
-        length <- allCatch opt l.toLong
-        unit <- allCatch opt TimeUnit.valueOf {
-          val up = u.toUpperCase()
-          if (up.endsWith("S")) up else up + "S"
-        }
-      } yield FiniteDuration(length, unit)
-    }
-    Format[FiniteDuration](
-      Reads.verifying[String](parse(_).isDefined).map(parse(_).get),
-      Writes { d =>
-        Json toJson f"${d.length} ${d.unit}"
+  implicit val jsonFormatDuration = Format[FiniteDuration](
+    Reads {
+      _.asOpt[String].flatMap { s =>
+        for {
+          Array(l, u) <- allCatch opt s.split(" +", 2)
+          length <- allCatch opt l.toLong
+          unit <- allCatch opt TimeUnit.valueOf {
+            val up = u.toUpperCase()
+            if (up.endsWith("S")) up else up + "S"
+          }
+        } yield FiniteDuration(length, unit)
+      } match {
+        case Some(d) => JsSuccess(d)
+        case None    => JsError(Seq(JsPath() -> Seq(ValidationError("error.expected.finiteduration"))))
       }
-    )
-  }
+    },
+    Writes { d =>
+      Json toJson f"${d.length} ${d.unit}"
+    }
+  )
 
   /**
    * Loading of Settings
