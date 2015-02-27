@@ -23,7 +23,7 @@ object Settings {
     object Sizes {
       implicit val json = Json.format[Sizes]
     }
-    case class Upload(accessKey: String, secretKey: String, acl: String, timeout: FiniteDuration, minFileSize: Int, maxFileSize: Int)
+    case class Upload(accessKey: String, secretKey: String, acl: String, timeout: FiniteDuration, minFileSize: Long, maxFileSize: Long)
     object Upload {
       implicit val json = Json.format[Upload]
     }
