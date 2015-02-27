@@ -6,13 +6,12 @@ import play.api.libs.concurrent.Execution.Implicits.defaultContext
 import play.api.mvc.{ Action, Controller }
 
 import models.Report
-import service.Settings
 
 object ModelView extends Controller {
-  val appId = Settings.FACEBOOK_APP_ID
-  val appName = Settings.FACEBOOK_APP_NAME
-  val actionName = Settings.FACEBOOK_CATCH_ACTION
-  val objectName = Settings.FACEBOOK_CATCH_OBJECT
+  lazy val appId = settings.facebook.appId
+  lazy val appName = settings.facebook.appName
+  lazy val actionName = settings.facebook.publish.actionName
+  lazy val objectName = settings.facebook.publish.objectName
 
   def catchReport(id: String) = Action.async { implicit request =>
     def qs(key: String) = request.queryString.get(key).toSeq.flatten.headOption
@@ -21,7 +20,7 @@ object ModelView extends Controller {
         report <- Report.get(id)
       } yield {
         val title = f"Catches at ${report.fishes.headOption.map(_.name).mkString}"
-        val imageUrls = report.photo.map(_.original).map(_.file generateURL Settings.Image.urlExpiration).map(_.toString)
+        val imageUrls = report.photo.map(_.original).map(_.file generateURL settings.image.urlTimeout).map(_.toString)
         val props = Map(
           "fb:app_id" -> appId,
           "og:type" -> f"${appName}:${objectName}",
