@@ -9,175 +9,124 @@ import play.api.libs.json._
 import play.api.libs.json.Json.toJsFieldJsValueWrapper
 import play.api.mvc.{ Action, Controller }
 
-import models.Report
-import models.db.{ CatchReport, Comment, FishSize, Photo }
+import org.fathens.play.util.Exception.allCatch
+
+import models.{ Report, User }
 import service.Facebook
 
 object ReportSync extends Controller {
 
-  def convert(cr: CatchReport): Option[Report] = {
-    Photo.findBy(cr).headOption.map { photo =>
-      val comment = cr.topComment.map(_.text) getOrElse ""
-      val fishes = FishSize.findBy(photo).toSeq.map { fish =>
-        Report.Fishes(fish.name, fish.count.toInt, fish.size.weight, fish.size.length)
-      }
-      Report(Some(cr.id),
-        comment,
-        cr.timestamp,
-        Report.Location(cr.location, cr.geoinfo),
-        cr.condition,
-        photo.group.map(_.asURL),
-        fishes)
-    }
-  }
-
-  def load(ticket: String) = Action.async(parse.json((
+  def load = Action.async(parse.json((
+    (__ \ "ticket").read[String] and
     (__ \ "count").read[Int] and
-    (__ \ "last").readNullable[String]
+    (__ \ "last").read[Option[Report]]
   ).tupled)) { implicit request =>
-    val (count, last) = request.body
+    val (ticket, count, last) = request.body
     Logger debug f"Loading reports: count(${count}) from ${last}"
-    ticket.asTokenOfUser[TicketValue] match {
-      case None => Future(TicketExpired)
-      case Some((vt, value, user)) => Future {
-        val reports = CatchReport.findBy(user, count, last).flatMap(convert)
-        Ok(Json toJson reports)
+    Future {
+      ticket.asToken[TicketValue] match {
+        case None => TicketExpired
+        case Some((vt, ticket)) =>
+          val reports = Report.findBy(ticket.userId, count, last)
+          Ok(reports.asJson)
       }
     }
   }
 
-  def read(ticket: String) = Action.async(parse.json((
+  def read = Action.async(parse.json((
+    (__ \ "ticket").read[String] and
     (__ \ "id").read[String]
-  ))) { implicit request =>
-    val id = request.body
+  ).tupled)) { implicit request =>
+    val (ticket, id) = request.body
     Logger debug f"Reading report:${id}"
-    ticket.asTokenOfUser[TicketValue] match {
-      case None => Future(TicketExpired)
-      case Some((vt, value, user)) => Future {
-        CatchReport.get(id) match {
+    Future {
+      ticket.asToken[TicketValue] match {
+        case None => TicketExpired
+        case Some((vt, ticket)) => Report.get(id) match {
           case None => BadRequest(f"Report NotFound: ${id}")
-          case Some(cr) => if (cr.user.map(_.id != user.id) getOrElse true)
-            BadRequest(f"report(${cr.id}) is not owned by user(${user.id})")
-          else convert(cr) match {
-            case None => BadRequest(f"Failed to convert report: ${id}")
-            case Some(report) => Ok {
-              Json.obj(
-                "report" -> report)
-            }
+          case Some(report) => if (report.userId != ticket.userId)
+            BadRequest(f"report(${report.id}) is not owned by user(${ticket.userId})")
+          else Ok {
+            Json.obj(
+              "report" -> report)
           }
         }
       }
     }
   }
 
-  def update(ticket: String) = Action.async(parse.json((
+  def update = Action.async(parse.json((
+    (__ \ "ticket").read[String] and
     (__ \ "report").read[Report]
-  ))) { implicit request =>
-    val report = request.body
+  ).tupled)) { implicit request =>
+    val (ticket, report) = request.body
     Logger debug f"Updating ${report}"
     Future {
-      ticket.asTokenOfUser[TicketValue] match {
+      ticket.asToken[TicketValue] match {
         case None => TicketExpired
-        case Some((vt, value, user)) =>
-          report.id.flatMap(CatchReport.get) match {
-            case None => BadRequest(f"Invalid id: ${report.id.orNull}")
-            case Some(src) => if (src.user.map(_.id != user.id) getOrElse true)
-              BadRequest(f"report(${report.id}) is not owned by user(${user.id})")
-            else CatchReport.update(src.id, List(
-              src.diff(_.timestamp, report.dateAt),
-              src.diff(_.location, report.location.name),
-              src.diff(_.condition, report.condition),
-              src.diff(_.latitude, report.location.geoinfo.latitude.toDouble),
-              src.diff(_.longitude, report.location.geoinfo.longitude.toDouble)
-            ).flatten.toMap) match {
-              case None => InternalServerError("Failed to update report")
-              case Some(doneCR) =>
-                doneCR.topComment.flatMap { comment =>
-                  Comment.update(comment.id, List(
-                    comment.diff(_.text, report.comment)
-                  ).flatten.toMap)
-                }
-                Photo.findBy(doneCR) match {
-                  case thePhoto :: Nil =>
-                    def reduce(left: List[FishSize], adding: List[Report.Fishes], deleting: List[FishSize] = Nil): (List[FishSize], List[Report.Fishes]) = left match {
-                      case Nil => (deleting, adding)
-                      case fish :: next => adding.partition(_ same fish) match {
-                        case (Nil, nextAdding) => reduce(next, nextAdding, fish :: deleting)
-                        case (_, nextAdding)   => reduce(next, nextAdding, deleting)
-                      }
-                    }
-                    reduce(FishSize.findBy(thePhoto), report.fishes.toList) match {
-                      case (dbFish, rpFish) =>
-                        val dones = List(
-                          dbFish.par.map(_.delete).filter(_ == true),
-                          rpFish.par.map(_ add thePhoto)
-                        ).par.map(_.size)
-                        Logger info f"Update ${FishSize.tableName}: ${dones(0)} deleted, ${dones(1)} added"
-                        Ok
-                    }
-                  case Nil  => InternalServerError(f"Not Found photo for ${doneCR}")
-                  case many => InternalServerError(f"Too Many photo for ${doneCR}: ${many}")
-                }
+        case Some((vt, ticket)) =>
+          Report.get(report.id) match {
+            case None => BadRequest(f"Invalid id: ${report.id}")
+            case Some(src) => if (src.userId != ticket.userId)
+              BadRequest(f"report(${report.id}) is not owned by user(${ticket.userId})")
+            else report.save match {
+              case None        => InternalServerError("Failed to update report")
+              case Some(saved) => Ok
             }
           }
       }
     }
   }
 
-  def remove(ticket: String) = Action.async(parse.json((
+  def remove = Action.async(parse.json((
+    (__ \ "ticket").read[String] and
     (__ \ "id").read[String]
-  ))) { implicit request =>
-    val id = request.body
+  ).tupled)) { implicit request =>
+    val (ticket, id) = request.body
     Logger debug f"Deleting report: id=${id}"
     Future {
-      ticket.asTokenOfUser[TicketValue] match {
+      ticket.asToken[TicketValue] match {
         case None => TicketExpired
-        case Some((vt, value, user)) =>
-          CatchReport.get(id) match {
+        case Some((vt, ticket)) =>
+          Report.get(id) match {
             case None => BadRequest(f"Invalid report-id: ${id}")
-            case Some(cr) => if (cr.user.map(_.id != user.id) getOrElse true)
-              BadRequest(f"report(${id}) is not owned by user(${user.id})")
-            else Photo.findBy(cr) match {
-              case thePhoto :: Nil => thePhoto.image match {
-                case None => InternalServerError(f"Not Found image for ${thePhoto}")
-                case Some(theImage) =>
-                  val fishes = FishSize.findBy(thePhoto)
-                  val targets = cr :: thePhoto :: theImage :: (fishes: List[{ def delete: Boolean }])
-                  Logger debug f"Deleting: ${targets}"
-                  if (targets.par.map(_.delete).forall(_ == false)) InternalServerError("Failed to delete any items") else Ok
-              }
-              case Nil  => InternalServerError(f"Not Found photo for ${cr}")
-              case many => InternalServerError(f"Too Many photo for ${cr}: ${many}")
-            }
+            case Some(report) => if (report.userId != ticket.userId)
+              BadRequest(f"report(${id}) is not owned by user(${ticket.userId})")
+            else if (report.delete) Ok
+            else InternalServerError(f"Failed to remove report: ${id}")
           }
       }
     }
   }
 
-  def publish(ticket: String) = Action.async(parse.json((
+  def publish(way: String) = Action.async(parse.json((
+    (__ \ "ticket").read[String] and
     (__ \ "id").read[String] and
-    (__ \ "way").read[String] and
-    (__ \ "token").read[String]
+    (__ \ "accessKey").read[String]
   ).tupled)) { implicit request =>
-    val (reportId, way, token) = request.body
+    val (ticket, reportId, accessKey) = request.body
     Future {
-      ticket.asTokenOfUser[TicketValue] match {
-        case None => Future(TicketExpired)
-        case Some((vt, value, user)) =>
-          CatchReport get reportId match {
-            case None => Future(BadRequest(f"Invalid report-id: ${reportId}"))
-            case Some(report) => if (report.user.map(_.id != user.id) getOrElse true)
-              Future(BadRequest(f"report(${reportId}) is not owned by user(${user.id})"))
-            else way match {
-              case "facebook" =>
-                implicit val key = Facebook.AccessKey(token)
-                Facebook.Report.publish(report).map(_ match {
-                  case Some(id) => Ok
-                  case None     => InternalServerError(f"Failed to publish to ${way}")
-                })
-              case _ => Future(NotImplemented(f"No way for Publishing '${way}'"))
-            }
+      allCatch opt User.SocialConnection.Service.withName(way) match {
+        case None => Future(BadRequest(f"Invalid social service: ${way}"))
+        case Some(service) => service match {
+          case User.SocialConnection.Service.FACEBOOK => ticket.asToken[TicketValue] match {
+            case None => Future(TicketExpired)
+            case Some((vt, ticket)) =>
+              Report get reportId match {
+                case None => Future(BadRequest(f"Invalid report-id: ${reportId}"))
+                case Some(report) => if (report.userId != ticket.userId)
+                  Future(BadRequest(f"report(${reportId}) is not owned by user(${ticket.userId})"))
+                else {
+                  implicit val key = Facebook.AccessKey(accessKey)
+                  Facebook.Report.publish(report).map(_ match {
+                    case Some(id) => Ok
+                    case None     => InternalServerError(f"Failed to publish to ${way}")
+                  })
+                }
+              }
           }
+          case _ => Future(NotImplemented(f"No way for Publishing '${way}'"))
+        }
       }
     }.flatMap(identity)
   }

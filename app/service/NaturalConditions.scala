@@ -27,9 +27,9 @@ import models.Report.Condition.{ Tide, Weather }
 
 object NaturalConditions {
   object OpenWeatherMap {
-    lazy val URL = Settings.OPENWEATHERMAP_URL
-    lazy val API_KEY = Settings.OPENWEATHERMAP_APPID
-    lazy val ICON = Settings.OPENWEATHERMAP_ICON_URL
+    lazy val URL = settings.openweathermap.url
+    lazy val API_KEY = settings.openweathermap.appId
+    lazy val ICON = settings.openweathermap.iconUrl
     def icon(id: String) = f"${ICON}/${id}.png"
 
     /**
@@ -113,10 +113,10 @@ object NaturalConditions {
     }
     Logger debug f"TideMoon origin(${origin}) -> moon(${moon}): ${angle}"
     angle.toDouble match {
-      case d if d < 30             => Tide.High
-      case d if 30 <= d && d <= 90 => Tide.Flood
-      case d if 90 < d && d < 120  => Tide.Low
-      case d if 120 <= d           => Tide.Ebb
+      case d if d < 30             => Tide.HIGH
+      case d if 30 <= d && d <= 90 => Tide.FLOOD
+      case d if 90 < d && d < 120  => Tide.LOW
+      case d if 120 <= d           => Tide.EBB
     }
   }
 

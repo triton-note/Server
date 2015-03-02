@@ -13,16 +13,13 @@ import play.api.mvc.RequestHeader
 
 import org.fathens.play.util.Exception.allCatch
 
-import models.db.{ CatchReport, Photo, SocialConnection, User => UserDB }
+import models.{ Report, User => Account, ValueUnit }
 
 object Facebook {
   case class AccessKey(token: String)
   case class ObjectId(id: String)
-  lazy val appName = Settings.FACEBOOK_APP_NAME
-  lazy val actionName = Settings.FACEBOOK_CATCH_ACTION
-  lazy val objectName = Settings.FACEBOOK_CATCH_OBJECT
   object fb {
-    lazy val host = Settings.FACEBOOK_HOST
+    lazy val host = settings.facebook.host
     val client = WS.client
     def /(path: String) = client url f"${host}/${path}"
   }
@@ -55,14 +52,14 @@ object Facebook {
      * If User is not found, return accountId which is obtained by accessKey.
      * If User is found by accountId, return User.
      */
-    def find(implicit accesskey: AccessKey): Future[Option[Either[String, UserDB]]] = {
+    def find(implicit accesskey: AccessKey): Future[Option[Either[String, Account]]] = {
       obtain("id") map { opt =>
         for {
           json <- opt
           id <- (json \ "id").asOpt[String]
         } yield {
           Logger debug f"Getting User of facebook by id: ${id}"
-          SocialConnection.findBy(id, SocialConnection.Service.FACEBOOK).flatMap(_.connect).flatMap(_.user) match {
+          Account.findBy(_.FACEBOOK, id, true) match {
             case Some(user) => Right(user)
             case None       => Left(id)
           }
@@ -73,30 +70,28 @@ object Facebook {
      * Create User by email.
      * The email is obtained by accessKey.
      */
-    def create(implicit accesskey: AccessKey): Future[Option[UserDB]] = {
+    def create(implicit accesskey: AccessKey): Future[Option[Account]] = {
       obtain("id", "name") map { opt =>
         for {
           json <- opt
           id <- (json \ "id").asOpt[String]
           name <- (json \ "name").asOpt[String]
         } yield {
-          val user = UserDB.addNew(name)
-          val social = SocialConnection.addNew(id, SocialConnection.Service.FACEBOOK, user)
-          Logger.info(f"Creating ${user} as ${social}")
+          val user = Account.create(name,
+            ValueUnit.Measures(ValueUnit.Length.Measure.CM, ValueUnit.Weight.Measure.KG, ValueUnit.Temperature.Measure.Cels),
+            Account.SocialConnection.of(_.FACEBOOK, id, true))
+          Logger.info(f"Creating ${user}")
           user
         }
       }
     }
-    def connect(user: UserDB)(implicit accesskey: AccessKey): Future[Option[SocialConnection]] = {
+    def connect(user: Account)(implicit accesskey: AccessKey): Future[Option[Account]] = {
       obtain("id") map { opt =>
         for {
           json <- opt
           id <- (json \ "id").asOpt[String]
-          social <- SocialConnection.findBy(id, SocialConnection.Service.FACEBOOK) match {
-            case Some(social) => social.connect
-            case None         => Option(SocialConnection.addNew(id, SocialConnection.Service.FACEBOOK, user))
-          }
-        } yield social
+          saved <- user.connect(Account.SocialConnection.Service.FACEBOOK, id)
+        } yield saved
       }
     }
     /**
@@ -104,39 +99,45 @@ object Facebook {
      * If User is not created yet, create it.
      * If accessKey is not valid, return None.
      */
-    def apply(implicit accesskey: AccessKey): Future[Option[UserDB]] = {
+    def apply(implicit accesskey: String): Future[Option[Account]] = {
+      implicit val key = AccessKey(accesskey)
       Logger.debug(f"Login as user with ${accesskey}")
       find flatMap (_ match {
+        case None => Future(None)
         case Some(e) => e match {
           case Right(user) => Future(Some(user))
-          case Left(id)    => create
+          case Left(id) => Account.findBy(_.FACEBOOK, id, false) match {
+            case None       => create
+            case Some(user) => connect(user)
+          }
         }
-        case None => Future(None)
       })
     }
   }
   object Report {
-    def publish(report: CatchReport)(implicit accessKey: AccessKey, request: RequestHeader): Future[Option[ObjectId]] = {
+    def publish(report: Report)(implicit accessKey: AccessKey, request: RequestHeader): Future[Option[ObjectId]] = {
       def model(f: controllers.routes.ModelView.type => play.api.mvc.Call) =
         Seq(f(controllers.routes.ModelView).absoluteURL(true))
+      val appName = settings.facebook.appName
+      val actionName = settings.facebook.publish.actionName
+      val objectName = settings.facebook.publish.objectName
       val params = {
-        val images = Photo.findBy(report).flatMap(_.image)
         Map(
           "fb:explicitly_shared" -> Seq("true"),
-          "message" -> report.topComment.map(_.text).toSeq,
+          "message" -> report.comment.toSeq,
           "place" -> model(_ spot report.id),
           objectName -> model(_ catchReport report.id)
         ) ++ {
             for {
-              (image, index) <- images.zipWithIndex
+              (photo, index) <- report.photo.zipWithIndex
               (key, value) <- Map(
-                "url" -> image.url(Settings.Pulish.timer),
+                "url" -> photo.original.file.generateURL(settings.facebook.publish.imageTimeout),
                 "user_generated" -> true
               )
             } yield f"image[${index}][${key}]" -> Seq(value.toString)
           }
       }
-      (fb / f"me/${appName}:${actionName}").withQueryString(
+      (fb / f"me/${appName}:${settings.facebook.publish.actionName}").withQueryString(
         "access_token" -> accessKey.token
       ).post(params).map(parse.ObjectID)
     }
