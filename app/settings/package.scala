@@ -47,6 +47,7 @@ package object settings {
     val region = get("AWS_REGION")
     val bucketName = get("AWS_S3_BUCKET_NAME")
   }
+  lazy val appName = root.appName
   lazy val token = root.tokenTimeout
   lazy val facebook = root.facebook
   lazy val image = root.image

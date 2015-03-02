@@ -12,7 +12,7 @@ object AWS {
       c
     }
     lazy val delegate = new DynamoDB(service.AWS.DynamoDB.client)
-    def getTable(name: String) = delegate.getTable(name)
+    def getTable(name: String) = delegate.getTable(f"${settings.appName}.${name}")
   }
   object S3 {
     lazy val client = {
