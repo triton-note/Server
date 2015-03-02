@@ -16,7 +16,7 @@
   
   <div id="gmap"></div>
   <script type="text/javascript">
-  var pos = new google.maps.LatLng(@geoinfo.latitude, @geoinfo.longitude);
+  var pos = new google.maps.LatLng(@geoinfo.latitude.toDouble, @geoinfo.longitude.toDouble);
   var map = new google.maps.Map(document.getElementById("gmap"), {
 	  zoom : 10,
 	  center : pos,
