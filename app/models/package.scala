@@ -14,7 +14,7 @@ package object models {
   def generateId = play.api.libs.Crypto.generateToken
 
   class TableDelegate[T <: { val id: String }](name: String)(implicit $writer: Format[T]) {
-    lazy val TABLE = DynamoDB.getTable(f"TritonNote.${name}")
+    lazy val TABLE = DynamoDB.getTable(name)
     val ID = "ID"
     val CONTENT = "CONTENT"
 
