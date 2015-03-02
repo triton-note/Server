@@ -8,6 +8,7 @@ import play.api.libs.json._
  * Definition of Settings Model
  */
 case class Settings(
+  appName: String,
   tokenTimeout: Settings.TokenTimeout,
   image: Settings.Image,
   facebook: Settings.Facebook,
@@ -43,4 +44,3 @@ object Settings {
   }
   implicit val json = Json.format[Settings]
 }
-
