@@ -137,7 +137,7 @@ object Facebook {
             } yield f"image[${index}][${key}]" -> Seq(value.toString)
           }
       }
-      (fb / f"me/${appName}:${settings.facebook.publish.actionName}").withQueryString(
+      (fb / f"me/${appName}:${actionName}").withQueryString(
         "access_token" -> accessKey.token
       ).post(params).map(parse.ObjectID)
     }
