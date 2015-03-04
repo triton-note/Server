@@ -15,12 +15,15 @@
 <body>
   <h1>@title</h1>
   
+  <a href="http://maps.apple.com/?q=@geoinfo.latitude.toDouble, @geoinfo.longitude.toDouble">Open App</a>
   <div id="gmap"></div>
   <script type="text/javascript">
   var pos = new google.maps.LatLng(@geoinfo.latitude.toDouble, @geoinfo.longitude.toDouble);
-  var map = new google.maps.Map(document.getElementById("gmap"), {
+  var div = document.getElementById("gmap");
+  var map = new google.maps.Map(div, {
 	  zoom : 10,
 	  center : pos,
+    disableDefaultUI: true,
 	  mapTypeId : google.maps.MapTypeId.HYBRID
 	});
   var marker = new google.maps.Marker({
@@ -32,6 +35,9 @@
 	});
   google.maps.event.addListener(marker, "click", function() {
 	  infowindow.open(map, marker);
+  });
+  google.maps.event.addDomListener(div, 'click',  function() {
+    open("http://maps.apple.com/?q=@geoinfo.latitude.toDouble, @geoinfo.longitude.toDouble");
   });
   </script>
 </body>
