@@ -69,7 +69,7 @@ object ReportSync extends Controller {
             case None => BadRequest(f"Invalid id: ${report.id}")
             case Some(src) => if (src.userId != ticket.userId)
               BadRequest(f"report(${report.id}) is not owned by user(${ticket.userId})")
-            else report.save match {
+            else report.copy(userId = ticket.userId).save match {
               case None        => InternalServerError("Failed to update report")
               case Some(saved) => Ok
             }
