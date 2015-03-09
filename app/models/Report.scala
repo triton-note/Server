@@ -107,7 +107,7 @@ object Report {
             new KeyAttribute("DATE_AT", new java.lang.Long(report.dateAt.getTime))
           )
         }
-      } andThen (_.withHashKey("USER_ID", userId))
+      } andThen (_.withHashKey("USER_ID", userId).withScanIndexForward(false))
     )
   }
 }
