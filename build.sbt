@@ -1,6 +1,6 @@
 name := """TritonNote-Server"""
 
-version := "0.8.10"
+version := "1.0.0"
 
 lazy val root = (project in file(".")).enablePlugins(PlayScala)
 
@@ -14,7 +14,7 @@ scalacOptions ++= Seq(
 )
 
 libraryDependencies ++= Seq(
-  "org.fathens" %% "astronomy" % "1.1.2" excludeAll(ExclusionRule(organization = "org.specs2")),
+  "org.fathens" %% "astronomy" % "1.1.3" excludeAll(ExclusionRule(organization = "org.specs2")),
   "com.drewnoakes" % "metadata-extractor" % "2.7.2",
   "com.amazonaws" % "aws-java-sdk" % "1.9.21",
   "org.scalaz" %% "scalaz-core" % "7.0.6",

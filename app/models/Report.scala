@@ -70,11 +70,15 @@ object Report {
         val v = a.comment.filter(_.length > 0)
         if (v == a.comment) a else a.copy(comment = v)
       }
-      val fixId = (a: Report) => {
-        val v = Option(a.id).filter(_.length > 0) getOrElse generateId
-        if (v == a.id) a else a.copy(id = v)
+      val fixId = (a: Report) => Option(a.id).filter(_.length > 0) match {
+        case Some(_) => a
+        case None    => a.copy(id = generateId)
       }
-      (fixId compose fixComment)(given)
+      val fixSpotName = (a: Report) => Option(a.location.name).filter(_.length > 0) match {
+        case Some(_) => a
+        case None    => a.copy(location = a.location.copy(name = " "))
+      }
+      (fixId compose fixComment compose fixSpotName)(given)
     }
     DB.save(report)(_
       .withString("USER_ID", report.userId)
@@ -103,7 +107,7 @@ object Report {
             new KeyAttribute("DATE_AT", new java.lang.Long(report.dateAt.getTime))
           )
         }
-      } andThen (_.withHashKey("USER_ID", userId))
+      } andThen (_.withHashKey("USER_ID", userId).withScanIndexForward(false))
     )
   }
 }
