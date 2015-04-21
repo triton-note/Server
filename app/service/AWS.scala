@@ -1,7 +1,9 @@
 package service
 
 import scala.collection.JavaConversions._
+
 import com.amazonaws.auth.BasicAWSCredentials
+import com.amazonaws.services.cognitoidentity.model.GetCredentialsForIdentityRequest
 import com.amazonaws.services.dynamodbv2.document.DynamoDB
 
 object AWS {
@@ -9,8 +11,14 @@ object AWS {
   object Cognito {
     lazy val client = new com.amazonaws.services.cognitoidentity.AmazonCognitoIdentityClient(credential);
     def checkId(id: String, logins: Map[String, String]) = {
-      val cred = client.getCredentialsForIdentity(new com.amazonaws.services.cognitoidentity.model.GetCredentialsForIdentityRequest().withIdentityId(id).withLogins(logins));
-      cred.getCredentials != null
+      try {
+        val cred = client.getCredentialsForIdentity(new GetCredentialsForIdentityRequest().withIdentityId(id).withLogins(logins));
+        cred.getCredentials.getSessionToken != null
+      } catch {
+        case ex: Exception =>
+          ex.printStackTrace()
+          false
+      }
     }
   }
   object DynamoDB {
