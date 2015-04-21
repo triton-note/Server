@@ -8,7 +8,7 @@ import play.api.libs.functional.syntax._
 import play.api.libs.json._
 import play.api.mvc.{ Action, Controller }
 
-import models.{ User, ValueUnit, VolatileToken }
+import models.{ Report, User, ValueUnit, VolatileToken }
 import service.AWS
 
 object Account extends Controller {
@@ -20,12 +20,43 @@ object Account extends Controller {
     Logger info f"Authorizing by services(${logins.keys})"
     Future {
       if (AWS.Cognito.checkId(cognitoId, logins)) {
-        if (User.get(cognitoId).isEmpty) {
-          User.create(cognitoId)
+        val user = User.findBy(cognitoId) match {
+          case Some(user) => user
+          case None       => User.create(cognitoId)
         }
-        val vt = VolatileToken.create(TicketValue(cognitoId).asJson, settings.token.ticket)
+        val vt = VolatileToken.create(TicketValue(user.id).asJson, settings.token.ticket)
         Ok(vt.id)
       } else Unauthorized
+    }
+  }
+
+  def changeId = Action.async(parse.json((
+    (__ \ "ticket").read[String] and
+    (__ \ "identityId").read[String] and
+    (__ \ "logins").read[Map[String, String]]
+  ).tupled)) { implicit request =>
+    val (ticket, cognitoId, logins) = request.body
+    Logger info f"Changing and Authorizing by services(${logins.keys})"
+    Future {
+      ticket.asToken[TicketValue] match {
+        case None => TicketExpired
+        case Some((vt, ticket)) => User get ticket.userId match {
+          case None => BadRequest(f"User not found: ${ticket.userId}")
+          case Some(user) =>
+            if (AWS.Cognito.checkId(cognitoId, logins)) {
+              User.findBy(cognitoId) match {
+                case None => user.copy(cognitoId = cognitoId).save match {
+                  case None    => InternalServerError
+                  case Some(_) => Ok(vt.id)
+                }
+                case Some(another) =>
+                  val r = Report.findBy(user.id).par.foreach(_.copy(userId = another.id).save)
+                  val vt = VolatileToken.create(TicketValue(another.id).asJson, settings.token.ticket)
+                  Ok(vt.id)
+              }
+            } else Unauthorized
+        }
+      }
     }
   }
 
