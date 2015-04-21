@@ -6,12 +6,9 @@ import play.api.Logger
 import play.api.libs.concurrent.Execution.Implicits.defaultContext
 import play.api.libs.functional.syntax._
 import play.api.libs.json._
-import play.api.libs.json.Json.toJsFieldJsValueWrapper
 import play.api.mvc.{ Action, Controller }
 
-import org.fathens.play.util.Exception.allCatch
-
-import models.{ Report, User }
+import models.Report
 import service.Facebook
 
 object ReportSync extends Controller {
@@ -106,28 +103,24 @@ object ReportSync extends Controller {
   ).tupled)) { implicit request =>
     val (ticket, reportId, accessKey) = request.body
     Future {
-      allCatch opt User.SocialConnection.Service.withName(way) match {
-        case None => Future(BadRequest(f"Invalid social service: ${way}"))
-        case Some(service) => service match {
-          case User.SocialConnection.Service.FACEBOOK => ticket.asToken[TicketValue] match {
-            case None => Future(TicketExpired)
-            case Some((vt, ticket)) =>
-              Report get reportId match {
-                case None => Future(BadRequest(f"Invalid report-id: ${reportId}"))
-                case Some(report) => if (report.userId != ticket.userId)
-                  Future(BadRequest(f"report(${reportId}) is not owned by user(${ticket.userId})"))
-                else {
-                  implicit val key = Facebook.AccessKey(accessKey)
-                  Facebook.Report.publish(report).map(_ match {
-                    case Some(id) => Ok
-                    case None     => InternalServerError(f"Failed to publish to ${way}")
-                  })
-                }
+      if (way == "facebook") {
+        ticket.asToken[TicketValue] match {
+          case None => Future(TicketExpired)
+          case Some((vt, ticket)) =>
+            Report get reportId match {
+              case None => Future(BadRequest(f"Invalid report-id: ${reportId}"))
+              case Some(report) => if (report.userId != ticket.userId)
+                Future(BadRequest(f"report(${reportId}) is not owned by user(${ticket.userId})"))
+              else {
+                implicit val key = Facebook.AccessKey(accessKey)
+                Facebook.Report.publish(report).map(_ match {
+                  case Some(id) => Ok
+                  case None     => InternalServerError(f"Failed to publish to ${way}")
+                })
               }
-          }
-          case _ => Future(NotImplemented(f"No way for Publishing '${way}'"))
+            }
         }
-      }
+      } else Future(NotImplemented(f"No way for Publishing '${way}'"))
     }.flatMap(identity)
   }
 }
