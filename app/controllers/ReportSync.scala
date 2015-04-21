@@ -16,7 +16,7 @@ object ReportSync extends Controller {
   def load = Action.async(parse.json((
     (__ \ "ticket").read[String] and
     (__ \ "count").read[Int] and
-    (__ \ "last").read[Option[Report]]
+    (__ \ "last").readNullable[Report]
   ).tupled)) { implicit request =>
     val (ticket, count, last) = request.body
     Logger debug f"Loading reports: count(${count}) from ${last}"
