@@ -53,11 +53,10 @@ object Photo {
       val (w, h) = if (width > height) (max, height * max / width) else (width * max / height, max)
       Logger debug f"Resizing image for ${relation}: (${width} x ${height}) -> (${w} x ${h})"
       val scaled = rotated.scaleTo(w, h)
-      val path = file.paths.reverse match {
-        case name :: parent :: left => List("photo", Photo.Image.Kind.REDUCED, parent, relation).mkString("/")
-        case _                      => throw new IllegalArgumentException(f"Unexpected file path: ${file.paths}")
+      val dstFile = file.paths.reverse match {
+        case name :: _ :: parent => Storage.file((name :: relation :: Photo.Image.Kind.REDUCED.toString :: parent).reverse: _*)
+        case _                   => throw new IllegalArgumentException(f"Unexpected file path: ${file.paths}")
       }
-      val dstFile = Storage.file(path)
       scaled.writer(scrimage.Format.JPEG).write(dstFile.newWriter)
       Photo.Image(dstFile)
     }

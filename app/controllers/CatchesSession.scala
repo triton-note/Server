@@ -21,7 +21,8 @@ object CatchesSession extends Controller {
   }
   val SessionExpired = BadRequest("Session Expired")
 
-  def mkFolder(session: String) = List("photo", Photo.Image.Kind.ORIGINAL, session).mkString("/")
+  def mkFolder(userId: String, sessionId: String) =
+    List(userId, "photo", sessionId, Photo.Image.Kind.ORIGINAL).mkString("/")
 
   def start = Action.async(parse.json((
     (__ \ "ticket").read[String] and
@@ -37,7 +38,7 @@ object CatchesSession extends Controller {
           val vt = VolatileToken.create(session.asJson, settings.token.session)
           Ok(Json.obj(
             "session" -> vt.id,
-            "upload" -> Storage.Upload.start(mkFolder(vt.id))
+            "upload" -> Storage.Upload.start(mkFolder(session.userId, vt.id))
           ))
       }
     }
@@ -50,21 +51,22 @@ object CatchesSession extends Controller {
     val (session, names) = request.body
     Logger debug f"Saving head of ${names}"
     Future {
-      names.map(Storage.file(mkFolder(session), _)).toList match {
-        case Nil => BadRequest("No uploaded files")
-        case file :: Nil => session.asToken[SessionValue] match {
-          case None => SessionExpired
-          case Some((vt, session)) => Photo of file match {
-            case None => InternalServerError("Failed to save photo")
-            case Some(photo) => vt.copy(data = session.copy(imagePath = Some(photo.original.file.path)).asJson).save match {
-              case None => InternalServerError("Failed to save session value")
-              case Some(_) => Ok(Json.obj(
-                "url" -> photo
-              ))
+      session.asToken[SessionValue] match {
+        case None => SessionExpired
+        case Some((vt, session)) =>
+          names.map(Storage.file(mkFolder(session.userId, vt.id), _)).toList match {
+            case Nil => BadRequest("No uploaded files")
+            case file :: Nil => Photo of file match {
+              case None => InternalServerError("Failed to save photo")
+              case Some(photo) => vt.copy(data = session.copy(imagePath = Some(photo.original.file.path)).asJson).save match {
+                case None => InternalServerError("Failed to save session value")
+                case Some(_) => Ok(Json.obj(
+                  "url" -> photo
+                ))
+              }
             }
+            case _ => BadRequest("Too much uploaded files")
           }
-        }
-        case _ => BadRequest("Too much uploaded files")
       }
     }
   }
