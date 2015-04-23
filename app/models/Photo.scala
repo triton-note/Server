@@ -25,12 +25,7 @@ object Photo {
   object Image {
     implicit val json = Format[Image](
       (__ \ "path").read[String].map(Storage file _).map(Image.apply),
-      Writes { image =>
-        Json.obj(
-          "path" -> image.file.path,
-          "volatileUrl" -> image.file.generateURL(settings.image.urlTimeout).toString
-        )
-      }
+      Writes { image => Json.obj("path" -> image.file.path) }
     )
     object Kind extends Enumeration {
       val ORIGINAL = Value("original")
