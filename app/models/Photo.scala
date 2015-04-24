@@ -57,7 +57,7 @@ object Photo {
         case name :: _ :: parent => Storage.file((name :: relation :: Photo.Image.Kind.REDUCED.toString :: parent).reverse: _*)
         case _                   => throw new IllegalArgumentException(f"Unexpected file path: ${file.paths}")
       }
-      scaled.writer(scrimage.Format.JPEG).write(dstFile.newWriter)
+      scaled.writer(scrimage.Format.JPEG).write(dstFile.newWriter("image/jpeg"))
       Photo.Image(dstFile)
     }
     for {

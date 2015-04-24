@@ -38,18 +38,20 @@ object Storage {
     def exists: Boolean = {
       s3.getObjectMetadata(bucketName, path) != null
     }
-    def newWriter: OutputStream = {
+    def newWriter(contentType: String): OutputStream = {
       val ins = new PipedInputStream
       val out = new PipedOutputStream(ins)
       Future {
-        slurp(new BufferedInputStream(ins))
+        slurp(new BufferedInputStream(ins), contentType)
       }
       new BufferedOutputStream(out)
     }
-    def slurp(source: java.io.InputStream) {
+    def slurp(source: java.io.InputStream, contentType: String = null) {
       Logger.debug(f"Storing for S3:${bucketName}:${path}")
       try {
-        s3.putObject(bucketName, path, source, new ObjectMetadata())
+        val meta = new ObjectMetadata()
+        if (contentType != null) meta.setContentType(contentType)
+        s3.putObject(bucketName, path, source, meta)
       } catch {
         case ex: Exception => throw new IOException(f"Failed to load to ${this}", ex)
       }
