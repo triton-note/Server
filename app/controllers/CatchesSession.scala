@@ -22,7 +22,7 @@ object CatchesSession extends Controller {
   val SessionExpired = BadRequest("Session Expired")
 
   def mkFolder(user: User, sessionId: String) =
-    List(user.cognitoId, "photo", sessionId, Photo.Image.Kind.ORIGINAL).mkString("/")
+    List("user", user.cognitoId, "photo", sessionId, Photo.Image.Kind.ORIGINAL).mkString("/")
 
   def start = Action.async(parse.json((
     (__ \ "ticket").read[String] and
