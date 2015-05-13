@@ -20,9 +20,10 @@ object CatchesSession extends Controller {
     /**
      * delete files that associated with this session
      */
-    def delete = imagePath.foreach { path =>
-      val dir = Storage.file(path).paths.dropRight(2)
-      Storage.file(dir: _*).delete
+    def delete = imagePath.map { path =>
+      val original = Storage.file(path)
+      val reduced = Photo.ReducedImage(original).values.map(_.file).toList
+      (original :: reduced).par.map(_.delete).forall(identity)
     }
   }
   object SessionValue {
@@ -30,8 +31,7 @@ object CatchesSession extends Controller {
   }
   val SessionExpired = BadRequest("Session Expired")
 
-  def mkFolder(user: User, sessionId: String) =
-    List("user", user.cognitoId, "photo", sessionId, Photo.Image.Kind.ORIGINAL).mkString("/")
+  def mkFolder(user: User, sessionId: String) = Photo.Image.originalFolder(user.cognitoId, sessionId)
 
   def start = Action.async(parse.json((
     (__ \ "ticket").read[String] and
