@@ -16,10 +16,7 @@ case class VolatileToken(id: String, expiration: Date, data: JsValue) {
   def save: Option[VolatileToken] = VolatileToken.save(this)
   def delete = {
     Future {
-      for {
-        session <- data.asOpt[CatchesSession.SessionValue]
-        path <- session.imagePath
-      } Storage.file(path).delete
+      data.asOpt[CatchesSession.SessionValue].foreach(_.delete)
     }
     VolatileToken.delete(id)
   }

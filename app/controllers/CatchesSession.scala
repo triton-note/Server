@@ -15,7 +15,16 @@ object CatchesSession extends Controller {
   case class SessionValue(
     userId: String,
     geoinfo: Option[GeoInfo],
-    imagePath: Option[String] = None)
+    imagePath: Option[String] = None) {
+
+    /**
+     * delete files that associated with this session
+     */
+    def delete = imagePath.foreach { path =>
+      val dir = Storage.file(path).paths.dropRight(2)
+      Storage.file(dir: _*).delete
+    }
+  }
   object SessionValue {
     implicit val json = Json.format[SessionValue]
   }
