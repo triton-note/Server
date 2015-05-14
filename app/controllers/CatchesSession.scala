@@ -20,18 +20,16 @@ object CatchesSession extends Controller {
     /**
      * delete files that associated with this session
      */
-    def delete = imagePath.map { path =>
+    def delete = imagePath.foreach { path =>
       val original = Storage.file(path)
-      val reduced = Photo.ReducedImage(original).values.map(_.file).toList
-      (original :: reduced).par.map(_.delete).forall(identity)
+      val reduced = Photo.Image.reduced(original)
+      (original :: reduced).par.foreach(_.delete)
     }
   }
   object SessionValue {
     implicit val json = Json.format[SessionValue]
   }
   val SessionExpired = BadRequest("Session Expired")
-
-  def mkFolder(user: User, sessionId: String) = Photo.Image.originalFolder(user.cognitoId, sessionId)
 
   def start = Action.async(parse.json((
     (__ \ "ticket").read[String] and
@@ -47,9 +45,10 @@ object CatchesSession extends Controller {
           case Some(user) =>
             val session = SessionValue(ticket.userId, geoinfo)
             val vt = VolatileToken.create(session.asJson, settings.token.session)
+            val folder = Photo.Image.file(_.ORIGINAL)(user.cognitoId, vt.id).path
             Ok(Json.obj(
               "session" -> vt.id,
-              "upload" -> Storage.Upload.start(mkFolder(user, vt.id))
+              "upload" -> Storage.Upload.start(folder)
             ))
         }
       }
@@ -68,9 +67,9 @@ object CatchesSession extends Controller {
         case Some((vt, session)) => User.get(session.userId) match {
           case None => Unauthorized
           case Some(user) =>
-            names.map(Storage.file(mkFolder(user, vt.id), _)).toList match {
+            names.toList match {
               case Nil => BadRequest("No uploaded files")
-              case file :: Nil => Photo of file match {
+              case name :: Nil => Photo.of(user, vt.id, name) match {
                 case None => InternalServerError("Failed to save photo")
                 case Some(photo) => vt.copy(data = session.copy(imagePath = Some(photo.original.file.path)).asJson).save match {
                   case None => InternalServerError("Failed to save session value")
