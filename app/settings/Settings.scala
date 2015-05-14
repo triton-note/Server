@@ -18,12 +18,8 @@ object Settings {
   object TokenTimeout {
     implicit val json = Json.format[TokenTimeout]
   }
-  case class Image(urlTimeout: FiniteDuration, size: Image.Sizes, upload: Image.Upload)
+  case class Image(urlTimeout: FiniteDuration, size: Map[String, Int], upload: Image.Upload)
   object Image {
-    case class Sizes(mainview: Int, thumbnail: Int)
-    object Sizes {
-      implicit val json = Json.format[Sizes]
-    }
     case class Upload(accessKey: String, secretKey: String, acl: String, timeout: FiniteDuration, minFileSize: Long, maxFileSize: Long)
     object Upload {
       implicit val json = Json.format[Upload]

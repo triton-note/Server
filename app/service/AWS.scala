@@ -1,10 +1,26 @@
 package service
 
+import scala.collection.JavaConversions._
+
 import com.amazonaws.auth.BasicAWSCredentials
+import com.amazonaws.services.cognitoidentity.model.GetCredentialsForIdentityRequest
 import com.amazonaws.services.dynamodbv2.document.DynamoDB
 
 object AWS {
   val credential = new BasicAWSCredentials(settings.AWS.accessKey, settings.AWS.secretKey)
+  object Cognito {
+    lazy val client = new com.amazonaws.services.cognitoidentity.AmazonCognitoIdentityClient(credential);
+    def checkId(id: String, logins: Map[String, String]) = {
+      try {
+        val cred = client.getCredentialsForIdentity(new GetCredentialsForIdentityRequest().withIdentityId(id).withLogins(logins));
+        cred.getCredentials.getSessionToken != null
+      } catch {
+        case ex: Exception =>
+          ex.printStackTrace()
+          false
+      }
+    }
+  }
   object DynamoDB {
     lazy val client = {
       val c = new com.amazonaws.services.dynamodbv2.AmazonDynamoDBClient(credential)

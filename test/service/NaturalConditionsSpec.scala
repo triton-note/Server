@@ -23,7 +23,6 @@ object NaturalConditionsSpec extends Specification with ScalaCheck {
   Weather
 
     current info at Athens           $ci01
-    past info at Tokyo               $ci02
 """
 
   implicit val genDegrees = Arbitrary(Arbitrary.arbitrary[Double].map(Degrees).map(_.normalize: Degrees))

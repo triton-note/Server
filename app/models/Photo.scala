@@ -14,10 +14,9 @@ import service.Storage
 
 case class Photo(
   original: Photo.Image,
-  mainview: Photo.Image,
-  thumbnail: Photo.Image) {
+  reduced: Map[String, Photo.Image]) {
   def delete = {
-    List(original, mainview, thumbnail).par.map(_.file.delete)
+    (original :: reduced.values.toList).par.map(_.file.delete)
   }
 }
 object Photo {
@@ -25,51 +24,61 @@ object Photo {
   object Image {
     implicit val json = Format[Image](
       (__ \ "path").read[String].map(Storage file _).map(Image.apply),
-      Writes { image =>
-        Json.obj(
-          "path" -> image.file.path,
-          "volatileUrl" -> image.file.generateURL(settings.image.urlTimeout).toString
-        )
-      }
+      Writes { image => Json.obj("path" -> image.file.path) }
     )
-    object Kind extends Enumeration {
-      val ORIGINAL = Value("original")
-      val REDUCED = Value("reduced")
+    object Kind {
+      val ORIGINAL = "original"
+      val REDUCED = "reduced"
+    }
+    /**
+     * 指定された Kind のファイルを生成する。
+     */
+    def file(f: Kind.type => String)(cognitoId: String, sessionId: String, left: String*) =
+      Storage.file(("user" :: cognitoId :: "photo" :: sessionId :: f(Kind) :: left.toList): _*)
+    /**
+     * オリジナルの画像ファイルから Reduced の画像ファイルのリストを作り出す。
+     */
+    def reduced(original: Storage.S3File): List[Storage.S3File] = settings.image.size.toList.map {
+      case (relation, _) => original.paths match {
+        case "user" :: cognitoId :: "photo" :: sessionId :: Kind.ORIGINAL :: name :: Nil =>
+          file(_.REDUCED)(cognitoId, sessionId, relation, name)
+        case _ => throw new IllegalArgumentException(f"Unexpected file path: ${original.paths}")
+      }
     }
   }
   implicit val json = Json.format[Photo]
 
   /**
-   * オリジナルの画像をリサイズして Mainview と Thumbnail 専用の画像を作成する。
+   * オリジナルの画像をリサイズして Reduced 画像を作成し、セットとした Photo インスタンスを生成する。
+   * この時、オリジナル以外の画像の向きは正立させられる。
    */
-  def of(file: Storage.S3File): Option[Photo] = {
-    def resize(image: scrimage.Image, max: Int, relation: String) = {
-      val rotated = allCatch.opt {
+  def of(user: User, sessionId: String, filename: String): Option[Photo] = allCatch.opt {
+    val file = Image.file(_.ORIGINAL)(user.cognitoId, sessionId, filename)
+    val rotated = {
+      val image = scrimage.Image(file.read)
+      allCatch.opt {
         val metadata = ImageMetadataReader.readMetadata(file.read)
         val dic = metadata.getDirectory(classOf[ExifIFD0Directory])
-        dic.getInt(ExifIFD0Directory.TAG_ORIENTATION) match {
+        if (dic == null) image
+        else dic.getInt(ExifIFD0Directory.TAG_ORIENTATION) match {
           case 3 => image.rotateLeft.rotateLeft
           case 6 => image.rotateLeft
           case 8 => image.rotateRight
           case _ => image
         }
       } getOrElse image
-      val (width, height) = (rotated.width, rotated.height)
-      val (w, h) = if (width > height) (max, height * max / width) else (width * max / height, max)
-      Logger debug f"Resizing image for ${relation}: (${width} x ${height}) -> (${w} x ${h})"
-      val scaled = rotated.scaleTo(w, h)
-      val path = file.paths.reverse match {
-        case name :: parent :: left => List("photo", Photo.Image.Kind.REDUCED, parent, relation).mkString("/")
-        case _                      => throw new IllegalArgumentException(f"Unexpected file path: ${file.paths}")
-      }
-      val dstFile = Storage.file(path)
-      scaled.writer(scrimage.Format.JPEG).write(dstFile.newWriter)
-      Photo.Image(dstFile)
     }
-    for {
-      i <- allCatch.opt { Option(scrimage.Image(file.read)) }.flatten
-      m <- allCatch opt resize(i, settings.image.size.mainview, "mainview")
-      t <- allCatch opt resize(i, settings.image.size.thumbnail, "thumbnail")
-    } yield Photo(Photo.Image(file), m, t)
+    val images = settings.image.size.map {
+      case (relation, maxSize) => relation -> {
+        val file = Image.file(_.REDUCED)(user.cognitoId, sessionId, relation, filename)
+        val (width, height) = (rotated.width, rotated.height)
+        val (w, h) = if (width > height) (maxSize, height * maxSize / width) else (width * maxSize / height, maxSize)
+        Logger debug f"Resizing image for ${relation}: (${width} x ${height}) -> (${w} x ${h})"
+        val scaled = rotated.scaleTo(w, h)
+        scaled.writer(scrimage.Format.JPEG).write(file.newWriter("image/jpeg"))
+        Photo.Image(file)
+      }
+    }
+    Photo(Photo.Image(file), images)
   }
 }

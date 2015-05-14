@@ -3,9 +3,7 @@ GET    /                          controllers.Default.redirect(to = "http://www.
 GET    /assets/*file              controllers.Assets.at(path="/public", file)
 
 # Login
-POST   /login/:way                controllers.Account.login(way: String)
-POST   /account/connect/:way      controllers.Account.connect(way: String)
-POST   /account/disconnect/:way   controllers.Account.disconnect(way: String)
+POST   /login                     controllers.Account.login
 
 # Report posting
 POST   /report/new-session        controllers.CatchesSession.start
