@@ -23,7 +23,9 @@ object ValueUnit {
   object Weight {
     object Measure extends Enumeration {
       val KG = Value("kg")
+      val G = Value("g")
       val POND = Value("pond")
+      val OZ = Value("oz")
       implicit val json = Format[Measure.Value](
         Reads.verifying[String](values.map(_.toString).contains).map(withName),
         Writes { Json toJson _.toString })
